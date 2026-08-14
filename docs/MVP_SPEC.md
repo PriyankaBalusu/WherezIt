@@ -1,4 +1,4 @@
-# Personal Storage Memory — MVP Development Specification
+# Wherezit — MVP Development Specification
 
 Version: 1.1  
 Status: Implementation Source of Truth  
@@ -9,7 +9,7 @@ Primary developer workflow: Gemini for architecture/review; Antigravity for impl
 
 ## 1. Product Summary
 
-Build a mobile-first **Personal Storage Memory** application that helps users remember:
+Build a mobile-first **Wherezit** application that helps users remember:
 
 1. what they own,
 2. which container contains an item,
@@ -33,7 +33,7 @@ Example:
 
 ### Product directions
 
-- **Personal Storage Memory** — core consumer product and MVP.
+- **Wherezit** — core consumer product and MVP.
 - **Moving Mode** — optional acquisition workflow using the same domain.
 - **Storage Facility Digital Twin** — future commercial expansion, not MVP.
 
@@ -764,7 +764,7 @@ Observability: Cloud Logging + Cloud Monitoring
 ## 21. Repository Layout
 
 ```text
-storage-memory/
+wherezit/
   GEMINI.md
   GEMINI_MASTER_PROMPT.md
   README.md
@@ -829,3 +829,34 @@ MVP is Done only when:
 - no secrets are committed
 - no known P0/P1 security defect remains
 - demo data can be loaded
+
+
+---
+
+## 24. In-Product Agent Orchestration
+
+Wherezit includes:
+
+```text
+Wherezit Orchestrator
+├── Vision Agent
+├── Inventory Agent
+└── Retrieval Agent
+```
+
+These agents are logical components inside the modular monolith, not microservices.
+
+See:
+- `docs/AI_AGENT_ORCHESTRATION.md`
+- `docs/ADR/ADR-002-agent-orchestration.md`
+
+MVP requirements:
+- Vision Agent proposes candidates from photos.
+- Inventory Agent normalizes/refines candidates.
+- Retrieval Agent answers natural-language find questions using authorized application tools.
+- Orchestrator coordinates agents and enforces tool boundaries.
+- PostgreSQL remains system of record.
+- trusted inventory requires explicit user confirmation.
+- retrieval must be grounded in real authorized records.
+- no agent receives unrestricted DB access.
+- agent quality is measured through evaluations.

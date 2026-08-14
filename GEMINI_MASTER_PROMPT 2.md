@@ -137,6 +137,3 @@ At the end of each ticket report:
 - remaining risks
 
 Stop after the ticket unless explicitly asked to continue.
-
-
-Also read and preserve `docs/ADR/ADR-003-archive-and-task-security.md`.

@@ -1,6 +1,6 @@
-# Personal Storage Memory — Gemini + Antigravity Agent Pack
+# Wherezit — Gemini + Antigravity Agent Pack
 
-This repository context pack is the implementation source of truth for the Personal Storage Memory MVP.
+This repository context pack is the implementation source of truth for the Wherezit MVP.
 
 ## Canonical stack
 
@@ -27,7 +27,7 @@ This repository context pack is the implementation source of truth for the Perso
 
 This is **not** a QR-code inventory app.
 
-The application is a personal storage memory system: users catalog belongings, connect them to permanent containers and physical locations, and retrieve them later through search, labels, photos, and AI-assisted workflows.
+The application is a Wherezit system: users catalog belongings, connect them to permanent containers and physical locations, and retrieve them later through search, labels, photos, and AI-assisted workflows.
 
 QR codes, barcodes, and future identifiers are interaction mechanisms over the same domain.
 
@@ -60,3 +60,31 @@ Older project documents referenced MySQL. Those references are obsolete.
 **PostgreSQL is now the only approved relational database.**
 
 Do not preserve parallel MySQL code, schemas, migrations, search logic, Docker services, provider packages, or deployment configuration.
+
+
+## Wherezit agent orchestration
+
+This pack deliberately contains two separate hierarchies:
+
+1. `/agents` — coding-agent roles that build/review Wherezit.
+2. `docs/AI_AGENT_ORCHESTRATION.md` — AI agents that run inside Wherezit.
+
+Recommended start:
+
+**Gemini architecture review → approved spec changes → Antigravity Orchestrator → one ticket at a time → QA/Security/Final Review.**
+
+
+## Architecture review v2.1
+
+This pack incorporates the accepted Gemini architecture-review recommendations:
+
+- strict StorageNode archive blocking
+- Container archive with Items preserved
+- database-guarded AI confirmation idempotency
+- Retrieval Agent query expansion with PostgreSQL-grounded evidence
+- authenticated Cloud Tasks OIDC invocation
+- QR post-login return-state preservation
+- canonical BOX ID formatting beyond 999
+- workspace/container-prefixed Cloud Storage object keys
+
+See `docs/ARCHITECTURE_REVIEW_DECISIONS_2026-08-14.md`.

@@ -1,6 +1,6 @@
-# GEMINI.md — Personal Storage Memory Agent Rules
+# GEMINI.md — Wherezit Agent Rules
 
-You are working on the Personal Storage Memory MVP.
+You are working on the Wherezit MVP.
 
 Read before modifying code:
 
@@ -14,7 +14,7 @@ The specification is authoritative. Tickets define implementation order. ADRs lo
 
 ## Core product rules
 
-- This is Personal Storage Memory, not a QR inventory app.
+- This is Wherezit, not a QR inventory app.
 - A container has an internal UUID and a permanent human-readable ID such as `BOX 010`.
 - Moving a container NEVER changes its BOX ID.
 - Workspace is the tenant/security boundary.
@@ -163,3 +163,26 @@ For every ticket:
 ## Completion rule
 
 A ticket is complete only when its acceptance criteria are met and relevant builds/tests pass.
+
+
+## Two agent hierarchies
+
+Wherezit has two distinct concepts:
+
+### Coding agents
+Instructions under `/agents`. These roles build and review the repository.
+
+### Product agents
+Defined in `docs/AI_AGENT_ORCHESTRATION.md`:
+
+```text
+Wherezit Orchestrator
+├── Vision Agent
+├── Inventory Agent
+└── Retrieval Agent
+```
+
+Never confuse coding-agent authority with product-agent runtime permissions.
+
+
+Also read and preserve `docs/ADR/ADR-003-archive-and-task-security.md`.

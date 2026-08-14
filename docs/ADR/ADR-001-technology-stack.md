@@ -4,7 +4,7 @@ Status: Accepted
 
 ## Context
 
-The Personal Storage Memory MVP must be implementable by a small engineering effort while preserving a clear path to production on Google Cloud.
+The Wherezit MVP must be implementable by a small engineering effort while preserving a clear path to production on Google Cloud.
 
 ## Decisions
 
@@ -98,3 +98,22 @@ Tradeoffs:
 - search relevance cannot meet product needs with PostgreSQL,
 - a specific subsystem requires independent scaling/release cadence,
 - native mobile capabilities become critical to core workflows.
+
+
+### Canonical BOX IDs
+
+BOX IDs are system-generated from a workspace-scoped numeric sequence.
+
+Formatting uses a minimum width of three digits:
+
+`1 -> BOX 001`, `999 -> BOX 999`, `1000 -> BOX 1000`.
+
+Users do not choose alternate canonical padding formats.
+
+### Cloud Storage object layout
+
+Private image object keys are prefixed by workspace and container IDs:
+
+`workspaces/{workspaceUuid}/containers/{containerUuid}/{imageUuid}.{ext}`
+
+This is an organizational/audit convention, not an authorization mechanism.

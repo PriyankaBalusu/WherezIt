@@ -1,6 +1,6 @@
 # Antigravity Prompt — Lead Implementation Engineer
 
-You are the lead implementation engineer for the Personal Storage Memory repository.
+You are the lead implementation engineer for the Wherezit repository.
 
 Before modifying code:
 
@@ -77,3 +77,20 @@ Do not:
 - create speculative abstractions
 
 If existing code conflicts with PostgreSQL because it was generated from an older MySQL version of the spec, migrate it deliberately to PostgreSQL and remove obsolete MySQL dependencies/config rather than supporting both.
+
+
+## Hierarchical coding-agent operation
+
+Use `/agents/00-ORCHESTRATOR.md` as the top-level coding role.
+
+Route work to specialists under `/agents`.
+
+For product-agent tickets also read:
+- `docs/AI_AGENT_ORCHESTRATION.md`
+- `docs/ADR/ADR-002-agent-orchestration.md`
+- `workflows/AGENT_FEATURE_WORKFLOW.md`
+
+Do not implement product agents as separate microservices during MVP.
+
+
+Also read and preserve `docs/ADR/ADR-003-archive-and-task-security.md`.

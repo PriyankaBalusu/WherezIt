@@ -1,4 +1,4 @@
-# Personal Storage Memory — Engineering Ticket Backlog
+# Wherezit — Engineering Ticket Backlog
 
 Execute in order unless a dependency requires a small reorder.
 
@@ -136,7 +136,15 @@ Acceptance:
 - workspace-scoped indexes created
 - migration applies cleanly
 
-### LOC-002 — Storage location CRUD [P0]
+### LOC-002 — Storage location CRUD and archive policy [P0]
+
+Acceptance:
+- create/edit/list nodes
+- archive only empty nodes
+- reject archive when active child nodes or containers exist
+- no recursive archive cascade
+- mobile-first UI
+
 
 Acceptance:
 - create/edit/list/delete empty nodes
@@ -178,7 +186,16 @@ Acceptance:
 - moving does not change ID
 - concurrency integration test uses real PostgreSQL
 
-### BOX-003 — Container CRUD [P0]
+### BOX-003 — Container CRUD and archive policy [P0]
+
+Acceptance:
+- create/view/edit/archive
+- container may be archived with Items intact
+- archived container/items excluded from normal active browse/search
+- permanent BOX ID preserved
+- hard delete is not a normal MVP user flow
+- mobile-first UI
+
 
 Acceptance:
 - create/view/edit/archive/delete
@@ -248,6 +265,13 @@ Evaluate `pg_trgm` only if usability testing shows a real need.
 Acceptance:
 - bucket not public
 - least-privilege service account
+- object keys use `workspaces/{workspaceUuid}/containers/{containerUuid}/{imageUuid}.{ext}` convention
+- path convention is not treated as authorization
+
+
+Acceptance:
+- bucket not public
+- least-privilege service account
 
 ### IMG-002 — Authorized upload flow [P0]
 
@@ -273,6 +297,20 @@ Requirements:
 - workspace FKs/indexes
 
 ### AI-002 — Queue capture with Cloud Tasks [P0]
+
+Requirements:
+- authenticated Cloud Tasks HTTP delivery using OIDC
+- dedicated service account
+- least-privilege Cloud Run invocation
+- protected worker endpoint/route
+- idempotent processing
+
+Acceptance:
+- capture API returns 202
+- processing is safely retryable
+- anonymous invocation of worker path fails
+- OIDC audience/identity validation covered
+
 
 Acceptance:
 - capture API returns 202
@@ -304,6 +342,15 @@ Acceptance:
 - cannot finalize AI inventory without review/confirm
 
 ### AI-005 — Confirm capture transaction [P0]
+
+Acceptance:
+- trusted Item rows created only on confirm
+- PostgreSQL transaction performs atomic `REVIEW_REQUIRED -> CONFIRMED` state guard
+- zero-row state transition prevents Item creation
+- repeated/concurrent confirmation does not duplicate Items
+- suggestion resolutions persisted
+- concurrency integration test uses real PostgreSQL
+
 
 Acceptance:
 - trusted Item rows created only on confirm
@@ -341,7 +388,15 @@ Requirements:
 Acceptance:
 - barcode resolves same container domain
 
-### ID-004 — Identifier resolver [P0]
+### ID-004 — Identifier resolver and auth return flow [P0]
+
+Acceptance:
+- authenticated member succeeds
+- unauthenticated/non-member cannot access inventory
+- unauthenticated scan preserves trusted internal resolver route through login
+- return flow cannot create an open redirect
+- tests included
+
 
 Acceptance:
 - authenticated member succeeds
@@ -410,7 +465,7 @@ Use PostgreSQL-compatible seed path.
 
 ## Final E2E
 
-### E2E-001 — Critical Personal Storage Memory journey [P0]
+### E2E-001 — Critical Wherezit journey [P0]
 
 Register → workspace → hierarchy → BOX → photo → Gemini suggestions → user correction → confirm → QR/barcode → search → exact location.
 
@@ -422,3 +477,92 @@ Register → workspace → hierarchy → BOX → photo → Gemini suggestions �
 - upload failure → retry
 - revoked QR → rejected
 - database transient failure handled safely where applicable
+
+
+---
+
+## Agent Orchestration
+
+### AGENT-001 — Orchestrator application boundary [P0]
+
+Requirements:
+- `IAgentOrchestrator`
+- authenticated workspace context
+- typed tool interfaces
+- no unrestricted DB access
+- safe telemetry/fallback
+
+Acceptance:
+- supported intents route correctly
+- unauthorized context halts before tool calls
+- routing/failure tests pass
+
+### AGENT-002 — Vision Agent orchestration [P0]
+
+Acceptance:
+- photo output becomes reviewable `DetectionSuggestion`
+- invalid model output fails safely
+- no trusted `Item` is auto-created
+
+### AGENT-003 — Inventory Agent normalization [P0]
+
+Acceptance:
+- names/categories/quantities can be refined
+- uncertainty preserved
+- suggestions remain editable
+- user confirmation remains required
+
+### AGENT-004 — Retrieval Agent [P0]
+
+Requirements:
+- natural-language queries
+- authorization-aware search/read tools
+- grounded result
+- BOX ID + full location path
+
+Acceptance:
+- relevant natural-language requests find real records
+- no cross-workspace leakage
+- no fabricated answer when evidence is absent
+
+### AGENT-005 — Agent evaluation harness [P1]
+
+Acceptance:
+- repeatable vision, inventory, retrieval, and security evaluations
+- baseline metrics documented
+
+### AGENT-006 — Agent observability [P1]
+
+Acceptance:
+- model/provider/tool latency and safe failure metadata visible
+- no hidden reasoning/private token logging
+
+
+### SRCH-004 — Retrieval query-expansion contract [P0]
+
+Requirements:
+- structured Gemini query-expansion output
+- keywords/categories/related terms
+- authorization-aware PostgreSQL search tools
+- grounded-answer rule
+
+Acceptance:
+- natural-language query can expand to syntactic PostgreSQL search intent
+- final response references only returned records
+- no fabricated result when evidence is absent
+- tenant isolation preserved
+
+
+### BOX-005 — Canonical BOX formatting [P0]
+
+Requirements:
+- system-generated canonical ID from `display_number`
+- minimum three-digit formatting
+- support values above 999
+- no user-defined alternate canonical padding
+
+Acceptance:
+- 1 -> BOX 001
+- 999 -> BOX 999
+- 1000 -> BOX 1000
+- parsing/search does not depend on fixed maximum width

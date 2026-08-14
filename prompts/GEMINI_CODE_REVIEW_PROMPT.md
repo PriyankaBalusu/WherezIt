@@ -38,3 +38,6 @@ Output:
 - Missing tests
 - What was implemented well
 - Final recommendation: APPROVE / APPROVE WITH CHANGES / REQUEST CHANGES
+
+
+Also read and preserve `docs/ADR/ADR-003-archive-and-task-security.md`.

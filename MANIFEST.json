@@ -1,21 +1,29 @@
 {
-  "project": "Personal Storage Memory",
-  "version": "PostgreSQL Agent Pack 1.1",
+  "project": "Wherezit",
+  "version": "2.1 - Gemini architecture review incorporated",
   "database": "PostgreSQL",
   "hosted_database": "Google Cloud SQL for PostgreSQL",
   "orm": "Entity Framework Core",
   "provider": "Npgsql",
-  "files": [
-    "GEMINI.md",
-    "GEMINI_MASTER_PROMPT.md",
-    "README_AGENT_PACK.md",
-    "docs/ADR/ADR-001-technology-stack.md",
-    "docs/HANDOFF_CHECKLIST.md",
-    "docs/MVP_SPEC.md",
-    "docs/TICKETS.md",
-    "prompts/ANTIGRAVITY_IMPLEMENTATION_PROMPT.md",
-    "prompts/ANTIGRAVITY_TICKET_PROMPT.md",
-    "prompts/GEMINI_ARCHITECT_REVIEW_PROMPT.md",
-    "prompts/GEMINI_CODE_REVIEW_PROMPT.md"
-  ]
+  "architecture": "Modular monolith",
+  "product_agent_hierarchy": [
+    "Wherezit Orchestrator",
+    "Vision Agent",
+    "Inventory Agent",
+    "Retrieval Agent"
+  ],
+  "coding_agent_hierarchy": [
+    "Orchestrator / Tech Lead",
+    "Architect",
+    "PostgreSQL Specialist",
+    ".NET Backend Specialist",
+    "React Frontend Specialist",
+    "Gemini AI Specialist",
+    "GCP DevOps Specialist",
+    "QA",
+    "Security",
+    "Final Reviewer"
+  ],
+  "architecture_review_date": "2026-08-14",
+  "new_adr": "ADR-003-archive-and-task-security.md"
 }
