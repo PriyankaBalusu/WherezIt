@@ -22,6 +22,9 @@ public static class DependencyInjection
             options.UseNpgsql(connectionString);
         });
 
+        services.AddAuthentication("Firebase")
+            .AddScheme<Microsoft.AspNetCore.Authentication.AuthenticationSchemeOptions, Authentication.FirebaseAuthenticationHandler>("Firebase", _ => { });
+
         services.AddHealthChecks()
             .AddDbContextCheck<WherezItDbContext>("postgresql");
 
