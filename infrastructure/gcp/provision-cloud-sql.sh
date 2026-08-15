@@ -1,201 +1,125 @@
 #!/usr/bin/env bash
-# ==============================================================================
-# WherezIt — PLAT-003B: Cloud SQL for PostgreSQL (Dev) Provisioning Script
-# ==============================================================================
-# PROVISIONING CONTRACT:
-# - Target Google Cloud Project MUST be the existing project named "WherezIt".
-# - Provisions ONE cost-conscious development Cloud SQL PostgreSQL 16 instance.
-# - Creates database `wherezit_dev`.
-# - Creates separate `wherezit_admin` (migration) and `wherezit_app` (runtime) users.
-# - Enforces least-privilege for `wherezit_app` (must NOT retain cloudsqlsuperuser).
-# - Stores separate admin and runtime connection strings in Secret Manager.
-# - Idempotent reruns preserve existing passwords and secrets.
-# - DO NOT manually create application domain tables.
-# ==============================================================================
-
 set -euo pipefail
 
-# Default configuration parameters
 DEFAULT_REGION="us-central1"
+EXPECTED_PROJECT_NAME="WherezIt"
 INSTANCE_NAME="wherezit-db-dev"
 DATABASE_NAME="wherezit_dev"
 ADMIN_USER="wherezit_admin"
 APP_USER="wherezit_app"
-RUNTIME_SECRET_NAME="wherezit-db-dev-connection-string"
+APP_SECRET_NAME="wherezit-db-dev-connection-string"
 ADMIN_SECRET_NAME="wherezit-db-dev-admin-connection-string"
 TIER="db-f1-micro"
-REQUIRED_PROJECT_NAME="WherezIt"
 
-echo "======================================================================"
-echo "WherezIt — Cloud SQL (Dev) Provisioning"
-echo "======================================================================"
+log(){ printf '%s\n' "$*"; }
+fail(){ printf 'ERROR: %s\n' "$*" >&2; exit 1; }
 
-# 1. Project ID Verification & Safety Check
-if [ -z "${1:-}" ]; then
-  ACTIVE_PROJECT=$(gcloud config get-value project 2>/dev/null || true)
-  if [ -z "$ACTIVE_PROJECT" ] || [ "$ACTIVE_PROJECT" = "(unset)" ]; then
-    echo "ERROR: Google Cloud Project ID is required."
-    echo "Usage: ./provision-cloud-sql.sh <EXISTING_WHEREZIT_PROJECT_ID> [REGION]"
-    echo ""
-    echo "To discover your existing 'WherezIt' Project ID, run:"
-    echo "  gcloud projects list --filter=\"name~WherezIt\""
-    exit 1
-  fi
-  PROJECT_ID="$ACTIVE_PROJECT"
-else
-  PROJECT_ID="$1"
-fi
+command -v gcloud >/dev/null 2>&1 || fail "gcloud CLI is not installed or not in PATH."
+command -v openssl >/dev/null 2>&1 || fail "openssl is required."
 
+PROJECT_ID="${1:-$(gcloud config get-value project 2>/dev/null || true)}"
+[ -n "$PROJECT_ID" ] && [ "$PROJECT_ID" != "(unset)" ] || fail "Usage: ./provision-cloud-sql.sh <EXISTING_WHEREZIT_PROJECT_ID> [REGION]"
 REGION="${2:-$DEFAULT_REGION}"
 
-# Fail-Fast Project Name Safety Guard
-PROJECT_DISPLAY_NAME=$(gcloud projects describe "$PROJECT_ID" --format="value(name)" 2>/dev/null || true)
+PROJECT_NAME="$(gcloud projects describe "$PROJECT_ID" --format='value(name)' 2>/dev/null || true)"
+[ "$PROJECT_NAME" = "$EXPECTED_PROJECT_NAME" ] || fail "Project '$PROJECT_ID' is '$PROJECT_NAME', not '$EXPECTED_PROJECT_NAME'."
 
-if [ "$PROJECT_DISPLAY_NAME" != "$REQUIRED_PROJECT_NAME" ]; then
-  echo "CRITICAL ERROR: Target project '${PROJECT_ID}' has display name '${PROJECT_DISPLAY_NAME}'."
-  echo "Expected exact project display name: '${REQUIRED_PROJECT_NAME}'."
-  echo "Aborting provisioning to prevent accidental execution against incorrect project."
-  exit 1
+CURRENT_PROJECT="$(gcloud config get-value project 2>/dev/null || true)"
+if [ "$CURRENT_PROJECT" != "$PROJECT_ID" ]; then
+  gcloud config set project "$PROJECT_ID" >/dev/null
 fi
 
-echo "Target Project ID   : ${PROJECT_ID}"
-echo "Project Display Name: ${PROJECT_DISPLAY_NAME} (Verified)"
-echo "Target Region       : ${REGION}"
-echo "Instance Name       : ${INSTANCE_NAME}"
-echo "Database Name       : ${DATABASE_NAME}"
-echo "Machine Tier        : ${TIER}"
-echo "======================================================================"
-
-# Verify active gcloud project setting
-CURRENT_GCLOUD_PROJECT=$(gcloud config get-value project 2>/dev/null || true)
-if [ "$CURRENT_GCLOUD_PROJECT" != "$PROJECT_ID" ]; then
-  echo "Setting active gcloud project to ${PROJECT_ID}..."
-  gcloud config set project "$PROJECT_ID"
+ACTIVE_ACCOUNT="$(gcloud config get-value account 2>/dev/null || true)"
+BILLING_ENABLED="$(gcloud beta billing projects describe "$PROJECT_ID" --format='value(billingEnabled)' 2>/dev/null || true)"
+if [ "$BILLING_ENABLED" != "True" ] && [ "$BILLING_ENABLED" != "true" ]; then
+  fail "Billing is not confirmed as enabled for project '$PROJECT_ID'."
 fi
 
-# 2. Enable Required APIs
-echo "[1/6] Enabling required Google Cloud APIs..."
-gcloud services enable \
-  sqladmin.googleapis.com \
-  secretmanager.googleapis.com \
-  --project="$PROJECT_ID"
+log "======================================================================"
+log "WherezIt — Cloud SQL (Dev) Provisioning"
+log "======================================================================"
+log "Project Name      : $PROJECT_NAME"
+log "Target Project ID : $PROJECT_ID"
+log "Active Account    : $ACTIVE_ACCOUNT"
+log "Billing Enabled   : $BILLING_ENABLED"
+log "Target Region     : $REGION"
+log "Instance Name     : $INSTANCE_NAME"
+log "Database Name     : $DATABASE_NAME"
+log "Machine Tier      : $TIER"
+log "Edition           : ENTERPRISE"
+log "======================================================================"
 
-# 3. Provision Cloud SQL PostgreSQL Instance
-echo "[2/6] Provisioning Cloud SQL PostgreSQL 16 instance (${INSTANCE_NAME})..."
+log "[1/6] Enabling required Google Cloud APIs..."
+gcloud services enable sqladmin.googleapis.com secretmanager.googleapis.com --project="$PROJECT_ID"
+
+log "[2/6] Provisioning Cloud SQL PostgreSQL 16 instance ($INSTANCE_NAME)..."
 if gcloud sql instances describe "$INSTANCE_NAME" --project="$PROJECT_ID" &>/dev/null; then
-  echo "Instance ${INSTANCE_NAME} already exists. Skipping instance creation."
+  log "Instance $INSTANCE_NAME already exists. Skipping creation."
 else
-  gcloud sql instances create "$INSTANCE_NAME" \
-    --project="$PROJECT_ID" \
-    --database-version=POSTGRES_16 \
-    --tier="$TIER" \
-    --region="$REGION" \
-    --storage-type=SSD \
-    --storage-size=10GB \
-    --storage-auto-increase \
-    --availability-type=zonal \
-    --backup-start-time=03:00 \
-    --retained-backups-count=7
-
-  echo "Instance ${INSTANCE_NAME} created successfully."
+  gcloud sql instances create "$INSTANCE_NAME"     --project="$PROJECT_ID"     --database-version=POSTGRES_16     --edition=ENTERPRISE     --tier="$TIER"     --region="$REGION"     --storage-type=SSD     --storage-size=10GB     --storage-auto-increase     --availability-type=zonal     --backup-start-time=03:00     --retained-backups-count=7
 fi
 
-# 4. Create Database `wherezit_dev`
-echo "[3/6] Creating database ${DATABASE_NAME}..."
+log "[3/6] Creating database $DATABASE_NAME..."
 if gcloud sql databases describe "$DATABASE_NAME" --instance="$INSTANCE_NAME" --project="$PROJECT_ID" &>/dev/null; then
-  echo "Database ${DATABASE_NAME} already exists. Skipping database creation."
+  log "Database $DATABASE_NAME already exists. Skipping creation."
 else
-  gcloud sql databases create "$DATABASE_NAME" \
-    --instance="$INSTANCE_NAME" \
-    --project="$PROJECT_ID" \
-    --charset=UTF8
-  echo "Database ${DATABASE_NAME} created successfully."
+  gcloud sql databases create "$DATABASE_NAME" --instance="$INSTANCE_NAME" --project="$PROJECT_ID" --charset=UTF8
 fi
 
-# 5. Check Idempotency for Secrets and User Credentials
-echo "[4/6] Checking database credentials and Secret Manager status..."
-CONNECTION_NAME=$(gcloud sql instances describe "$INSTANCE_NAME" --project="$PROJECT_ID" --format="value(connectionName)")
+user_exists() {
+  gcloud sql users list --instance="$INSTANCE_NAME" --project="$PROJECT_ID" --format='value(name)' 2>/dev/null | grep -Fxq "$1"
+}
+secret_exists() {
+  gcloud secrets describe "$1" --project="$PROJECT_ID" &>/dev/null
+}
+create_secret() {
+  printf '%s' "$2" | gcloud secrets create "$1" --project="$PROJECT_ID" --replication-policy=automatic --data-file=- >/dev/null
+}
 
-RUNTIME_SECRET_EXISTS=false
-ADMIN_SECRET_EXISTS=false
+CONNECTION_NAME="$(gcloud sql instances describe "$INSTANCE_NAME" --project="$PROJECT_ID" --format='value(connectionName)')"
 
-if gcloud secrets describe "$RUNTIME_SECRET_NAME" --project="$PROJECT_ID" &>/dev/null; then
-  RUNTIME_SECRET_EXISTS=true
-fi
+log "[4/6] Provisioning database users and credentials..."
 
-if gcloud secrets describe "$ADMIN_SECRET_NAME" --project="$PROJECT_ID" &>/dev/null; then
-  ADMIN_SECRET_EXISTS=true
-fi
-
-if [ "$RUNTIME_SECRET_EXISTS" = true ] && [ "$ADMIN_SECRET_EXISTS" = true ]; then
-  echo "Secrets '${RUNTIME_SECRET_NAME}' and '${ADMIN_SECRET_NAME}' already exist."
-  echo "Skipping credential generation and password overwrite to ensure operational idempotency."
+if user_exists "$ADMIN_USER"; then
+  secret_exists "$ADMIN_SECRET_NAME" || fail "Admin user exists but admin secret is missing. Refusing implicit rotation."
+  log "Admin user and secret already exist. No rotation performed."
 else
-  echo "Generating secure database credentials..."
-  ADMIN_PASSWORD=$(openssl rand -hex 24)
-  APP_PASSWORD=$(openssl rand -hex 24)
-
-  # Create or update admin user (EF Core migrations)
-  echo "Configuring database user '${ADMIN_USER}'..."
-  gcloud sql users create "$ADMIN_USER" \
-    --instance="$INSTANCE_NAME" \
-    --project="$PROJECT_ID" \
-    --password="$ADMIN_PASSWORD" &>/dev/null || \
-  gcloud sql users set-password "$ADMIN_USER" \
-    --instance="$INSTANCE_NAME" \
-    --project="$PROJECT_ID" \
-    --password="$ADMIN_PASSWORD"
-
-  # Create or update application runtime user (Least privilege)
-  echo "Configuring database user '${APP_USER}'..."
-  gcloud sql users create "$APP_USER" \
-    --instance="$INSTANCE_NAME" \
-    --project="$PROJECT_ID" \
-    --password="$APP_PASSWORD" &>/dev/null || \
-  gcloud sql users set-password "$APP_USER" \
-    --instance="$INSTANCE_NAME" \
-    --project="$PROJECT_ID" \
-    --password="$APP_PASSWORD"
-
-  # Build Connection Strings
-  APP_CONN_STRING="Host=/cloudsql/${CONNECTION_NAME};Database=${DATABASE_NAME};Username=${APP_USER};Password=${APP_PASSWORD}"
-  ADMIN_CONN_STRING="Host=localhost;Port=5432;Database=${DATABASE_NAME};Username=${ADMIN_USER};Password=${ADMIN_PASSWORD}"
-
-  # 6. Store Secrets in Secret Manager
-  echo "[5/6] Writing secrets to Secret Manager..."
-  
-  if [ "$RUNTIME_SECRET_EXISTS" = true ]; then
-    echo -n "$APP_CONN_STRING" | gcloud secrets versions add "$RUNTIME_SECRET_NAME" --project="$PROJECT_ID" --data-file=-
-  else
-    echo -n "$APP_CONN_STRING" | gcloud secrets create "$RUNTIME_SECRET_NAME" --project="$PROJECT_ID" --data-file=-
-  fi
-
-  if [ "$ADMIN_SECRET_EXISTS" = true ]; then
-    echo -n "$ADMIN_CONN_STRING" | gcloud secrets versions add "$ADMIN_SECRET_NAME" --project="$PROJECT_ID" --data-file=-
-  else
-    echo -n "$ADMIN_CONN_STRING" | gcloud secrets create "$ADMIN_SECRET_NAME" --project="$PROJECT_ID" --data-file=-
-  fi
+  secret_exists "$ADMIN_SECRET_NAME" && fail "Admin secret exists but admin user does not."
+  ADMIN_PASSWORD="$(openssl rand -hex 24)"
+  gcloud sql users create "$ADMIN_USER" --instance="$INSTANCE_NAME" --project="$PROJECT_ID" --password="$ADMIN_PASSWORD" >/dev/null
+  ADMIN_CONN_STRING="Host=127.0.0.1;Port=5432;Database=$DATABASE_NAME;Username=$ADMIN_USER;Password=$ADMIN_PASSWORD"
+  create_secret "$ADMIN_SECRET_NAME" "$ADMIN_CONN_STRING"
+  unset ADMIN_PASSWORD ADMIN_CONN_STRING
 fi
 
-echo "[6/6] Provisioning Complete!"
-echo "======================================================================"
-echo "SUMMARY:"
-echo "  Project ID            : ${PROJECT_ID}"
-echo "  Project Display Name  : ${PROJECT_DISPLAY_NAME}"
-echo "  Cloud SQL Instance    : ${INSTANCE_NAME}"
-echo "  Cloud SQL Connection  : ${CONNECTION_NAME}"
-echo "  Database              : ${DATABASE_NAME}"
-echo "  Runtime Secret Name   : ${RUNTIME_SECRET_NAME}"
-echo "  Admin Secret Name     : ${ADMIN_SECRET_NAME}"
-echo "======================================================================"
-echo "PENDING IAM ROLES FOR PLAT-005 (Cloud Run Deployment):"
-echo "  - roles/cloudsql.client"
-echo "  - roles/secretmanager.secretAccessor"
-echo "  (Will be bound to Cloud Run Service Account during PLAT-005 execution)"
-echo "======================================================================"
-echo "LEAST PRIVILEGE ADVISORY FOR 'wherezit_app':"
-echo "  By default, Cloud SQL user creation grants cloudsqlsuperuser to users created via gcloud."
-echo "  To revoke cloudsqlsuperuser from '${APP_USER}' after initial database connection, run:"
-echo "    REVOKE cloudsqlsuperuser FROM ${APP_USER};"
-echo "    GRANT CONNECT ON DATABASE ${DATABASE_NAME} TO ${APP_USER};"
-echo "======================================================================"
+if user_exists "$APP_USER"; then
+  secret_exists "$APP_SECRET_NAME" || fail "Runtime user exists but runtime secret is missing. Refusing implicit rotation."
+  log "Runtime user and secret already exist. No rotation performed."
+else
+  secret_exists "$APP_SECRET_NAME" && fail "Runtime secret exists but runtime user does not."
+  APP_PASSWORD="$(openssl rand -hex 24)"
+  gcloud sql users create "$APP_USER"     --instance="$INSTANCE_NAME"     --project="$PROJECT_ID"     --password="$APP_PASSWORD"     --database-roles=pg_read_all_data,pg_write_all_data >/dev/null
+  APP_CONN_STRING="Host=/cloudsql/$CONNECTION_NAME;Database=$DATABASE_NAME;Username=$APP_USER;Password=$APP_PASSWORD"
+  create_secret "$APP_SECRET_NAME" "$APP_CONN_STRING"
+  unset APP_PASSWORD APP_CONN_STRING
+fi
+
+log "[5/6] Verifying provisioned resources..."
+gcloud sql instances describe "$INSTANCE_NAME" --project="$PROJECT_ID" --format='table(name,region,databaseVersion,settings.edition,settings.tier,state)'
+gcloud sql databases list --instance="$INSTANCE_NAME" --project="$PROJECT_ID" --format='table(name,charset,collation)'
+gcloud sql users list --instance="$INSTANCE_NAME" --project="$PROJECT_ID" --format='table(name,type,databaseRoles)'
+gcloud secrets describe "$APP_SECRET_NAME" --project="$PROJECT_ID" --format='value(name)' >/dev/null
+gcloud secrets describe "$ADMIN_SECRET_NAME" --project="$PROJECT_ID" --format='value(name)' >/dev/null
+
+log "[6/6] Provisioning Complete!"
+log "======================================================================"
+log "Project ID           : $PROJECT_ID"
+log "Cloud SQL Instance   : $INSTANCE_NAME"
+log "Cloud SQL Connection : $CONNECTION_NAME"
+log "Database             : $DATABASE_NAME"
+log "Runtime Secret       : $APP_SECRET_NAME"
+log "Admin Secret         : $ADMIN_SECRET_NAME"
+log "======================================================================"
+log "Cloud Run IAM is deferred to PLAT-005:"
+log "  roles/cloudsql.client"
+log "  roles/secretmanager.secretAccessor"
