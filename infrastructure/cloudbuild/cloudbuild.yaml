@@ -49,13 +49,15 @@ steps:
     id: 'docker-build'
     waitFor: ['backend-test']
 
-  # 4. Artifact Registry: Push Container Image
+  # 4. Artifact Registry: Push Container Images
   - name: 'gcr.io/cloud-builders/docker'
-    args:
-      - 'push'
-      - '--all-tags'
-      - 'us-central1-docker.pkg.dev/$PROJECT_ID/wherezit-repo/wherezit-api'
-    id: 'docker-push'
+    args: ['push', 'us-central1-docker.pkg.dev/$PROJECT_ID/wherezit-repo/wherezit-api:$COMMIT_SHA']
+    id: 'docker-push-sha'
+    waitFor: ['docker-build']
+
+  - name: 'gcr.io/cloud-builders/docker'
+    args: ['push', 'us-central1-docker.pkg.dev/$PROJECT_ID/wherezit-repo/wherezit-api:latest']
+    id: 'docker-push-latest'
     waitFor: ['docker-build']
 
   # 5. Cloud Run: Deploy API Service
@@ -71,11 +73,19 @@ steps:
       - '--allow-unauthenticated'
       - '--service-account=wherezit-cloudrun-sa@$PROJECT_ID.iam.gserviceaccount.com'
     id: 'cloud-run-deploy'
-    waitFor: ['docker-push']
+    waitFor: ['docker-push-sha', 'docker-push-latest']
 
   # 6. Firebase Hosting: Deploy Web SPA
-  - name: 'gcr.io/$PROJECT_ID/firebase'
-    args: ['deploy', '--only', 'hosting', '--project', '$PROJECT_ID']
+  - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
+    entrypoint: 'bash'
+    args:
+      - '-c'
+      - |
+        apt-get update -qq && apt-get install -y -qq nodejs npm
+        npx firebase-tools deploy --only hosting --project $PROJECT_ID
+    env:
+      - 'GOOGLE_CLOUD_PROJECT=$PROJECT_ID'
+      - 'GCP_PROJECT=$PROJECT_ID'
     id: 'firebase-deploy'
     waitFor: ['frontend-build']
 
@@ -85,4 +95,4 @@ images:
 
 timeout: '1200s'
 options:
-  logging: CLOUD_LOGGING_ONLY
+  logging: LEGACY

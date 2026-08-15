@@ -1,5 +1,5 @@
 import React from 'react';
-import { BrowserRouter as Router, Routes, Route, useNavigate } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { AuthProvider } from './features/auth/AuthProvider';
 import { useAuth } from './features/auth/useAuth';
 import { LoginForm } from './features/auth/LoginForm';

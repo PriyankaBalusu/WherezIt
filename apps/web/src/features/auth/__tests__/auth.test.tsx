@@ -1,8 +1,7 @@
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
-import React from 'react';
 import { MemoryRouter, Routes, Route } from 'react-router-dom';
-import { AuthProvider, AuthContext } from '../AuthProvider';
+import { AuthContext } from '../AuthProvider';
 import { ProtectedRoute } from '../../../routes/ProtectedRoute';
 
 describe('AUTH-001 Frontend Authentication Unit Tests', () => {

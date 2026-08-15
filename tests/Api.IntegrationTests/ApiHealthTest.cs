@@ -1,22 +1,24 @@
 using System.Net;
-using Microsoft.AspNetCore.Mvc.Testing;
+using WherezIt.Api.IntegrationTests.Fixtures;
 using Xunit;
 
 namespace WherezIt.Api.IntegrationTests;
 
-public class ApiHealthTest : IClassFixture<WebApplicationFactory<Program>>
+public class ApiHealthTest : IClassFixture<PostgresTestFixture>
 {
-    private readonly HttpClient _client;
+    private readonly PostgresTestFixture _fixture;
 
-    public ApiHealthTest(WebApplicationFactory<Program> factory)
+    public ApiHealthTest(PostgresTestFixture fixture)
     {
-        _client = factory.CreateClient();
+        _fixture = fixture;
     }
 
     [Fact]
     public async Task HealthEndpoint_Returns200OK()
     {
-        var response = await _client.GetAsync("/health");
+        var client = _fixture.CreateClient();
+        var response = await client.GetAsync("/health");
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
     }
 }
+

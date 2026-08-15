@@ -22,4 +22,8 @@
     <ProjectReference Include="..\WherezIt.Application\WherezIt.Application.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+  </ItemGroup>
+
 </Project>

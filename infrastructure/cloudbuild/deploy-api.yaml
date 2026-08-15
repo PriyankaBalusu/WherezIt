@@ -1,0 +1,32 @@
+steps:
+  - name: 'gcr.io/cloud-builders/docker'
+    args:
+      - 'build'
+      - '-t'
+      - 'us-central1-docker.pkg.dev/$PROJECT_ID/wherezit-repo/wherezit-api:latest'
+      - '-f'
+      - 'apps/api/WherezIt.Api/Dockerfile'
+      - '.'
+    id: 'docker-build'
+
+  - name: 'gcr.io/cloud-builders/docker'
+    args:
+      - 'push'
+      - 'us-central1-docker.pkg.dev/$PROJECT_ID/wherezit-repo/wherezit-api:latest'
+    id: 'docker-push'
+
+  - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
+    entrypoint: 'gcloud'
+    args:
+      - 'run'
+      - 'deploy'
+      - 'wherezit-api-dev'
+      - '--image=us-central1-docker.pkg.dev/$PROJECT_ID/wherezit-repo/wherezit-api:latest'
+      - '--region=us-central1'
+      - '--platform=managed'
+      - '--allow-unauthenticated'
+      - '--service-account=wherezit-cloudrun-sa@$PROJECT_ID.iam.gserviceaccount.com'
+    id: 'cloud-run-deploy'
+
+images:
+  - 'us-central1-docker.pkg.dev/$PROJECT_ID/wherezit-repo/wherezit-api:latest'
