@@ -1,6 +1,8 @@
 using System.Security.Claims;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using WherezIt.Application.Authentication;
+using WherezIt.Application.Users.Services;
 
 namespace WherezIt.Api.Controllers;
 
@@ -8,9 +10,16 @@ namespace WherezIt.Api.Controllers;
 [Route("api/v1/auth")]
 public class AuthController : ControllerBase
 {
+    private readonly IUserService _userService;
+
+    public AuthController(IUserService userService)
+    {
+        _userService = userService;
+    }
+
     [HttpGet("me")]
     [Authorize]
-    public IActionResult GetCurrentUser()
+    public async Task<IActionResult> GetCurrentUser(CancellationToken cancellationToken)
     {
         var uid = User.FindFirst(ClaimTypes.NameIdentifier)?.Value
                   ?? User.FindFirst("user_id")?.Value
@@ -27,11 +36,9 @@ public class AuthController : ControllerBase
         var emailVerifiedStr = User.FindFirst("email_verified")?.Value;
         bool.TryParse(emailVerifiedStr, out bool emailVerified);
 
-        return Ok(new
-        {
-            firebaseUid = uid,
-            email = email,
-            emailVerified = emailVerified
-        });
+        var identity = new AuthenticatedIdentity(uid, email, emailVerified);
+        var userDto = await _userService.SyncCurrentUserAsync(identity, cancellationToken);
+
+        return Ok(userDto);
     }
 }

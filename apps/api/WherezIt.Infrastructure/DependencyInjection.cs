@@ -25,6 +25,8 @@ public static class DependencyInjection
         services.AddAuthentication("Firebase")
             .AddScheme<Microsoft.AspNetCore.Authentication.AuthenticationSchemeOptions, Authentication.FirebaseAuthenticationHandler>("Firebase", _ => { });
 
+        services.AddScoped<WherezIt.Application.Users.Services.IUserService, Services.UserService>();
+
         services.AddHealthChecks()
             .AddDbContextCheck<WherezItDbContext>("postgresql");
 
