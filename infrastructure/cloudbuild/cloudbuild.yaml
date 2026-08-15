@@ -1,0 +1,88 @@
+steps:
+  # 1. Frontend: Install, test, and build SPA
+  - name: 'node:20'
+    entrypoint: 'npm'
+    args: ['--prefix', 'apps/web', 'ci']
+    id: 'frontend-install'
+
+  - name: 'node:20'
+    entrypoint: 'npm'
+    args: ['--prefix', 'apps/web', 'run', 'test']
+    id: 'frontend-test'
+    waitFor: ['frontend-install']
+
+  - name: 'node:20'
+    entrypoint: 'npm'
+    args: ['--prefix', 'apps/web', 'run', 'build']
+    id: 'frontend-build'
+    waitFor: ['frontend-test']
+
+  # 2. Backend: Restore, build, and test .NET Core solution
+  - name: 'mcr.microsoft.com/dotnet/sdk:10.0'
+    entrypoint: 'dotnet'
+    args: ['restore', 'WherezIt.sln']
+    id: 'backend-restore'
+
+  - name: 'mcr.microsoft.com/dotnet/sdk:10.0'
+    entrypoint: 'dotnet'
+    args: ['build', 'WherezIt.sln', '--no-restore', '-c', 'Release']
+    id: 'backend-build'
+    waitFor: ['backend-restore']
+
+  - name: 'mcr.microsoft.com/dotnet/sdk:10.0'
+    entrypoint: 'dotnet'
+    args: ['test', 'WherezIt.sln', '--no-build', '-c', 'Release']
+    id: 'backend-test'
+    waitFor: ['backend-build']
+
+  # 3. Docker: Build API Container Image
+  - name: 'gcr.io/cloud-builders/docker'
+    args:
+      - 'build'
+      - '-t'
+      - 'us-central1-docker.pkg.dev/$PROJECT_ID/wherezit-repo/wherezit-api:$COMMIT_SHA'
+      - '-t'
+      - 'us-central1-docker.pkg.dev/$PROJECT_ID/wherezit-repo/wherezit-api:latest'
+      - '-f'
+      - 'apps/api/WherezIt.Api/Dockerfile'
+      - '.'
+    id: 'docker-build'
+    waitFor: ['backend-test']
+
+  # 4. Artifact Registry: Push Container Image
+  - name: 'gcr.io/cloud-builders/docker'
+    args:
+      - 'push'
+      - '--all-tags'
+      - 'us-central1-docker.pkg.dev/$PROJECT_ID/wherezit-repo/wherezit-api'
+    id: 'docker-push'
+    waitFor: ['docker-build']
+
+  # 5. Cloud Run: Deploy API Service
+  - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
+    entrypoint: 'gcloud'
+    args:
+      - 'run'
+      - 'deploy'
+      - 'wherezit-api-dev'
+      - '--image=us-central1-docker.pkg.dev/$PROJECT_ID/wherezit-repo/wherezit-api:$COMMIT_SHA'
+      - '--region=us-central1'
+      - '--platform=managed'
+      - '--allow-unauthenticated'
+      - '--service-account=wherezit-cloudrun-sa@$PROJECT_ID.iam.gserviceaccount.com'
+    id: 'cloud-run-deploy'
+    waitFor: ['docker-push']
+
+  # 6. Firebase Hosting: Deploy Web SPA
+  - name: 'gcr.io/$PROJECT_ID/firebase'
+    args: ['deploy', '--only', 'hosting', '--project', '$PROJECT_ID']
+    id: 'firebase-deploy'
+    waitFor: ['frontend-build']
+
+images:
+  - 'us-central1-docker.pkg.dev/$PROJECT_ID/wherezit-repo/wherezit-api:$COMMIT_SHA'
+  - 'us-central1-docker.pkg.dev/$PROJECT_ID/wherezit-repo/wherezit-api:latest'
+
+timeout: '1200s'
+options:
+  logging: CLOUD_LOGGING_ONLY
