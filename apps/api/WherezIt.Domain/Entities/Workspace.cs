@@ -1,0 +1,11 @@
+namespace WherezIt.Domain.Entities;
+
+public class Workspace
+{
+    public Guid Id { get; set; }
+    public string Name { get; set; } = string.Empty;
+    public DateTimeOffset CreatedAt { get; set; }
+    public DateTimeOffset UpdatedAt { get; set; }
+
+    public ICollection<WorkspaceMember> Members { get; set; } = new List<WorkspaceMember>();
+}

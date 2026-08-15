@@ -166,6 +166,62 @@ Acceptance:
 - authenticated user creates workspace
 - creator becomes OWNER
 
+### WS-UI-001 — Workspace UI Foundation [P0]
+
+**Goal:** Build the authenticated workspace frontend foundation in parallel with
+WS-001.
+
+**Dependencies:**
+- AUTH-001
+- AUTH-002
+- AUTH-003
+
+**Parallel With:**
+- WS-001
+
+**Owns:**
+- Workspace TypeScript models
+- Workspace API client
+- TanStack Query workspace hooks
+- Active workspace UI state
+- Workspace loading/error/empty states
+- Workspace home/dashboard shell
+- Workspace selector for multi-workspace users
+- Frontend workspace tests
+
+**Expected API Contract:**
+- `GET /api/v1/workspaces`
+- Response includes:
+  - `id`
+  - `name`
+  - `role`
+  - `createdAt`
+
+**Rules:**
+- No EF Core migration
+- No DbContext changes
+- No backend workspace entity changes
+- No Firebase UID supplied by the client for authorization
+- No raw Firebase tokens stored or logged
+- Backend remains authoritative for workspace authorization
+- Coordinate API contract with WS-001 before parallel implementation begins
+
+**Migration Owner:** NO
+
+**Conflict Risk:** LOW
+
+**Definition of Done:**
+- Authenticated workspace route exists
+- Workspace query/client exists
+- Loading, error, and zero-workspace states exist
+- Single workspace auto-selects
+- Multiple workspaces can be selected
+- Workspace home shell renders
+- Frontend tests pass
+- QA PASS
+- Security PASS
+- Reviewer APPROVE
+
 ### WS-002 — Workspace authorization policy [P0]
 
 Acceptance:
