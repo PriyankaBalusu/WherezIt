@@ -72,6 +72,8 @@ steps:
       - '--platform=managed'
       - '--allow-unauthenticated'
       - '--service-account=wherezit-cloudrun-sa@$PROJECT_ID.iam.gserviceaccount.com'
+      - '--add-cloudsql-instances=wherezit-505615:us-central1:wherezit-db-dev'
+      - '--set-secrets=ConnectionStrings__PostgreSQL=wherezit-db-dev-connection-string:latest'
     id: 'cloud-run-deploy'
     waitFor: ['docker-push-sha', 'docker-push-latest']
 
