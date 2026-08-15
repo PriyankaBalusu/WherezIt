@@ -93,8 +93,7 @@ images:
   - 'us-central1-docker.pkg.dev/$PROJECT_ID/wherezit-repo/wherezit-api:$COMMIT_SHA'
   - 'us-central1-docker.pkg.dev/$PROJECT_ID/wherezit-repo/wherezit-api:latest'
 
-serviceAccount: projects/wherezit-505615/serviceAccounts/wherezit-cloudbuild-sa@wherezit-505615.iam.gserviceaccount.com
 
 timeout: '1200s'
 options:
-  logging: LEGACY
+  logging: CLOUD_LOGGING_ONLY
