@@ -1,0 +1,25 @@
+# Local Development PostgreSQL 16 Environment
+# WARNING: These credentials are strictly for local development and testing.
+# Production environments must use Cloud SQL with secrets managed via Secret Manager.
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: wherezit_postgres_dev
+    environment:
+      POSTGRES_DB: wherezit_dev
+      POSTGRES_USER: wherezit
+      POSTGRES_PASSWORD: wherezit_dev_password
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_dev_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U wherezit -d wherezit_dev"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  postgres_dev_data:

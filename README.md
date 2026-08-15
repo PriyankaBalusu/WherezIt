@@ -22,6 +22,8 @@ wherezit/
 ├── GEMINI.md                     # Source-of-truth agent rules & constraints
 ├── README.md                     # Project documentation & execution guide
 ├── WherezIt.sln                  # ASP.NET Core solution file
+├── docker-compose.yml            # Local PostgreSQL 16 container definition
+├── Directory.Packages.props      # Central Package Management configuration
 ├── docs/                         # Specification, tickets, ADRs, AI orchestration specs
 │   ├── MVP_SPEC.md               # Product & engineering specification
 │   ├── TICKETS.md                # Task backlog & execution order
@@ -57,9 +59,44 @@ wherezit/
 
 - **Node.js**: v18+ and `npm`
 - **.NET SDK**: 10.0+ (ASP.NET Core 10)
-- **PostgreSQL**: Local PostgreSQL or Docker
+- **Docker & Docker Compose** (for local containerized PostgreSQL) or local PostgreSQL 16 server
 
-### Frontend (`apps/web`)
+### 1. Local PostgreSQL Database Setup
+
+Start local PostgreSQL container using Docker Compose:
+
+```bash
+# Start local PostgreSQL 16 on port 5432
+docker compose up -d
+```
+
+Connection details for development (`appsettings.Development.json`):
+- **Host**: `localhost`
+- **Port**: `5432`
+- **Database**: `wherezit_dev`
+- **Username**: `wherezit`
+- **Password**: `wherezit_dev_password`
+
+### 2. Entity Framework Core Migrations
+
+EF Core migrations are managed centrally within `WherezIt.Infrastructure`.
+
+To add a new migration:
+```bash
+dotnet ef migrations add <MigrationName> \
+  --project apps/api/WherezIt.Infrastructure/WherezIt.Infrastructure.csproj \
+  --startup-project apps/api/WherezIt.Api/WherezIt.Api.csproj \
+  --output-dir Persistence/Migrations
+```
+
+To update the local PostgreSQL database:
+```bash
+dotnet ef database update \
+  --project apps/api/WherezIt.Infrastructure/WherezIt.Infrastructure.csproj \
+  --startup-project apps/api/WherezIt.Api/WherezIt.Api.csproj
+```
+
+### 3. Frontend Application (`apps/web`)
 
 ```bash
 cd apps/web
@@ -69,19 +106,18 @@ npm run build   # Production build
 npm run test    # Runs Vitest unit tests
 ```
 
-### Backend (`apps/api`)
+### 4. Backend Application (`apps/api`) & Integration Tests
 
 ```bash
 # From workspace root:
+dotnet restore
 dotnet build WherezIt.sln
 dotnet test WherezIt.sln
 ```
 
-### Container Build
+### 5. Container Build
 
 ```bash
 # From workspace root:
 docker build -t wherezit-api .
 ```
-
-
