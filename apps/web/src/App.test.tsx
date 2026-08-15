@@ -3,9 +3,8 @@ import { describe, it, expect } from 'vitest';
 import App from './App';
 
 describe('App Component', () => {
-  it('renders app title and status', () => {
+  it('renders login form for unauthenticated users by default', async () => {
     render(<App />);
-    expect(screen.getByText(/WherezIt Storage Memory/i)).toBeInTheDocument();
-    expect(screen.getByText(/System Status/i)).toBeInTheDocument();
+    expect(await screen.findByText(/Sign In to WherezIt/i)).toBeInTheDocument();
   });
 });
