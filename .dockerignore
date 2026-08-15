@@ -1,0 +1,31 @@
+# Build & IDE directories
+**/bin/
+**/obj/
+.vs/
+.vscode/
+.idea/
+.editorconfig
+
+# Source control & documentation
+.git/
+.gitignore
+.dockerignore
+*.md
+docs/
+agents/
+workflows/
+prompts/
+
+# Node & Frontend application
+node_modules/
+dist/
+dist-ssr/
+apps/web/
+
+# Tests & temporary files
+tests/
+database/
+infrastructure/
+scripts/
+*.tmp
+*.log

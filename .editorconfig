@@ -1,0 +1,24 @@
+# Top-most editorconfig file
+root = true
+
+# All files
+[*]
+indent_style = space
+indent_size = 4
+end_of_line = lf
+charset = utf-8
+trim_trailing_whitespace = true
+insert_final_newline = true
+
+# C# source code
+[*.cs]
+csharp_using_directive_placement = outside_namespace:warning
+csharp_style_expression_bodied_methods = false:silent
+csharp_style_expression_bodied_constructors = false:silent
+
+# Web frontend & config files
+[*.{js,jsx,ts,tsx,css,html}]
+indent_size = 2
+
+[*.{json,yml,yaml,md}]
+indent_size = 2

@@ -427,3 +427,18 @@ FodyWeavers.xsd
 *.msix
 *.msm
 *.msp
+
+# macOS & Node / Vite
+.DS_Store
+node_modules/
+dist/
+dist-ssr/
+.vite/
+.eslintcache
+*.local
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+
