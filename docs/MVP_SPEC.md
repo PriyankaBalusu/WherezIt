@@ -363,6 +363,20 @@ Fields:
 8. Integration tests use actual PostgreSQL.
 9. Every query that returns user-owned data must be tenant/workspace constrained.
 10. Do not depend solely on PostgreSQL Row Level Security for application authorization in MVP; authorization must be explicit in application/API behavior. RLS can be evaluated later as defense in depth.
+11. Application tables are never created manually in Google Cloud Console. Schema is defined in code and evolved only through version-controlled EF Core migrations.
+12. Cloud SQL provisioning creates the PostgreSQL service, database, identities, secrets, and connectivity; domain tickets create application tables through migrations.
+13. The same migration history must be applicable to local PostgreSQL, Testcontainers PostgreSQL, and Cloud SQL.
+
+### Schema ownership by ticket
+
+- `AUTH-003` → `users`
+- `WS-001` → `workspaces`, `workspace_members`
+- `LOC-001` → `storage_nodes`
+- `BOX-001` → `containers`
+- `ITEM-001` → `items`
+- `AI-001` → `inventory_captures`, `detection_suggestions`, `ai_processing_jobs`
+- `ID-001` → `identifiers`
+- later tickets add indexes/columns only when their feature requires them and must ship a migration plus PostgreSQL-backed tests.
 
 ### Atomic BOX ID allocation
 
@@ -751,6 +765,9 @@ Separate environments/projects:
 Frontend: Firebase Hosting  
 Backend: Cloud Run  
 Database: **Cloud SQL for PostgreSQL**  
+- `PLAT-003B` provisions the dev Cloud SQL instance, `wherezit_dev` database, secure identities/secrets, and connectivity.
+- Application tables are not manually provisioned in Cloud SQL; domain tickets create them through version-controlled EF Core migrations.
+- During MVP development, create only the dev Cloud SQL database unless staging/prod is explicitly approved.
 Images: Cloud Storage  
 Async: Cloud Tasks  
 AI: Vertex AI/Gemini  

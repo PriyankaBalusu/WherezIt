@@ -1,6 +1,6 @@
 {
   "project": "Wherezit",
-  "version": "2.1 - Gemini architecture review incorporated",
+  "version": "2.2 - Cloud SQL provisioning and schema ownership clarified",
   "database": "PostgreSQL",
   "hosted_database": "Google Cloud SQL for PostgreSQL",
   "orm": "Entity Framework Core",
@@ -25,5 +25,17 @@
     "Final Reviewer"
   ],
   "architecture_review_date": "2026-08-14",
-  "new_adr": "ADR-003-archive-and-task-security.md"
+  "new_adr": "ADR-003-archive-and-task-security.md",
+  "persistence_delivery": "Application tables are created by domain-ticket EF Core migrations; Cloud SQL infrastructure tickets provision service/database/identity/connectivity only.",
+  "cloud_sql_dev_ticket": "PLAT-003B",
+  "schema_ticket_owners": {
+    "users": "AUTH-003",
+    "workspaces, workspace_members": "WS-001",
+    "storage_nodes": "LOC-001",
+    "containers": "BOX-001",
+    "items": "ITEM-001",
+    "inventory_captures, detection_suggestions, ai_processing_jobs": "AI-001",
+    "identifiers": "ID-001"
+  },
+  "cloud_sql_prompt": "prompts/ANTIGRAVITY_PLAT_003B_CLOUD_SQL_PROMPT.md"
 }

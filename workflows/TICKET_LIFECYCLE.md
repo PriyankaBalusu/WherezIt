@@ -24,3 +24,5 @@ Rules:
 - reviewers reject/approve; they do not silently redesign
 - failed gates return to the responsible specialist
 - completion requires acceptance criteria + relevant passing tests
+- persistence-owning tickets are incomplete without a version-controlled EF Core migration and real PostgreSQL verification
+- Cloud SQL infrastructure tickets provision database infrastructure/connectivity; domain tickets own application tables

@@ -15,6 +15,19 @@ For every ticket:
 5. update docs,
 6. stop if acceptance criteria are not satisfied.
 
+### Persistence-owning ticket contract
+
+Any ticket that introduces or changes persisted application data must explicitly:
+- add/update the C# domain/application persistence model as appropriate,
+- add/update EF Core configuration in Infrastructure,
+- create a version-controlled EF Core migration,
+- apply the migration to a clean real PostgreSQL database,
+- add/update PostgreSQL-backed integration tests for constraints, tenancy, and relevant concurrency behavior,
+- avoid manual table creation in Google Cloud Console,
+- keep Cloud SQL, local PostgreSQL, and Testcontainers on the same migration history.
+
+Cloud infrastructure tickets provision the PostgreSQL service/database/connectivity. Domain tickets own application tables and schema evolution.
+
 ---
 
 ## Foundation
@@ -58,6 +71,30 @@ Acceptance:
 - API connects to PostgreSQL
 - integration tests can create/use a clean PostgreSQL database
 - no MySQL provider/package/config remains
+
+
+### PLAT-003B — Provision Cloud SQL PostgreSQL dev environment [P0]
+
+Requirements:
+- identify/document the Wherezit Google Cloud dev project and region
+- provision one cost-conscious Cloud SQL for PostgreSQL dev instance
+- PostgreSQL 16 unless a documented compatibility reason requires another supported version
+- create `wherezit_dev` database
+- create least-privilege application database identity; do not use PostgreSQL superuser at runtime
+- store cloud database credentials/secrets outside source control, preferably Secret Manager
+- document/configure the secure Cloud Run → Cloud SQL connection strategy
+- document EF Core migration execution against Cloud SQL
+- apply only migrations that already exist; do not invent domain tables in this infrastructure ticket
+- document teardown/cost controls
+- no staging/prod database resources yet unless explicitly approved
+
+Acceptance:
+- Cloud SQL dev instance and `wherezit_dev` database exist
+- actual PostgreSQL connectivity is verified
+- no cloud database secret is committed
+- migration path is documented and can target Cloud SQL
+- Cloud Run connectivity strategy and least-privilege IAM are documented/configured as far as current deployment state allows
+- application tables are created only through version-controlled EF Core migrations owned by domain tickets
 
 ### PLAT-004 — Firebase Hosting dev configuration [P0]
 
@@ -108,13 +145,24 @@ Requirements:
 - PostgreSQL `users` table
 - map Firebase UID
 - create profile on first authenticated API interaction
+- EF Core entity/configuration and version-controlled migration for `users`
+- uniqueness/index constraints required for Firebase UID
+- real PostgreSQL integration test for first-sync/idempotency
 
 Acceptance:
+- migration applies cleanly to fresh PostgreSQL
 - no duplicate users for same Firebase UID
 
 ### WS-001 — Create personal workspace [P0]
 
+Requirements:
+- PostgreSQL `workspaces` and `workspace_members` tables
+- EF Core entities/configuration and version-controlled migration
+- workspace ownership/membership constraints and indexes
+- initialize workspace-scoped container-number allocator state required for canonical BOX IDs
+
 Acceptance:
+- migration applies cleanly to fresh PostgreSQL
 - authenticated user creates workspace
 - creator becomes OWNER
 
@@ -129,6 +177,11 @@ Acceptance:
 ## Storage Hierarchy
 
 ### LOC-001 — StorageNode PostgreSQL schema/migration [P0]
+
+Requirements:
+- PostgreSQL `storage_nodes` table
+- EF Core entity/configuration and version-controlled migration
+- recursive parent FK scoped safely to workspace semantics
 
 Acceptance:
 - recursive parent supported
@@ -168,6 +221,11 @@ Acceptance:
 ## Containers
 
 ### BOX-001 — Container PostgreSQL schema [P0]
+
+Requirements:
+- PostgreSQL `containers` table
+- EF Core entity/configuration and version-controlled migration
+- permanent internal UUID plus canonical workspace-scoped BOX display fields
 
 Acceptance:
 - native UUID PK
@@ -213,10 +271,17 @@ Acceptance:
 
 ## Manual Inventory
 
-### ITEM-001 — Item CRUD [P0]
+### ITEM-001 — Item PostgreSQL schema + CRUD [P0]
+
+Requirements:
+- PostgreSQL `items` table
+- EF Core entity/configuration and version-controlled migration
+- container/workspace relationships, quantity, source, verification/archive fields required by MVP
+- PostgreSQL-backed tenant-isolation tests
 
 Acceptance:
-- add/edit/delete
+- migration applies cleanly to fresh PostgreSQL
+- add/edit/archive
 - quantity supported
 - source MANUAL
 - verified
@@ -292,9 +357,16 @@ Acceptance:
 ### AI-001 — Capture/job/suggestion PostgreSQL schema [P0]
 
 Requirements:
+- PostgreSQL `inventory_captures`, `detection_suggestions`, and `ai_processing_jobs` tables
+- EF Core entities/configuration and version-controlled migration
 - UUIDs
 - `jsonb` only for flexible metadata
 - workspace FKs/indexes
+- capture confirmation state needed for database-guarded idempotent confirmation
+
+Acceptance:
+- migration applies cleanly to fresh PostgreSQL
+- constraints/indexes support the review/confirm workflow
 
 ### AI-002 — Queue capture with Cloud Tasks [P0]
 
@@ -362,7 +434,12 @@ Acceptance:
 
 ## Identification
 
-### ID-001 — Secure identifier token generation [P0]
+### ID-001 — Identifier PostgreSQL schema + secure token generation [P0]
+
+Requirements:
+- PostgreSQL `identifiers` table
+- EF Core entity/configuration and version-controlled migration
+- opaque random QR/barcode token stored/resolved without using the token as authorization
 
 Acceptance:
 - cryptographically random opaque token

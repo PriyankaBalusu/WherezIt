@@ -25,3 +25,11 @@ Additional required review areas:
 - concurrent confirmation integration tests
 - canonical BOX formatting beyond 999
 - archive-query semantics for active vs archived records
+
+Schema delivery rules:
+- every persistence-owning domain ticket must include EF Core mapping + version-controlled migration
+- apply migrations to real PostgreSQL in tests
+- never create application tables manually in Cloud SQL/Google Cloud Console
+- keep local, Testcontainers, and Cloud SQL schema aligned through the same migration history
+- infrastructure tickets may provision database/service/identity/connectivity but do not invent domain tables
+

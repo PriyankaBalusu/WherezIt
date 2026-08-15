@@ -40,6 +40,7 @@ QR codes, barcodes, and future identifiers are interaction mechanisms over the s
 - `prompts/GEMINI_ARCHITECT_REVIEW_PROMPT.md` — use Gemini as architect/reviewer.
 - `prompts/ANTIGRAVITY_IMPLEMENTATION_PROMPT.md` — use Antigravity as implementation agent.
 - `prompts/ANTIGRAVITY_TICKET_PROMPT.md` — template for one-ticket-at-a-time execution.
+- `prompts/ANTIGRAVITY_PLAT_003B_CLOUD_SQL_PROMPT.md` — focused prompt to provision the dev Cloud SQL PostgreSQL environment without creating application tables manually.
 - `prompts/GEMINI_CODE_REVIEW_PROMPT.md` — review completed Antigravity work.
 - `GEMINI_MASTER_PROMPT.md` — optional autonomous execution prompt.
 
@@ -88,3 +89,15 @@ This pack incorporates the accepted Gemini architecture-review recommendations:
 - workspace/container-prefixed Cloud Storage object keys
 
 See `docs/ARCHITECTURE_REVIEW_DECISIONS_2026-08-14.md`.
+
+
+## v2.2 persistence + Cloud SQL clarification
+
+This update adds:
+
+- `PLAT-003B` for provisioning the dev Google Cloud SQL for PostgreSQL environment
+- an explicit persistence-owning ticket contract
+- table/schema ownership mapped to `AUTH-003`, `WS-001`, `LOC-001`, `BOX-001`, `ITEM-001`, `AI-001`, and `ID-001`
+- the rule that Cloud SQL infrastructure is provisioned separately from application tables
+- the rule that all application tables are created through version-controlled EF Core migrations, never manually in Google Cloud Console
+- consistent migration-history expectations across local PostgreSQL, Testcontainers, and Cloud SQL
