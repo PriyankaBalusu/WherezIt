@@ -63,6 +63,10 @@ public class ContainerConfiguration : IEntityTypeConfiguration<Container>
             .HasPrincipalKey(n => new { n.WorkspaceId, n.Id })
             .OnDelete(DeleteBehavior.Restrict);
 
+        builder.HasIndex(c => new { c.WorkspaceId, c.Id })
+            .IsUnique()
+            .HasDatabaseName("ix_containers_workspace_id_id");
+
         builder.HasIndex(c => new { c.WorkspaceId, c.BoxNumber })
             .IsUnique()
             .HasDatabaseName("ix_containers_workspace_id_box_number");

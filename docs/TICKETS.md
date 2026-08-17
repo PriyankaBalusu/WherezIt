@@ -321,7 +321,23 @@ Acceptance:
 - location changes
 - BOX ID unchanged
 - activity record written
-- cross-workspace destination rejected
+- activity history persistence is handled by ACT-001
+
+---
+
+## Activity history
+
+### ACT-001 — Activity history persistence [P1]
+Requirements:
+- persist workspace-scoped activity records for auditable domain changes
+- record container moves with container ID, previous location, destination location, actor, and timestamp
+- preserve tenant isolation; activity from one workspace must never be readable from another workspace
+- use archive/immutable-history semantics rather than normal destructive edits
+Acceptance:
+- BOX-004 container moves create an activity record once ACT-001 is integrated
+- activity records are workspace-scoped and authorization-protected
+- rejected/failed moves do not create activity records
+- integration tests cover successful move history and cross-workspace isolation
 
 ---
 

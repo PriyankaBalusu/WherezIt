@@ -5,7 +5,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { StorageLocationList } from './components/StorageLocationList';
 import * as locationApi from './api/locationApi';
 
-vi.mock('../../auth/useAuth', () => ({
+vi.mock('../auth/useAuth', () => ({
   useAuth: () => ({
     user: { uid: 'test_user_uid_123', email: 'test@example.com' },
     getIdToken: vi.fn().mockResolvedValue('fake_id_token'),

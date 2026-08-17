@@ -70,10 +70,77 @@ namespace WherezIt.Infrastructure.Migrations
                         .IsUnique()
                         .HasDatabaseName("ix_containers_workspace_id_box_number");
 
+                    b.HasIndex("WorkspaceId", "Id")
+                        .IsUnique()
+                        .HasDatabaseName("ix_containers_workspace_id_id");
+
                     b.HasIndex("WorkspaceId", "StorageNodeId")
                         .HasDatabaseName("ix_containers_workspace_id_storage_node_id");
 
                     b.ToTable("containers", (string)null);
+                });
+
+            modelBuilder.Entity("WherezIt.Domain.Entities.Item", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<Guid>("ContainerId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("container_id");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<bool>("IsArchived")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(false)
+                        .HasColumnName("is_archived");
+
+                    b.Property<bool>("IsVerified")
+                        .HasColumnType("boolean")
+                        .HasColumnName("is_verified");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("name");
+
+                    b.Property<int>("Quantity")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasDefaultValue(1)
+                        .HasColumnName("quantity");
+
+                    b.Property<string>("Source")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("source");
+
+                    b.Property<DateTimeOffset>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.Property<Guid>("WorkspaceId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("workspace_id");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("WorkspaceId", "ContainerId")
+                        .HasDatabaseName("ix_items_workspace_id_container_id");
+
+                    b.ToTable("items", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_items_quantity_positive", "quantity >= 1");
+
+                            t.HasCheckConstraint("CK_items_source_valid", "source IN ('MANUAL', 'AI_CONFIRMED')");
+                        });
                 });
 
             modelBuilder.Entity("WherezIt.Domain.Entities.StorageNode", b =>
@@ -239,6 +306,26 @@ namespace WherezIt.Infrastructure.Migrations
                         .IsRequired();
 
                     b.Navigation("StorageNode");
+
+                    b.Navigation("Workspace");
+                });
+
+            modelBuilder.Entity("WherezIt.Domain.Entities.Item", b =>
+                {
+                    b.HasOne("WherezIt.Domain.Entities.Workspace", "Workspace")
+                        .WithMany()
+                        .HasForeignKey("WorkspaceId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("WherezIt.Domain.Entities.Container", "Container")
+                        .WithMany()
+                        .HasForeignKey("WorkspaceId", "ContainerId")
+                        .HasPrincipalKey("WorkspaceId", "Id")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Container");
 
                     b.Navigation("Workspace");
                 });

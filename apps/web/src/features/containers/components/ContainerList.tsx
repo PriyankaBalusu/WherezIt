@@ -14,7 +14,7 @@ interface ContainerListProps {
 
 export const ContainerList: React.FC<ContainerListProps> = ({ workspaceId }) => {
   const [includeArchived, setIncludeArchived] = useState(false);
-  const [filterStorageNodeId, setFilterStorageNodeId] = useState<string | undefined>(undefined);
+  const [filterStorageNodeId] = useState<string | undefined>(undefined);
 
   const { data: locations = [] } = useStorageLocations(workspaceId);
   const { data: containers = [], isLoading, isError, error, refetch } = useContainers(

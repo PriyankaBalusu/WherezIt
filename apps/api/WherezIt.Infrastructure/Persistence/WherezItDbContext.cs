@@ -16,6 +16,7 @@ public class WherezItDbContext : DbContext
     public DbSet<StorageNode> StorageNodes => Set<StorageNode>();
     public DbSet<Container> Containers => Set<Container>();
     public DbSet<WorkspaceBoxCounter> WorkspaceBoxCounters => Set<WorkspaceBoxCounter>();
+    public DbSet<Item> Items => Set<Item>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

@@ -2,31 +2,26 @@ using System.Security.Claims;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using WherezIt.Application.Authentication;
-using WherezIt.Application.Containers.Dtos;
-using WherezIt.Application.Containers.Services;
+using WherezIt.Application.Items.Dtos;
+using WherezIt.Application.Items.Services;
 
 namespace WherezIt.Api.Controllers;
 
 [ApiController]
-[Route("api/v1/workspaces/{workspaceId}/containers")]
 [Authorize]
-public class ContainersController : ControllerBase
+public class ItemsController : ControllerBase
 {
-    private readonly IContainerService _containerService;
-    private readonly IContainerMoveService? _moveService;
+    private readonly IItemService _itemService;
 
-    public ContainersController(
-        IContainerService containerService,
-        IContainerMoveService? moveService = null)
+    public ItemsController(IItemService itemService)
     {
-        _containerService = containerService;
-        _moveService = moveService;
+        _itemService = itemService;
     }
 
-    [HttpGet]
-    public async Task<IActionResult> GetContainers(
+    [HttpGet("api/v1/workspaces/{workspaceId}/containers/{containerId}/items")]
+    public async Task<IActionResult> GetItemsByContainer(
         [FromRoute] Guid workspaceId,
-        [FromQuery] Guid? storageNodeId,
+        [FromRoute] Guid containerId,
         [FromQuery] bool includeArchived = false,
         CancellationToken cancellationToken = default)
     {
@@ -35,8 +30,8 @@ public class ContainersController : ControllerBase
 
         try
         {
-            var containers = await _containerService.GetContainersAsync(identity, workspaceId, storageNodeId, includeArchived, cancellationToken);
-            return Ok(containers);
+            var items = await _itemService.GetItemsByContainerAsync(identity, workspaceId, containerId, includeArchived, cancellationToken);
+            return Ok(items);
         }
         catch (UnauthorizedAccessException)
         {
@@ -44,10 +39,10 @@ public class ContainersController : ControllerBase
         }
     }
 
-    [HttpGet("{containerId}")]
-    public async Task<IActionResult> GetContainer(
+    [HttpGet("api/v1/workspaces/{workspaceId}/items/{itemId}")]
+    public async Task<IActionResult> GetItem(
         [FromRoute] Guid workspaceId,
-        [FromRoute] Guid containerId,
+        [FromRoute] Guid itemId,
         CancellationToken cancellationToken = default)
     {
         var identity = GetAuthenticatedIdentity();
@@ -55,8 +50,8 @@ public class ContainersController : ControllerBase
 
         try
         {
-            var container = await _containerService.GetContainerAsync(identity, workspaceId, containerId, cancellationToken);
-            return Ok(container);
+            var item = await _itemService.GetItemAsync(identity, workspaceId, itemId, cancellationToken);
+            return Ok(item);
         }
         catch (KeyNotFoundException ex)
         {
@@ -68,10 +63,11 @@ public class ContainersController : ControllerBase
         }
     }
 
-    [HttpPost]
-    public async Task<IActionResult> CreateContainer(
+    [HttpPost("api/v1/workspaces/{workspaceId}/containers/{containerId}/items")]
+    public async Task<IActionResult> CreateItem(
         [FromRoute] Guid workspaceId,
-        [FromBody] CreateContainerRequestDto request,
+        [FromRoute] Guid containerId,
+        [FromBody] CreateItemRequestDto request,
         CancellationToken cancellationToken = default)
     {
         var identity = GetAuthenticatedIdentity();
@@ -79,111 +75,8 @@ public class ContainersController : ControllerBase
 
         try
         {
-            var container = await _containerService.CreateContainerAsync(identity, workspaceId, request, cancellationToken);
-            return Created($"/api/v1/workspaces/{workspaceId}/containers/{container.Id}", container);
-        }
-        catch (ArgumentException ex)
-        {
-            return BadRequest(new { error = ex.Message });
-        }
-        catch (UnauthorizedAccessException)
-        {
-            return Forbid();
-        }
-    }
-
-    [HttpPatch("{containerId}")]
-    public async Task<IActionResult> UpdateContainer(
-        [FromRoute] Guid workspaceId,
-        [FromRoute] Guid containerId,
-        [FromBody] UpdateContainerRequestDto request,
-        CancellationToken cancellationToken = default)
-    {
-        var identity = GetAuthenticatedIdentity();
-        if (identity == null) return Unauthorized();
-
-        try
-        {
-            var container = await _containerService.UpdateContainerAsync(identity, workspaceId, containerId, request, cancellationToken);
-            return Ok(container);
-        }
-        catch (KeyNotFoundException ex)
-        {
-            return NotFound(new { error = ex.Message });
-        }
-        catch (UnauthorizedAccessException)
-        {
-            return Forbid();
-        }
-    }
-
-    [HttpPost("{containerId}/archive")]
-    public async Task<IActionResult> ArchiveContainer(
-        [FromRoute] Guid workspaceId,
-        [FromRoute] Guid containerId,
-        CancellationToken cancellationToken = default)
-    {
-        var identity = GetAuthenticatedIdentity();
-        if (identity == null) return Unauthorized();
-
-        try
-        {
-            var container = await _containerService.ArchiveContainerAsync(identity, workspaceId, containerId, cancellationToken);
-            return Ok(container);
-        }
-        catch (KeyNotFoundException ex)
-        {
-            return NotFound(new { error = ex.Message });
-        }
-        catch (UnauthorizedAccessException)
-        {
-            return Forbid();
-        }
-    }
-
-    [HttpPost("{containerId}/restore")]
-    public async Task<IActionResult> RestoreContainer(
-        [FromRoute] Guid workspaceId,
-        [FromRoute] Guid containerId,
-        CancellationToken cancellationToken = default)
-    {
-        var identity = GetAuthenticatedIdentity();
-        if (identity == null) return Unauthorized();
-
-        try
-        {
-            var container = await _containerService.RestoreContainerAsync(identity, workspaceId, containerId, cancellationToken);
-            return Ok(container);
-        }
-        catch (KeyNotFoundException ex)
-        {
-            return NotFound(new { error = ex.Message });
-        }
-        catch (UnauthorizedAccessException)
-        {
-            return Forbid();
-        }
-    }
-
-    [HttpPost("{containerId}/move")]
-    public async Task<IActionResult> MoveContainer(
-        [FromRoute] Guid workspaceId,
-        [FromRoute] Guid containerId,
-        [FromBody] MoveContainerRequestDto request,
-        CancellationToken cancellationToken)
-    {
-        if (_moveService == null)
-        {
-            return StatusCode(500, new { error = "Container move service is not registered." });
-        }
-
-        var identity = GetAuthenticatedIdentity();
-        if (identity == null) return Unauthorized();
-
-        try
-        {
-            var container = await _moveService.MoveContainerAsync(identity, workspaceId, containerId, request, cancellationToken);
-            return Ok(container);
+            var item = await _itemService.CreateItemAsync(identity, workspaceId, containerId, request, cancellationToken);
+            return Created($"/api/v1/workspaces/{workspaceId}/items/{item.Id}", item);
         }
         catch (ArgumentException ex)
         {
@@ -192,6 +85,83 @@ public class ContainersController : ControllerBase
         catch (InvalidOperationException ex)
         {
             return Conflict(new { error = ex.Message });
+        }
+        catch (KeyNotFoundException ex)
+        {
+            return NotFound(new { error = ex.Message });
+        }
+        catch (UnauthorizedAccessException)
+        {
+            return Forbid();
+        }
+    }
+
+    [HttpPatch("api/v1/workspaces/{workspaceId}/items/{itemId}")]
+    public async Task<IActionResult> UpdateItem(
+        [FromRoute] Guid workspaceId,
+        [FromRoute] Guid itemId,
+        [FromBody] UpdateItemRequestDto request,
+        CancellationToken cancellationToken = default)
+    {
+        var identity = GetAuthenticatedIdentity();
+        if (identity == null) return Unauthorized();
+
+        try
+        {
+            var item = await _itemService.UpdateItemAsync(identity, workspaceId, itemId, request, cancellationToken);
+            return Ok(item);
+        }
+        catch (ArgumentException ex)
+        {
+            return BadRequest(new { error = ex.Message });
+        }
+        catch (KeyNotFoundException ex)
+        {
+            return NotFound(new { error = ex.Message });
+        }
+        catch (UnauthorizedAccessException)
+        {
+            return Forbid();
+        }
+    }
+
+    [HttpPost("api/v1/workspaces/{workspaceId}/items/{itemId}/archive")]
+    public async Task<IActionResult> ArchiveItem(
+        [FromRoute] Guid workspaceId,
+        [FromRoute] Guid itemId,
+        CancellationToken cancellationToken = default)
+    {
+        var identity = GetAuthenticatedIdentity();
+        if (identity == null) return Unauthorized();
+
+        try
+        {
+            var item = await _itemService.ArchiveItemAsync(identity, workspaceId, itemId, cancellationToken);
+            return Ok(item);
+        }
+        catch (KeyNotFoundException ex)
+        {
+            return NotFound(new { error = ex.Message });
+        }
+        catch (UnauthorizedAccessException)
+        {
+            return Forbid();
+        }
+    }
+
+    [HttpPost("api/v1/workspaces/{workspaceId}/items/{itemId}/restore")]
+    public async Task<IActionResult> RestoreItem(
+        [FromRoute] Guid workspaceId,
+        [FromRoute] Guid itemId,
+        CancellationToken cancellationToken = default)
+    {
+        var identity = GetAuthenticatedIdentity();
+        if (identity == null) return Unauthorized();
+
+        try
+        {
+            var item = await _itemService.RestoreItemAsync(identity, workspaceId, itemId, cancellationToken);
+            return Ok(item);
         }
         catch (KeyNotFoundException ex)
         {
