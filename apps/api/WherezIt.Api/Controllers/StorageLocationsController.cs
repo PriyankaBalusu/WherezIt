@@ -14,13 +14,16 @@ public class StorageLocationsController : ControllerBase
 {
     private readonly IStorageLocationService _locationService;
     private readonly ILocationMoveService? _moveService;
+    private readonly IBreadcrumbService? _breadcrumbService;
 
     public StorageLocationsController(
         IStorageLocationService locationService,
-        ILocationMoveService? moveService = null)
+        ILocationMoveService? moveService = null,
+        IBreadcrumbService? breadcrumbService = null)
     {
         _locationService = locationService;
         _moveService = moveService;
+        _breadcrumbService = breadcrumbService;
     }
 
     [HttpGet]
@@ -172,6 +175,39 @@ public class StorageLocationsController : ControllerBase
         catch (KeyNotFoundException ex)
         {
             return NotFound(new { error = ex.Message });
+        }
+        catch (UnauthorizedAccessException)
+        {
+            return Forbid();
+        }
+    }
+
+    [HttpGet("{locationId}/breadcrumb")]
+    public async Task<IActionResult> GetBreadcrumb(
+        [FromRoute] Guid workspaceId,
+        [FromRoute] Guid locationId,
+        CancellationToken cancellationToken)
+    {
+        if (_breadcrumbService == null)
+        {
+            return StatusCode(500, new { error = "Breadcrumb service is not registered." });
+        }
+
+        var identity = GetAuthenticatedIdentity();
+        if (identity == null) return Unauthorized();
+
+        try
+        {
+            var breadcrumb = await _breadcrumbService.GetBreadcrumbAsync(identity, workspaceId, locationId, cancellationToken);
+            return Ok(breadcrumb);
+        }
+        catch (KeyNotFoundException ex)
+        {
+            return NotFound(new { error = ex.Message });
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { error = ex.Message });
         }
         catch (UnauthorizedAccessException)
         {

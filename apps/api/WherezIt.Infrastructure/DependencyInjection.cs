@@ -30,6 +30,9 @@ public static class DependencyInjection
         services.AddScoped<WherezIt.Application.Workspaces.Services.IWorkspaceAuthorizationService, Services.WorkspaceAuthorizationService>();
         services.AddScoped<WherezIt.Application.StorageLocations.Services.IStorageLocationService, Services.StorageLocationService>();
         services.AddScoped<WherezIt.Application.StorageLocations.Services.ILocationMoveService, Services.LocationMoveService>();
+        services.AddScoped<WherezIt.Application.StorageLocations.Services.IBreadcrumbService, Services.BreadcrumbService>();
+        services.AddScoped<WherezIt.Application.Containers.Services.IBoxNumberAllocator, Services.PostgreSqlBoxNumberAllocator>();
+        services.AddScoped<WherezIt.Application.Containers.Services.IContainerService, Services.ContainerService>();
 
         services.AddHealthChecks()
             .AddDbContextCheck<WherezItDbContext>("postgresql");

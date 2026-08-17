@@ -1,6 +1,7 @@
 import React from 'react';
 import { Workspace } from '../types/workspace';
 import { StorageLocationList } from '../../locations/components/StorageLocationList';
+import { ContainerList } from '../../containers/components/ContainerList';
 
 interface WorkspaceHomeProps {
   activeWorkspace: Workspace;
@@ -18,6 +19,7 @@ export const WorkspaceHome: React.FC<WorkspaceHomeProps> = ({ activeWorkspace })
 
       <section className="workspace-content">
         <StorageLocationList workspaceId={activeWorkspace.id} />
+        <ContainerList workspaceId={activeWorkspace.id} />
       </section>
     </div>
   );
