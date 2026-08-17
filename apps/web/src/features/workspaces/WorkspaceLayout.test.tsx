@@ -5,7 +5,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { WorkspaceProvider } from './context/WorkspaceContext';
 import * as workspaceApi from './api/workspaceApi';
 
-vi.mock('../../auth/useAuth', () => ({
+vi.mock('../auth/useAuth', () => ({
   useAuth: () => ({
     user: { uid: 'test_user_uid_123', email: 'test@example.com' },
     getIdToken: vi.fn().mockResolvedValue('fake_id_token'),

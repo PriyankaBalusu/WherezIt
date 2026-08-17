@@ -1,5 +1,6 @@
 import React from 'react';
 import { Workspace } from '../types/workspace';
+import { StorageLocationList } from '../../locations/components/StorageLocationList';
 
 interface WorkspaceHomeProps {
   activeWorkspace: Workspace;
@@ -16,12 +17,7 @@ export const WorkspaceHome: React.FC<WorkspaceHomeProps> = ({ activeWorkspace })
       </header>
 
       <section className="workspace-content">
-        <div className="placeholder-card" style={{ padding: '1.5rem', backgroundColor: '#f9f9f9', borderRadius: '6px', border: '1px solid #e9e9e9' }}>
-          <h2 style={{ marginTop: 0, fontSize: '1.2rem', color: '#34495e' }}>WherezIt Search & Storage Overview</h2>
-          <p style={{ color: '#666' }}>
-            Active workspace ready. Future location, container, and item inventory management will appear here.
-          </p>
-        </div>
+        <StorageLocationList workspaceId={activeWorkspace.id} />
       </section>
     </div>
   );

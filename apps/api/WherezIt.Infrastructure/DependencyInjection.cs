@@ -28,6 +28,8 @@ public static class DependencyInjection
         services.AddScoped<WherezIt.Application.Users.Services.IUserService, Services.UserService>();
         services.AddScoped<WherezIt.Application.Workspaces.Services.IWorkspaceService, Services.WorkspaceService>();
         services.AddScoped<WherezIt.Application.Workspaces.Services.IWorkspaceAuthorizationService, Services.WorkspaceAuthorizationService>();
+        services.AddScoped<WherezIt.Application.StorageLocations.Services.IStorageLocationService, Services.StorageLocationService>();
+        services.AddScoped<WherezIt.Application.StorageLocations.Services.ILocationMoveService, Services.LocationMoveService>();
 
         services.AddHealthChecks()
             .AddDbContextCheck<WherezItDbContext>("postgresql");

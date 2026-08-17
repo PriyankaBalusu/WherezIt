@@ -22,6 +22,60 @@ namespace WherezIt.Infrastructure.Migrations
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
 
+            modelBuilder.Entity("WherezIt.Domain.Entities.Container", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<int>("BoxNumber")
+                        .HasColumnType("integer")
+                        .HasColumnName("box_number");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<string>("Description")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("description");
+
+                    b.Property<bool>("IsArchived")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(false)
+                        .HasColumnName("is_archived");
+
+                    b.Property<string>("Name")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("name");
+
+                    b.Property<Guid>("StorageNodeId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("storage_node_id");
+
+                    b.Property<DateTimeOffset>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.Property<Guid>("WorkspaceId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("workspace_id");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("WorkspaceId", "BoxNumber")
+                        .IsUnique()
+                        .HasDatabaseName("ix_containers_workspace_id_box_number");
+
+                    b.HasIndex("WorkspaceId", "StorageNodeId")
+                        .HasDatabaseName("ix_containers_workspace_id_storage_node_id");
+
+                    b.ToTable("containers", (string)null);
+                });
+
             modelBuilder.Entity("WherezIt.Domain.Entities.StorageNode", b =>
                 {
                     b.Property<Guid>("Id")
@@ -125,6 +179,23 @@ namespace WherezIt.Infrastructure.Migrations
                     b.ToTable("workspaces", (string)null);
                 });
 
+            modelBuilder.Entity("WherezIt.Domain.Entities.WorkspaceBoxCounter", b =>
+                {
+                    b.Property<Guid>("WorkspaceId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("workspace_id");
+
+                    b.Property<int>("NextBoxNumber")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasDefaultValue(1)
+                        .HasColumnName("next_box_number");
+
+                    b.HasKey("WorkspaceId");
+
+                    b.ToTable("workspace_box_counters", (string)null);
+                });
+
             modelBuilder.Entity("WherezIt.Domain.Entities.WorkspaceMember", b =>
                 {
                     b.Property<Guid>("WorkspaceId")
@@ -152,6 +223,26 @@ namespace WherezIt.Infrastructure.Migrations
                     b.ToTable("workspace_members", (string)null);
                 });
 
+            modelBuilder.Entity("WherezIt.Domain.Entities.Container", b =>
+                {
+                    b.HasOne("WherezIt.Domain.Entities.Workspace", "Workspace")
+                        .WithMany()
+                        .HasForeignKey("WorkspaceId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("WherezIt.Domain.Entities.StorageNode", "StorageNode")
+                        .WithMany()
+                        .HasForeignKey("WorkspaceId", "StorageNodeId")
+                        .HasPrincipalKey("WorkspaceId", "Id")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("StorageNode");
+
+                    b.Navigation("Workspace");
+                });
+
             modelBuilder.Entity("WherezIt.Domain.Entities.StorageNode", b =>
                 {
                     b.HasOne("WherezIt.Domain.Entities.Workspace", "Workspace")
@@ -167,6 +258,17 @@ namespace WherezIt.Infrastructure.Migrations
                         .OnDelete(DeleteBehavior.Restrict);
 
                     b.Navigation("Parent");
+
+                    b.Navigation("Workspace");
+                });
+
+            modelBuilder.Entity("WherezIt.Domain.Entities.WorkspaceBoxCounter", b =>
+                {
+                    b.HasOne("WherezIt.Domain.Entities.Workspace", "Workspace")
+                        .WithOne()
+                        .HasForeignKey("WherezIt.Domain.Entities.WorkspaceBoxCounter", "WorkspaceId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
 
                     b.Navigation("Workspace");
                 });
