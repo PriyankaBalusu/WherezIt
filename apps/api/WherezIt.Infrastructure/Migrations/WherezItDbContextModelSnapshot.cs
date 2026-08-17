@@ -22,6 +22,46 @@ namespace WherezIt.Infrastructure.Migrations
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
 
+            modelBuilder.Entity("WherezIt.Domain.Entities.StorageNode", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("name");
+
+                    b.Property<Guid?>("ParentId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("parent_id");
+
+                    b.Property<DateTimeOffset>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.Property<Guid>("WorkspaceId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("workspace_id");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("WorkspaceId", "Id")
+                        .IsUnique()
+                        .HasDatabaseName("ix_storage_nodes_workspace_id_id");
+
+                    b.HasIndex("WorkspaceId", "ParentId")
+                        .HasDatabaseName("ix_storage_nodes_workspace_id_parent_id");
+
+                    b.ToTable("storage_nodes", (string)null);
+                });
+
             modelBuilder.Entity("WherezIt.Domain.Entities.User", b =>
                 {
                     b.Property<Guid>("Id")
@@ -112,6 +152,25 @@ namespace WherezIt.Infrastructure.Migrations
                     b.ToTable("workspace_members", (string)null);
                 });
 
+            modelBuilder.Entity("WherezIt.Domain.Entities.StorageNode", b =>
+                {
+                    b.HasOne("WherezIt.Domain.Entities.Workspace", "Workspace")
+                        .WithMany()
+                        .HasForeignKey("WorkspaceId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("WherezIt.Domain.Entities.StorageNode", "Parent")
+                        .WithMany("Children")
+                        .HasForeignKey("WorkspaceId", "ParentId")
+                        .HasPrincipalKey("WorkspaceId", "Id")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.Navigation("Parent");
+
+                    b.Navigation("Workspace");
+                });
+
             modelBuilder.Entity("WherezIt.Domain.Entities.WorkspaceMember", b =>
                 {
                     b.HasOne("WherezIt.Domain.Entities.User", "User")
@@ -129,6 +188,11 @@ namespace WherezIt.Infrastructure.Migrations
                     b.Navigation("User");
 
                     b.Navigation("Workspace");
+                });
+
+            modelBuilder.Entity("WherezIt.Domain.Entities.StorageNode", b =>
+                {
+                    b.Navigation("Children");
                 });
 
             modelBuilder.Entity("WherezIt.Domain.Entities.Workspace", b =>
