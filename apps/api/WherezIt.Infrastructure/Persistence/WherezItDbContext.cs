@@ -17,6 +17,10 @@ public class WherezItDbContext : DbContext
     public DbSet<Container> Containers => Set<Container>();
     public DbSet<WorkspaceBoxCounter> WorkspaceBoxCounters => Set<WorkspaceBoxCounter>();
     public DbSet<Item> Items => Set<Item>();
+    public DbSet<ImageAsset> ImageAssets => Set<ImageAsset>();
+    public DbSet<InventoryCapture> InventoryCaptures => Set<InventoryCapture>();
+    public DbSet<DetectionSuggestion> DetectionSuggestions => Set<DetectionSuggestion>();
+    public DbSet<AIProcessingJob> AIProcessingJobs => Set<AIProcessingJob>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

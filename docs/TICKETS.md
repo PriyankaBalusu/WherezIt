@@ -612,6 +612,71 @@ Use PostgreSQL-compatible seed path.
 
 ---
 
+## Database Operations
+
+### DB-DEV-001 — Apply EF Core migrations to Cloud SQL dev [P0]
+
+Problem:
+The hosted Cloud SQL development database may not contain the application schema implemented and validated through EF Core migrations.
+
+Goal:
+Bring the Cloud SQL development database `wherezit_dev` to the current approved EF Core migration level before deployed integration and E2E testing.
+
+Dependencies:
+- all schema-changing MVP tickets required for the current E2E milestone are complete
+- current EF Core migration chain has been reviewed
+- Cloud SQL target instance/database has been verified
+- explicit human approval has been given for the migration command
+
+Requirements:
+- target project must be `wherezit-505615`
+- target Cloud SQL instance must be `wherezit-db-dev`
+- target database must be `wherezit_dev`
+- verify current database schema before mutation
+- verify existing `__EFMigrationsHistory` state
+- verify exact pending EF Core migrations
+- apply the approved migration chain exactly once
+- do not recreate the database
+- do not manually create application tables in Cloud SQL Studio
+- do not modify production databases
+- do not combine this task with unrelated Cloud Run, Firebase, IAM, or bucket mutations
+
+Execution protocol:
+
+VERIFY
+→ IDENTIFY CURRENT SCHEMA STATE
+→ REPORT PENDING MIGRATIONS
+→ PROPOSE EXACT MIGRATION COMMAND
+→ WAIT FOR HUMAN APPROVAL
+→ APPLY ONCE
+→ VERIFY ONCE
+→ STOP
+
+Verification after migration:
+- expected application tables exist
+- `__EFMigrationsHistory` exists
+- migration history matches repository migration chain
+- no unexpected tables/schema changes were introduced
+- application database user retains required permissions
+- Cloud SQL connectivity remains healthy
+
+Acceptance:
+- all approved EF migrations through the selected release point are applied successfully
+- `__EFMigrationsHistory` contains the expected migration IDs
+- expected application tables are present
+- no pending migration remains for the selected release point
+- no production database was modified
+- no unrelated cloud mutation was performed
+
+Safety:
+- external database mutation requires explicit human approval
+- never retry a failed migration automatically
+- never delete/recreate the database because of migration failure
+- if migration fails, capture exact error and current migration state, then STOP
+- maximum one migration execution attempt per approval
+
+---
+
 ## Final E2E
 
 ### E2E-001 — Critical Wherezit journey [P0]

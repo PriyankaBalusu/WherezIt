@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useStorageLocations } from '../../locations/hooks/useStorageLocations';
+import { CameraCaptureModal } from './CameraCaptureModal';
 import {
   useContainers,
   useCreateContainer,
@@ -36,6 +37,7 @@ export const ContainerList: React.FC<ContainerListProps> = ({ workspaceId }) => 
   const [editingName, setEditingName] = useState('');
   const [editingDesc, setEditingDesc] = useState('');
   const [actionError, setActionError] = useState<string | null>(null);
+  const [photoContainerId, setPhotoContainerId] = useState<string | null>(null);
 
   if (isLoading) {
     return <div>Loading containers...</div>;
@@ -228,7 +230,7 @@ export const ContainerList: React.FC<ContainerListProps> = ({ workspaceId }) => 
                     Location: <strong>{getLocationName(container.storageNodeId)}</strong>
                   </div>
 
-                  <div style={{ display: 'flex', gap: '0.5rem', fontSize: '0.85rem' }}>
+                  <div style={{ display: 'flex', gap: '0.5rem', fontSize: '0.85rem', flexWrap: 'wrap' }}>
                     <button
                       onClick={() => {
                         setEditingId(container.id);
@@ -238,6 +240,15 @@ export const ContainerList: React.FC<ContainerListProps> = ({ workspaceId }) => 
                     >
                       Edit
                     </button>
+
+                    {!container.isArchived && (
+                      <button
+                        onClick={() => setPhotoContainerId(container.id)}
+                        style={{ color: '#2563eb', display: 'inline-flex', alignItems: 'center', gap: '0.25rem' }}
+                      >
+                        📷 Add Photo
+                      </button>
+                    )}
 
                     <button
                       onClick={() => handleArchiveToggle(container.id, container.isArchived)}
@@ -251,6 +262,15 @@ export const ContainerList: React.FC<ContainerListProps> = ({ workspaceId }) => 
             </div>
           ))}
         </div>
+      )}
+
+      {photoContainerId && (
+        <CameraCaptureModal
+          workspaceId={workspaceId}
+          containerId={photoContainerId}
+          isOpen={!!photoContainerId}
+          onClose={() => setPhotoContainerId(null)}
+        />
       )}
     </div>
   );
