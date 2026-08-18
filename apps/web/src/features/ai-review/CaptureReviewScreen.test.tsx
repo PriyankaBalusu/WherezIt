@@ -6,7 +6,7 @@ import * as captureReviewApi from './api/captureReviewApi';
 
 vi.mock('./api/captureReviewApi');
 
-describe('CaptureReviewScreen (AI-004)', () => {
+describe('CaptureReviewScreen (AI-004 & AI-005)', () => {
   let queryClient: QueryClient;
 
   beforeEach(() => {
@@ -18,19 +18,20 @@ describe('CaptureReviewScreen (AI-004)', () => {
     vi.clearAllMocks();
   });
 
-  const renderComponent = (workspaceId = 'ws-123', captureId = 'cap-456', onNavigateToManualEntry = vi.fn()) => {
+  const renderComponent = (workspaceId = 'ws-123', captureId = 'cap-456', onNavigateToManualEntry = vi.fn(), onConfirmSuccess = vi.fn()) => {
     return render(
       <QueryClientProvider client={queryClient}>
         <CaptureReviewScreen
           workspaceId={workspaceId}
           captureId={captureId}
           onNavigateToManualEntry={onNavigateToManualEntry}
+          onConfirmSuccess={onConfirmSuccess}
         />
       </QueryClientProvider>
     );
   };
 
-  it('renders review suggestions and allows client-side editing', async () => {
+  it('renders review suggestions and allows client-side editing and explicit confirmation', async () => {
     const mockReview: captureReviewApi.CaptureReviewResponse = {
       captureId: 'cap-456',
       workspaceId: 'ws-123',
@@ -47,8 +48,16 @@ describe('CaptureReviewScreen (AI-004)', () => {
     };
 
     vi.mocked(captureReviewApi.fetchCaptureReview).mockResolvedValueOnce(mockReview);
+    vi.mocked(captureReviewApi.confirmCaptureReview).mockResolvedValueOnce({
+      captureId: 'cap-456',
+      workspaceId: 'ws-123',
+      containerId: 'box-7',
+      status: 'CONFIRMED',
+      confirmedItemsCount: 2,
+    });
 
-    renderComponent();
+    const handleConfirmSuccess = vi.fn();
+    renderComponent('ws-123', 'cap-456', vi.fn(), handleConfirmSuccess);
 
     await waitFor(() => {
       expect(screen.getByDisplayValue('String Lights')).toBeInTheDocument();
@@ -60,22 +69,17 @@ describe('CaptureReviewScreen (AI-004)', () => {
     fireEvent.change(nameInput, { target: { value: 'LED String Lights' } });
     expect(screen.getByDisplayValue('LED String Lights')).toBeInTheDocument();
 
-    // Quantity edit
-    const increaseBtns = screen.getAllByRole('button', { name: 'Increase quantity' });
-    fireEvent.click(increaseBtns[0]); // increase LED String Lights quantity to 3
-    expect(screen.getByText('3')).toBeInTheDocument();
+    // Confirm inventory click
+    const confirmBtn = screen.getByRole('button', { name: /Confirm Inventory/i });
+    fireEvent.click(confirmBtn);
 
-    // Add missing item draft
-    const missingNameInput = screen.getByPlaceholderText(/Add missing item name.../i);
-    fireEvent.change(missingNameInput, { target: { value: 'Timer Plug' } });
-    fireEvent.click(screen.getByRole('button', { name: /\+ Add Item/i }));
-
-    expect(screen.getByDisplayValue('Timer Plug')).toBeInTheDocument();
-
-    // Remove item
-    const removeBtns = screen.getAllByRole('button', { name: 'Remove item' });
-    fireEvent.click(removeBtns[1]); // Remove Extension Cord
-    expect(screen.queryByDisplayValue('Extension Cord')).not.toBeInTheDocument();
+    await waitFor(() => {
+      expect(captureReviewApi.confirmCaptureReview).toHaveBeenCalledWith('ws-123', 'cap-456', [
+        { name: 'LED String Lights', quantity: 2, suggestionId: 'sugg-1' },
+        { name: 'Extension Cord', quantity: 1, suggestionId: 'sugg-2' },
+      ]);
+      expect(handleConfirmSuccess).toHaveBeenCalledWith('box-7');
+    });
   });
 
   it('renders processing state when capture is still in progress', async () => {

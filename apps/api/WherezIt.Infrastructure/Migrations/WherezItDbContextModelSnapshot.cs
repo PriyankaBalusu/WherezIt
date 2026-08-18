@@ -379,6 +379,73 @@ namespace WherezIt.Infrastructure.Migrations
                     b.Navigation("Workspace");
                 });
 
+            modelBuilder.Entity("WherezIt.Domain.Entities.Identifier", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<Guid>("ContainerId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("container_id");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<string>("Type")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("type");
+
+                    b.Property<DateTimeOffset>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.Property<string>("Value")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)")
+                        .HasColumnName("value");
+
+                    b.Property<Guid>("WorkspaceId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("workspace_id");
+
+                    b.HasKey("Id")
+                        .HasName("pk_identifiers");
+
+                    b.HasIndex("Value")
+                        .IsUnique()
+                        .HasDatabaseName("ix_identifiers_value");
+
+                    b.HasIndex("WorkspaceId", "ContainerId")
+                        .HasDatabaseName("ix_identifiers_workspace_id_container_id");
+
+                    b.ToTable("identifiers", null, t =>
+                        {
+                            t.HasCheckConstraint("ck_identifiers_type", "type IN ('QR', 'BARCODE')");
+                        });
+
+                    b.HasOne("WherezIt.Domain.Entities.Workspace", "Workspace")
+                        .WithMany()
+                        .HasForeignKey("WorkspaceId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("WherezIt.Domain.Entities.Container", "Container")
+                        .WithMany()
+                        .HasForeignKey("WorkspaceId", "ContainerId")
+                        .HasPrincipalKey("WorkspaceId", "Id")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Container");
+
+                    b.Navigation("Workspace");
+                });
+
             modelBuilder.Entity("WherezIt.Domain.Entities.StorageNode", b =>
                 {
                     b.Navigation("Children");

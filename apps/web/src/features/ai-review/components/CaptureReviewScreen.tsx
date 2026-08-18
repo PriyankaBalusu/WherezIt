@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useCaptureReview } from '../hooks/useCaptureReview';
+import { confirmCaptureReview, ConfirmItemPayload } from '../api/captureReviewApi';
 
 export interface DraftItem {
   id: string; // suggestion ID or client temp ID
@@ -12,18 +13,23 @@ interface CaptureReviewScreenProps {
   workspaceId: string;
   captureId: string;
   onNavigateToManualEntry?: (containerId: string) => void;
+  onConfirmSuccess?: (containerId: string) => void;
 }
 
 export const CaptureReviewScreen: React.FC<CaptureReviewScreenProps> = ({
   workspaceId,
   captureId,
   onNavigateToManualEntry,
+  onConfirmSuccess,
 }) => {
-  const { data: reviewData, isLoading, isError, error } = useCaptureReview(workspaceId, captureId);
+  const { data: reviewData, isLoading, isError, error, refetch } = useCaptureReview(workspaceId, captureId);
 
   const [draftItems, setDraftItems] = useState<DraftItem[]>([]);
   const [newItemName, setNewItemName] = useState('');
   const [newItemQuantity, setNewItemQuantity] = useState(1);
+  const [isSubmittingConfirm, setIsSubmittingConfirm] = useState(false);
+  const [confirmError, setConfirmError] = useState<string | null>(null);
+  const [confirmedSuccess, setConfirmedSuccess] = useState(false);
 
   // Initialize draft items from server suggestions when review data loads
   useEffect(() => {
@@ -95,7 +101,7 @@ export const CaptureReviewScreen: React.FC<CaptureReviewScreenProps> = ({
     );
   }
 
-  const isReadOnly = reviewData.status === 'CONFIRMED';
+  const isReadOnly = reviewData.status === 'CONFIRMED' || confirmedSuccess;
   const imageUrl = `/api/v1/workspaces/${encodeURIComponent(workspaceId)}/images/${encodeURIComponent(reviewData.imageId)}`;
 
   const handleNameChange = (id: string, newName: string) => {
@@ -136,6 +142,37 @@ export const CaptureReviewScreen: React.FC<CaptureReviewScreenProps> = ({
     setNewItemQuantity(1);
   };
 
+  const handleConfirmSubmission = async () => {
+    if (isReadOnly || isSubmittingConfirm) return;
+    if (draftItems.length === 0) {
+      setConfirmError('Please keep or add at least one item before confirming.');
+      return;
+    }
+
+    try {
+      setIsSubmittingConfirm(true);
+      setConfirmError(null);
+
+      const itemsPayload: ConfirmItemPayload[] = draftItems.map((item) => ({
+        name: item.name,
+        quantity: item.quantity,
+        suggestionId: item.isCustomAdd ? undefined : item.id,
+      }));
+
+      await confirmCaptureReview(workspaceId, captureId, itemsPayload);
+      setConfirmedSuccess(true);
+      setIsSubmittingConfirm(false);
+      refetch();
+
+      if (onConfirmSuccess) {
+        onConfirmSuccess(reviewData.containerId);
+      }
+    } catch (err: any) {
+      setIsSubmittingConfirm(false);
+      setConfirmError(err.message || 'Confirmation failed. Please try again.');
+    }
+  };
+
   return (
     <div style={{ maxWidth: '700px', margin: '0 auto', padding: '1rem' }}>
       <div style={{ marginBottom: '1.5rem', borderBottom: '1px solid #e2e8f0', paddingBottom: '1rem' }}>
@@ -147,6 +184,18 @@ export const CaptureReviewScreen: React.FC<CaptureReviewScreenProps> = ({
           {reviewData.breadcrumbDisplay && ` • ${reviewData.breadcrumbDisplay}`}
         </div>
       </div>
+
+      {confirmError && (
+        <div role="alert" style={{ backgroundColor: '#fff5f5', border: '1px solid #feb2b2', color: '#c53030', padding: '1rem', borderRadius: '0.375rem', marginBottom: '1rem' }}>
+          {confirmError}
+        </div>
+      )}
+
+      {confirmedSuccess && (
+        <div role="status" style={{ backgroundColor: '#f0fff4', border: '1px solid #9ae6b4', color: '#276749', padding: '1rem', borderRadius: '0.375rem', marginBottom: '1rem', fontWeight: 600 }}>
+          Inventory confirmed successfully! Trusted items have been created for container {reviewData.boxDisplayId}.
+        </div>
+      )}
 
       {/* Authorized Image Preview */}
       <div style={{ marginBottom: '1.5rem', textAlign: 'center' }}>
@@ -266,7 +315,7 @@ export const CaptureReviewScreen: React.FC<CaptureReviewScreenProps> = ({
 
         {/* Add missing item draft form */}
         {!isReadOnly && (
-          <form onSubmit={handleAddMissingItem} style={{ display: 'flex', gap: '0.5rem', borderTop: '1px solid #edf2f7', paddingTop: '1rem' }}>
+          <form onSubmit={handleAddMissingItem} style={{ display: 'flex', gap: '0.5rem', borderTop: '1px solid #edf2f7', paddingTop: '1rem', marginBottom: '1.5rem' }}>
             <input
               type="text"
               value={newItemName}
@@ -299,6 +348,29 @@ export const CaptureReviewScreen: React.FC<CaptureReviewScreenProps> = ({
               + Add Item
             </button>
           </form>
+        )}
+
+        {/* Action Confirm Button */}
+        {!isReadOnly && (
+          <div style={{ display: 'flex', justifyContent: 'flex-end', borderTop: '1px solid #edf2f7', paddingTop: '1rem' }}>
+            <button
+              type="button"
+              onClick={handleConfirmSubmission}
+              disabled={draftItems.length === 0 || isSubmittingConfirm}
+              style={{
+                padding: '0.75rem 1.5rem',
+                fontSize: '1rem',
+                fontWeight: 700,
+                backgroundColor: draftItems.length === 0 || isSubmittingConfirm ? '#cbd5e0' : '#2b6cb0',
+                color: '#fff',
+                border: 'none',
+                borderRadius: '0.375rem',
+                cursor: draftItems.length === 0 || isSubmittingConfirm ? 'not-allowed' : 'pointer',
+              }}
+            >
+              {isSubmittingConfirm ? 'Confirming Inventory...' : 'Confirm Inventory'}
+            </button>
+          </div>
         )}
       </div>
     </div>

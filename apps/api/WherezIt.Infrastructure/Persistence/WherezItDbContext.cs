@@ -21,6 +21,7 @@ public class WherezItDbContext : DbContext
     public DbSet<InventoryCapture> InventoryCaptures => Set<InventoryCapture>();
     public DbSet<DetectionSuggestion> DetectionSuggestions => Set<DetectionSuggestion>();
     public DbSet<AIProcessingJob> AIProcessingJobs => Set<AIProcessingJob>();
+    public DbSet<Identifier> Identifiers => Set<Identifier>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

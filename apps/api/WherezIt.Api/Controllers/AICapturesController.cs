@@ -15,10 +15,14 @@ namespace WherezIt.Api.Controllers;
 public class AICapturesController : ControllerBase
 {
     private readonly IAICaptureReviewService _reviewService;
+    private readonly IAICaptureConfirmationService _confirmationService;
 
-    public AICapturesController(IAICaptureReviewService reviewService)
+    public AICapturesController(
+        IAICaptureReviewService reviewService,
+        IAICaptureConfirmationService confirmationService)
     {
         _reviewService = reviewService;
+        _confirmationService = confirmationService;
     }
 
     [HttpGet("{captureId}/review")]
@@ -49,6 +53,42 @@ public class AICapturesController : ControllerBase
         catch (ArgumentException ex)
         {
             return BadRequest(new { error = ex.Message });
+        }
+    }
+
+    [HttpPost("{captureId}/confirm")]
+    public async Task<IActionResult> ConfirmCapture(
+        [FromRoute] Guid workspaceId,
+        [FromRoute] Guid captureId,
+        [FromBody] WherezIt.Application.AI.Dtos.ConfirmCaptureRequestDto request,
+        CancellationToken cancellationToken = default)
+    {
+        var identity = GetAuthenticatedIdentity();
+        if (identity == null)
+        {
+            return Unauthorized(new { error = "Firebase UID claim not found in authenticated principal." });
+        }
+
+        try
+        {
+            var response = await _confirmationService.ConfirmCaptureAsync(identity, workspaceId, captureId, request, cancellationToken);
+            return Ok(response);
+        }
+        catch (KeyNotFoundException ex)
+        {
+            return NotFound(new { error = ex.Message });
+        }
+        catch (UnauthorizedAccessException)
+        {
+            return Forbid();
+        }
+        catch (ArgumentException ex)
+        {
+            return BadRequest(new { error = ex.Message });
+        }
+        catch (InvalidOperationException ex)
+        {
+            return StatusCode(Microsoft.AspNetCore.Http.StatusCodes.Status409Conflict, new { error = ex.Message });
         }
     }
 

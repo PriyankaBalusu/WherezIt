@@ -41,3 +41,45 @@ export async function fetchCaptureReview(workspaceId: string, captureId: string)
 
   return response.json();
 }
+
+export interface ConfirmItemPayload {
+  name: string;
+  quantity: number;
+  suggestionId?: string;
+}
+
+export interface ConfirmCaptureResponse {
+  captureId: string;
+  workspaceId: string;
+  containerId: string;
+  status: string;
+  confirmedItemsCount: number;
+}
+
+export async function confirmCaptureReview(
+  workspaceId: string,
+  captureId: string,
+  items: ConfirmItemPayload[]
+): Promise<ConfirmCaptureResponse> {
+  const currentUser = auth.currentUser;
+  if (!currentUser) {
+    throw new Error('User must be authenticated to confirm capture review.');
+  }
+
+  const token = await getIdToken(currentUser);
+  const response = await fetch(`/api/v1/workspaces/${encodeURIComponent(workspaceId)}/captures/${encodeURIComponent(captureId)}/confirm`, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${token}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ items }),
+  });
+
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(errorData.error || `Confirmation failed with status ${response.status}`);
+  }
+
+  return response.json();
+}
