@@ -38,9 +38,11 @@ public static class DependencyInjection
         services.AddScoped<WherezIt.Application.Images.Services.IImageManagementService, Services.ImageManagementService>();
         services.AddSingleton<WherezIt.Application.Storage.Services.IImageObjectStorage, Services.LocalDevImageObjectStorage>();
         services.AddScoped<WherezIt.Application.Search.Services.ISearchService, Services.SearchService>();
+        services.AddScoped<WherezIt.Application.Search.Services.IWorkspaceSearchService, Services.WorkspaceSearchService>();
         services.AddSingleton<WherezIt.Application.AI.Services.IAIProcessingQueue, Services.LocalDevProcessingQueue>();
         services.AddScoped<WherezIt.Application.AI.Services.IInventoryVisionProvider, Services.MockInventoryVisionProvider>();
         services.AddScoped<WherezIt.Application.AI.Services.IAIJobProcessor, Services.AIJobProcessor>();
+        services.AddScoped<WherezIt.Application.AI.Services.IAICaptureReviewService, Services.AICaptureReviewService>();
 
         services.AddHealthChecks()
             .AddDbContextCheck<WherezItDbContext>("postgresql");

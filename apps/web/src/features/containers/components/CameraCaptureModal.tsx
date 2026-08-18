@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useImageUpload } from '../../images/hooks/useImageUpload';
+import { compressImage } from '../../images/utils/compressImage';
 
-const MAX_FILE_SIZE_BYTES = 10 * 1024 * 1024; // 10 MiB
+const MAX_FILE_SIZE_BYTES = 10 * 1024 * 1024; // 10 MiB (IMG-002 limit)
 const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
 
 interface CameraCaptureModalProps {
@@ -22,6 +23,7 @@ export const CameraCaptureModal: React.FC<CameraCaptureModalProps> = ({
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [validationError, setValidationError] = useState<string | null>(null);
+  const [isProcessing, setIsProcessing] = useState<boolean>(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const uploadMutation = useImageUpload(workspaceId, containerId);
@@ -45,6 +47,7 @@ export const CameraCaptureModal: React.FC<CameraCaptureModalProps> = ({
   const handleClose = () => {
     setSelectedFile(null);
     setValidationError(null);
+    setIsProcessing(false);
     uploadMutation.reset();
     onClose();
   };
@@ -63,12 +66,6 @@ export const CameraCaptureModal: React.FC<CameraCaptureModalProps> = ({
       return;
     }
 
-    if (file.size > MAX_FILE_SIZE_BYTES) {
-      setValidationError('Image size exceeds 10 MB limit.');
-      setSelectedFile(null);
-      return;
-    }
-
     setSelectedFile(file);
   };
 
@@ -76,10 +73,25 @@ export const CameraCaptureModal: React.FC<CameraCaptureModalProps> = ({
     if (!selectedFile) return;
 
     try {
-      await uploadMutation.mutateAsync(selectedFile);
+      setIsProcessing(true);
+      setValidationError(null);
+
+      // Preprocess / Compress image (IMG-003)
+      const compressionResult = await compressImage(selectedFile);
+      const fileToUpload = compressionResult.file;
+
+      if (fileToUpload.size > MAX_FILE_SIZE_BYTES) {
+        setValidationError('Compressed image size exceeds maximum 10 MB backend upload limit.');
+        setIsProcessing(false);
+        return;
+      }
+
+      await uploadMutation.mutateAsync(fileToUpload);
+      setIsProcessing(false);
       handleClose();
       if (onSuccess) onSuccess();
     } catch (err: any) {
+      setIsProcessing(false);
       setValidationError(err.message || 'Image upload failed. Please try again.');
     }
   };
@@ -133,14 +145,15 @@ export const CameraCaptureModal: React.FC<CameraCaptureModalProps> = ({
             onChange={handleFileChange}
             style={{ display: 'block', width: '100%', marginBottom: '0.5rem' }}
             aria-label="Select or capture image"
+            disabled={isProcessing || uploadMutation.isPending}
           />
           <span style={{ fontSize: '0.75rem', color: '#718096' }}>
-            Supports camera capture on mobile devices or file selection (max 10MB).
+            Supports camera capture on mobile devices or file selection (auto-compressed to &lt;= 4MB).
           </span>
         </div>
 
         {previewUrl && (
-          <div style={{ marginBottom: '1rem', textAlignment: 'center' as any }}>
+          <div style={{ marginBottom: '1rem', textAlign: 'center' }}>
             <img
               src={previewUrl}
               alt="Captured preview"
@@ -165,27 +178,28 @@ export const CameraCaptureModal: React.FC<CameraCaptureModalProps> = ({
               borderRadius: '0.25rem',
               cursor: 'pointer',
             }}
-            disabled={uploadMutation.isPending}
+            disabled={isProcessing || uploadMutation.isPending}
           >
             Cancel
           </button>
           <button
             type="button"
             onClick={handleUpload}
-            disabled={!selectedFile || uploadMutation.isPending}
+            disabled={!selectedFile || isProcessing || uploadMutation.isPending}
             style={{
               padding: '0.5rem 1rem',
-              backgroundColor: !selectedFile || uploadMutation.isPending ? '#cbd5e0' : '#3182ce',
+              backgroundColor: !selectedFile || isProcessing || uploadMutation.isPending ? '#cbd5e0' : '#3182ce',
               color: '#fff',
               border: 'none',
               borderRadius: '0.25rem',
-              cursor: !selectedFile || uploadMutation.isPending ? 'not-allowed' : 'pointer',
+              cursor: !selectedFile || isProcessing || uploadMutation.isPending ? 'not-allowed' : 'pointer',
             }}
           >
-            {uploadMutation.isPending ? 'Uploading...' : 'Upload Photo'}
+            {isProcessing ? 'Preparing photo...' : uploadMutation.isPending ? 'Uploading...' : 'Upload Photo'}
           </button>
         </div>
       </div>
     </div>
   );
 };
+

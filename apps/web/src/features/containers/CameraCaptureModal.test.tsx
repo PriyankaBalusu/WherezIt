@@ -3,6 +3,7 @@ import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { CameraCaptureModal } from './components/CameraCaptureModal';
 import * as imageApi from '../images/api/imageApi';
+import * as compressUtils from '../images/utils/compressImage';
 
 vi.mock('../auth/useAuth', () => ({
   useAuth: () => ({
@@ -11,7 +12,7 @@ vi.mock('../auth/useAuth', () => ({
   }),
 }));
 
-describe('CameraCaptureModal (PWA-002)', () => {
+describe('CameraCaptureModal (PWA-002 & IMG-003)', () => {
   let queryClient: QueryClient;
   const workspaceId = '11111111-1111-1111-1111-111111111111';
   const containerId = '22222222-2222-2222-2222-222222222222';
@@ -48,7 +49,18 @@ describe('CameraCaptureModal (PWA-002)', () => {
     expect(input.getAttribute('capture')).toBe('environment');
   });
 
-  it('shows error when file size exceeds 10MB', async () => {
+  it('shows error when compressed file size exceeds 10MB limit', async () => {
+    const file = new File(['a'.repeat(1024)], 'large.jpg', { type: 'image/jpeg' });
+    const compressedOversizedFile = new File(['a'.repeat(1024)], 'large.jpg', { type: 'image/jpeg' });
+    Object.defineProperty(compressedOversizedFile, 'size', { value: 11 * 1024 * 1024 });
+
+    vi.spyOn(compressUtils, 'compressImage').mockResolvedValueOnce({
+      file: compressedOversizedFile,
+      compressed: true,
+      originalSize: 15 * 1024 * 1024,
+      compressedSize: 11 * 1024 * 1024,
+    });
+
     render(
       <QueryClientProvider client={queryClient}>
         <CameraCaptureModal
@@ -60,18 +72,28 @@ describe('CameraCaptureModal (PWA-002)', () => {
       </QueryClientProvider>
     );
 
-    const file = new File(['a'.repeat(1024)], 'large.jpg', { type: 'image/jpeg' });
-    Object.defineProperty(file, 'size', { value: 11 * 1024 * 1024 });
-
     const input = screen.getByLabelText(/Select or capture image/i);
     fireEvent.change(input, { target: { files: [file] } });
 
+    const uploadBtn = screen.getByText('Upload Photo');
+    fireEvent.click(uploadBtn);
+
     await waitFor(() => {
-      expect(screen.getByRole('alert')).toHaveTextContent('Image size exceeds 10 MB limit.');
+      expect(screen.getByRole('alert')).toHaveTextContent('Compressed image size exceeds maximum 10 MB backend upload limit.');
     });
   });
 
-  it('uploads selected image successfully and calls onSuccess', async () => {
+  it('uploads compressed image successfully and calls onSuccess', async () => {
+    const file = new File(['dummy content'], 'photo.jpg', { type: 'image/jpeg' });
+    const compressedFile = new File(['compressed content'], 'photo.jpg', { type: 'image/jpeg' });
+
+    vi.spyOn(compressUtils, 'compressImage').mockResolvedValueOnce({
+      file: compressedFile,
+      compressed: true,
+      originalSize: 5 * 1024 * 1024,
+      compressedSize: 2 * 1024 * 1024,
+    });
+
     const uploadSpy = vi.spyOn(imageApi, 'uploadContainerImage').mockResolvedValue({
       id: 'img-123',
       workspaceId,
@@ -96,7 +118,6 @@ describe('CameraCaptureModal (PWA-002)', () => {
       </QueryClientProvider>
     );
 
-    const file = new File(['dummy content'], 'photo.jpg', { type: 'image/jpeg' });
     const input = screen.getByLabelText(/Select or capture image/i);
     fireEvent.change(input, { target: { files: [file] } });
 
@@ -105,7 +126,7 @@ describe('CameraCaptureModal (PWA-002)', () => {
     fireEvent.click(uploadBtn);
 
     await waitFor(() => {
-      expect(uploadSpy).toHaveBeenCalledWith(workspaceId, containerId, file, 'fake_id_token');
+      expect(uploadSpy).toHaveBeenCalledWith(workspaceId, containerId, compressedFile, 'fake_id_token');
       expect(handleSuccess).toHaveBeenCalled();
       expect(handleClose).toHaveBeenCalled();
     });

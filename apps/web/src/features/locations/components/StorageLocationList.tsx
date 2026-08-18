@@ -1,5 +1,4 @@
 import React, { useState } from 'react';
-import { StorageLocation } from '../types/location';
 import {
   useStorageLocations,
   useCreateStorageLocation,
