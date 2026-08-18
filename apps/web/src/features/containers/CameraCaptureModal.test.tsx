@@ -4,7 +4,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { CameraCaptureModal } from './components/CameraCaptureModal';
 import * as imageApi from '../images/api/imageApi';
 
-vi.mock('../auth/context/AuthContext', () => ({
+vi.mock('../auth/useAuth', () => ({
   useAuth: () => ({
     user: { uid: 'test_firebase_uid', email: 'test@example.com' },
     getIdToken: vi.fn().mockResolvedValue('fake_id_token'),

@@ -1,5 +1,5 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { useAuth } from '../../auth/context/AuthContext';
+import { useAuth } from '../../auth/useAuth';
 import { uploadContainerImage } from '../api/imageApi';
 
 export function useImageUpload(workspaceId: string, containerId: string) {
