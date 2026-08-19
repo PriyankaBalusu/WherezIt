@@ -25,7 +25,25 @@ public interface IIdentifierService
         string type,
         CancellationToken cancellationToken = default);
 
+    Task<IdentifierDto> GetOrCreateQrIdentifierAsync(
+        AuthenticatedIdentity identity,
+        Guid workspaceId,
+        Guid containerId,
+        CancellationToken cancellationToken = default);
+
+    Task<IdentifierDto> GetOrCreateIdentifierAsync(
+        AuthenticatedIdentity identity,
+        Guid workspaceId,
+        Guid containerId,
+        string type,
+        CancellationToken cancellationToken = default);
+
     Task<IdentifierDto> ResolveIdentifierAsync(
+        AuthenticatedIdentity identity,
+        string tokenValue,
+        CancellationToken cancellationToken = default);
+
+    Task<WherezIt.Application.Identifiers.Dtos.ResolvedContainerDto> ResolveAuthorizedContainerAsync(
         AuthenticatedIdentity identity,
         string tokenValue,
         CancellationToken cancellationToken = default);

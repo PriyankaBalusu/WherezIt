@@ -104,6 +104,28 @@ public class ContainerService : IContainerService
             throw new ArgumentException($"Storage location '{request.StorageNodeId}' does not exist in workspace '{workspaceId}'.", nameof(request));
         }
 
+        if (request.DestinationStorageNodeId.HasValue)
+        {
+            var destNode = await _dbContext.StorageNodes
+                .AsNoTracking()
+                .FirstOrDefaultAsync(n => n.Id == request.DestinationStorageNodeId.Value && n.WorkspaceId == workspaceId, cancellationToken);
+
+            if (destNode == null)
+            {
+                throw new ArgumentException($"Destination location '{request.DestinationStorageNodeId}' does not exist in workspace '{workspaceId}'.", nameof(request));
+            }
+        }
+
+        string? normPriority = null;
+        if (!string.IsNullOrWhiteSpace(request.MovingPriority))
+        {
+            normPriority = request.MovingPriority.Trim().ToUpperInvariant();
+            if (normPriority != "LOW" && normPriority != "MEDIUM" && normPriority != "HIGH")
+            {
+                throw new ArgumentException("Moving priority must be 'LOW', 'MEDIUM', or 'HIGH'.", nameof(request));
+            }
+        }
+
         // 3. Allocate next BOX number atomically
         var boxNumber = await _allocator.AllocateNextAsync(workspaceId, cancellationToken);
 
@@ -116,6 +138,9 @@ public class ContainerService : IContainerService
             BoxNumber = boxNumber,
             Name = request.Name?.Trim(),
             Description = request.Description?.Trim(),
+            DestinationStorageNodeId = request.DestinationStorageNodeId,
+            IsPacked = request.IsPacked ?? false,
+            MovingPriority = normPriority,
             IsArchived = false,
             CreatedAt = now,
             UpdatedAt = now
@@ -144,8 +169,42 @@ public class ContainerService : IContainerService
             throw new KeyNotFoundException($"Container '{containerId}' was not found in workspace '{workspaceId}'.");
         }
 
+        if (request.DestinationStorageNodeId.HasValue)
+        {
+            var destNode = await _dbContext.StorageNodes
+                .AsNoTracking()
+                .FirstOrDefaultAsync(n => n.Id == request.DestinationStorageNodeId.Value && n.WorkspaceId == workspaceId, cancellationToken);
+
+            if (destNode == null)
+            {
+                throw new ArgumentException($"Destination location '{request.DestinationStorageNodeId}' does not exist in workspace '{workspaceId}'.", nameof(request));
+            }
+        }
+
+        if (!string.IsNullOrWhiteSpace(request.MovingPriority))
+        {
+            var normPriority = request.MovingPriority.Trim().ToUpperInvariant();
+            if (normPriority != "LOW" && normPriority != "MEDIUM" && normPriority != "HIGH")
+            {
+                throw new ArgumentException("Moving priority must be 'LOW', 'MEDIUM', or 'HIGH'.", nameof(request));
+            }
+            container.MovingPriority = normPriority;
+        }
+        else if (request.MovingPriority == string.Empty)
+        {
+            container.MovingPriority = null;
+        }
+
         container.Name = request.Name?.Trim();
         container.Description = request.Description?.Trim();
+        if (request.DestinationStorageNodeId.HasValue || request.DestinationStorageNodeId == null)
+        {
+            container.DestinationStorageNodeId = request.DestinationStorageNodeId;
+        }
+        if (request.IsPacked.HasValue)
+        {
+            container.IsPacked = request.IsPacked.Value;
+        }
         container.UpdatedAt = DateTimeOffset.UtcNow;
 
         await _dbContext.SaveChangesAsync(cancellationToken);
@@ -212,6 +271,9 @@ public class ContainerService : IContainerService
             c.Name,
             c.Description,
             c.IsArchived,
+            c.DestinationStorageNodeId,
+            c.IsPacked,
+            c.MovingPriority,
             c.CreatedAt,
             c.UpdatedAt
         );

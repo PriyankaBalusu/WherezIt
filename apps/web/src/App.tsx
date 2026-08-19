@@ -7,6 +7,8 @@ import { SignupForm } from './features/auth/SignupForm';
 import { ProtectedRoute } from './routes/ProtectedRoute';
 import { WorkspaceProvider } from './features/workspaces/context/WorkspaceContext';
 
+import { ScanResolverScreen } from './features/identifiers/components/ScanResolverScreen';
+
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
@@ -24,6 +26,7 @@ export const App: React.FC = () => {
           <Routes>
             <Route path="/login" element={<LoginForm />} />
             <Route path="/signup" element={<SignupForm />} />
+            <Route path="/scan/:tokenValue" element={<ScanResolverScreen />} />
             <Route
               path="/"
               element={

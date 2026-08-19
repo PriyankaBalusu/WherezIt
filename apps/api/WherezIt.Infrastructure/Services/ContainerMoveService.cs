@@ -75,6 +75,9 @@ public class ContainerMoveService : IContainerMoveService
             c.Name,
             c.Description,
             c.IsArchived,
+            c.DestinationStorageNodeId,
+            c.IsPacked,
+            c.MovingPriority,
             c.CreatedAt,
             c.UpdatedAt
         );

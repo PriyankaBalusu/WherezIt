@@ -4,6 +4,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using WherezIt.Application.AI.Services;
 using WherezIt.Application.Authentication;
 
@@ -57,6 +58,7 @@ public class AICapturesController : ControllerBase
     }
 
     [HttpPost("{captureId}/confirm")]
+    [EnableRateLimiting("AiEndpointPolicy")]
     public async Task<IActionResult> ConfirmCapture(
         [FromRoute] Guid workspaceId,
         [FromRoute] Guid captureId,

@@ -1,3 +1,5 @@
+using System;
+
 namespace WherezIt.Application.Containers.Dtos;
 
 public record ContainerResponseDto(
@@ -9,6 +11,9 @@ public record ContainerResponseDto(
     string? Name,
     string? Description,
     bool IsArchived,
+    Guid? DestinationStorageNodeId,
+    bool IsPacked,
+    string? MovingPriority,
     DateTimeOffset CreatedAt,
     DateTimeOffset UpdatedAt
 );

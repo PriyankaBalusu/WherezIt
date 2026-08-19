@@ -29,7 +29,13 @@ export const LoginForm: React.FC = () => {
     setSubmitting(true);
     try {
       await signIn(data.email, data.password);
-      navigate('/');
+      const returnPath = sessionStorage.getItem('returnPath');
+      if (returnPath && returnPath.startsWith('/scan/')) {
+        sessionStorage.removeItem('returnPath');
+        navigate(returnPath);
+      } else {
+        navigate('/');
+      }
     } catch {
       // Error handled in AuthProvider state
     } finally {

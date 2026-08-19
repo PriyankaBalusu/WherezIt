@@ -41,11 +41,26 @@ namespace WherezIt.Infrastructure.Migrations
                         .HasColumnType("character varying(500)")
                         .HasColumnName("description");
 
+                    b.Property<Guid?>("DestinationStorageNodeId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("destination_storage_node_id");
+
                     b.Property<bool>("IsArchived")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("boolean")
                         .HasDefaultValue(false)
                         .HasColumnName("is_archived");
+
+                    b.Property<bool>("IsPacked")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(false)
+                        .HasColumnName("is_packed");
+
+                    b.Property<string>("MovingPriority")
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("moving_priority");
 
                     b.Property<string>("Name")
                         .HasMaxLength(100)
@@ -70,6 +85,9 @@ namespace WherezIt.Infrastructure.Migrations
                         .IsUnique()
                         .HasDatabaseName("ix_containers_workspace_id_box_number");
 
+                    b.HasIndex("WorkspaceId", "DestinationStorageNodeId")
+                        .HasDatabaseName("ix_containers_workspace_id_destination_storage_node_id");
+
                     b.HasIndex("WorkspaceId", "Id")
                         .IsUnique()
                         .HasDatabaseName("ix_containers_workspace_id_id");
@@ -77,7 +95,10 @@ namespace WherezIt.Infrastructure.Migrations
                     b.HasIndex("WorkspaceId", "StorageNodeId")
                         .HasDatabaseName("ix_containers_workspace_id_storage_node_id");
 
-                    b.ToTable("containers", (string)null);
+                    b.ToTable("containers", null, t =>
+                        {
+                            t.HasCheckConstraint("ck_containers_moving_priority", "moving_priority IS NULL OR moving_priority IN ('LOW', 'MEDIUM', 'HIGH')");
+                        });
                 });
 
             modelBuilder.Entity("WherezIt.Domain.Entities.Item", b =>

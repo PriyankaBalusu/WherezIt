@@ -8,7 +8,10 @@ public class ContainerConfiguration : IEntityTypeConfiguration<Container>
 {
     public void Configure(EntityTypeBuilder<Container> builder)
     {
-        builder.ToTable("containers");
+        builder.ToTable("containers", t =>
+        {
+            t.HasCheckConstraint("ck_containers_moving_priority", "moving_priority IS NULL OR moving_priority IN ('LOW', 'MEDIUM', 'HIGH')");
+        });
 
         builder.HasKey(c => c.Id);
 
@@ -35,6 +38,18 @@ public class ContainerConfiguration : IEntityTypeConfiguration<Container>
         builder.Property(c => c.Description)
             .HasColumnName("description")
             .HasMaxLength(500);
+
+        builder.Property(c => c.DestinationStorageNodeId)
+            .HasColumnName("destination_storage_node_id");
+
+        builder.Property(c => c.IsPacked)
+            .HasColumnName("is_packed")
+            .HasDefaultValue(false)
+            .IsRequired();
+
+        builder.Property(c => c.MovingPriority)
+            .HasColumnName("moving_priority")
+            .HasMaxLength(20);
 
         builder.Property(c => c.IsArchived)
             .HasColumnName("is_archived")
@@ -63,6 +78,13 @@ public class ContainerConfiguration : IEntityTypeConfiguration<Container>
             .HasPrincipalKey(n => new { n.WorkspaceId, n.Id })
             .OnDelete(DeleteBehavior.Restrict);
 
+        // Composite Foreign Key to Destination StorageNode enforcing same workspace
+        builder.HasOne(c => c.DestinationStorageNode)
+            .WithMany()
+            .HasForeignKey(c => new { c.WorkspaceId, c.DestinationStorageNodeId })
+            .HasPrincipalKey(n => new { n.WorkspaceId, n.Id })
+            .OnDelete(DeleteBehavior.Restrict);
+
         builder.HasIndex(c => new { c.WorkspaceId, c.Id })
             .IsUnique()
             .HasDatabaseName("ix_containers_workspace_id_id");
@@ -73,5 +95,8 @@ public class ContainerConfiguration : IEntityTypeConfiguration<Container>
 
         builder.HasIndex(c => new { c.WorkspaceId, c.StorageNodeId })
             .HasDatabaseName("ix_containers_workspace_id_storage_node_id");
+
+        builder.HasIndex(c => new { c.WorkspaceId, c.DestinationStorageNodeId })
+            .HasDatabaseName("ix_containers_workspace_id_destination_storage_node_id");
     }
 }
