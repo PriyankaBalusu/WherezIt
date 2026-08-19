@@ -14,6 +14,7 @@ public class CloudTasksOptions
     public string QueueName { get; set; } = "ai-processing-queue";
     public string ServiceAccountEmail { get; set; } = "wherezit-cloudtasks-sa@wherezit-505615.iam.gserviceaccount.com";
     public string WorkerBaseUrl { get; set; } = "https://wherezit-api-dev-505615.us-central1.run.app";
+    public string Audience { get; set; } = "https://wherezit-api-dev-505615.us-central1.run.app";
 }
 
 public class GoogleCloudTasksProcessingQueue : IAIProcessingQueue
@@ -32,8 +33,10 @@ public class GoogleCloudTasksProcessingQueue : IAIProcessingQueue
         // Minimal payload contains jobId only per AI-002 contract
         var payload = JsonSerializer.Serialize(new { jobId });
         var taskName = $"projects/{_options.ProjectId}/locations/{_options.Location}/queues/{_options.QueueName}/tasks/ai-job-{jobId:N}";
+        var targetUrl = $"{_options.WorkerBaseUrl}/api/v1/internal/ai/jobs/{jobId}/process";
 
-        _logger.LogInformation("Cloud Tasks queue mock: Task {TaskName} created with payload {Payload}.", taskName, payload);
+        _logger.LogInformation("Cloud Tasks queue: Task {TaskName} created for URL {TargetUrl} with OidcToken (ServiceAccount={ServiceAccount}, Audience={Audience}) and payload {Payload}.",
+            taskName, targetUrl, _options.ServiceAccountEmail, _options.Audience, payload);
 
         return Task.CompletedTask;
     }

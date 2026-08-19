@@ -25,6 +25,8 @@ public static class DependencyInjection
         services.AddAuthentication("Firebase")
             .AddScheme<Microsoft.AspNetCore.Authentication.AuthenticationSchemeOptions, Authentication.FirebaseAuthenticationHandler>("Firebase", _ => { });
 
+        services.AddSingleton<WherezIt.Application.Authentication.Services.IGoogleOidcTokenValidator, Authentication.GoogleOidcTokenValidator>();
+
         services.AddScoped<WherezIt.Application.Users.Services.IUserService, Services.UserService>();
         services.AddScoped<WherezIt.Application.Workspaces.Services.IWorkspaceService, Services.WorkspaceService>();
         services.AddScoped<WherezIt.Application.Workspaces.Services.IWorkspaceAuthorizationService, Services.WorkspaceAuthorizationService>();
@@ -46,6 +48,7 @@ public static class DependencyInjection
         services.AddScoped<WherezIt.Application.AI.Services.IAICaptureConfirmationService, Services.AICaptureConfirmationService>();
         services.AddScoped<WherezIt.Application.Identifiers.Services.IIdentifierService, Services.IdentifierService>();
         services.AddScoped<WherezIt.Application.ActivityHistory.Services.IActivityHistoryService, Services.ActivityHistoryService>();
+        services.AddScoped<WherezIt.Application.Seed.Services.IDemoSeedService, Seed.DemoSeedService>();
 
         services.AddHealthChecks()
             .AddDbContextCheck<WherezItDbContext>("postgresql");

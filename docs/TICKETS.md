@@ -570,6 +570,133 @@ Acceptance:
 
 ### UX-002 — Accessibility pass [P1]
 
+### UX-003 — Visual Design System & Demo Polish [P1]
+
+**Goal:** Upgrade WherezIt from a functionally complete MVP UI to a polished, modern, cohesive, demo-ready product experience without changing backend/domain behavior.
+
+**Scope:**
+
+- Establish a consistent visual design system for the frontend:
+  - typography hierarchy
+  - spacing
+  - colors
+  - surfaces/cards
+  - borders/shadows
+  - buttons
+  - form controls
+  - status badges
+  - navigation
+  - responsive behavior
+  - hover/focus/active states
+
+- Redesign the login/authentication experience:
+  - use the approved WherezIt logo and branding
+  - polished login and account-creation screens
+  - communicate the core WherezIt value proposition visually
+  - avoid generic Firebase/admin-login styling
+  - responsive desktop/mobile presentation
+
+- Improve the application shell:
+  - branded header/navigation
+  - desktop navigation structure
+  - mobile-friendly navigation
+  - consistent page layout and spacing
+
+- Polish primary demo/product screens:
+  - Workspace Home
+  - Workspace Selection
+  - Locations
+  - Container List
+  - Container Detail
+  - Item List
+  - Search
+  - Quick Pack
+  - AI Capture Review
+  - QR label modal
+  - Barcode label modal
+  - Scan Resolver
+  - Empty/loading/error states
+
+- Make Containers visually easy to understand:
+  - prominent canonical BOX ID
+  - container name
+  - location breadcrumb
+  - item count
+  - moving destination
+  - packed state
+  - moving priority
+  - useful quick actions
+
+- Improve search presentation so the result clearly answers:
+  - what item was found
+  - which BOX contains it
+  - where that BOX is located
+
+- Make Quick Pack feel like a guided product workflow rather than a raw data-entry form.
+
+- Make AI Review one of the product's flagship screens:
+  - clear image/content relationship
+  - clear suggested-item review
+  - obvious edit/confirm actions
+  - maintain explicit human confirmation boundary
+
+- Preserve all UX-001 and UX-002 behavior:
+  - loading states
+  - empty states
+  - safe error states
+  - accessibility
+  - keyboard support
+  - focus management
+  - semantic HTML
+
+**Visual Direction:**
+
+- modern
+- warm
+- premium
+- clean
+- home-organization focused
+- approachable consumer-product feel
+
+Avoid:
+
+- generic Bootstrap/admin-dashboard styling
+- plain white forms with little hierarchy
+- excessive gradients
+- overly playful/gamified styling
+- visual changes that reduce accessibility
+
+**Constraints:**
+
+- frontend visual/UI changes only unless a blocking issue is discovered
+- no database schema changes
+- no EF migrations
+- no domain-model changes
+- no API contract changes unless separately approved
+- no changes to authentication semantics
+- no changes to tenant authorization
+- no changes to trusted Item boundaries
+- no changes to QR/BARCODE security behavior
+- no changes to AI confirmation semantics
+
+**Acceptance Criteria:**
+
+- [ ] Login screen uses approved WherezIt branding/logo and has a polished responsive design.
+- [ ] Core application screens share a consistent visual language.
+- [ ] Workspace Home provides a useful, visually polished overview.
+- [ ] Container cards/details prominently show BOX ID and location.
+- [ ] Search results clearly communicate item → box → location.
+- [ ] Quick Pack feels like a guided workflow.
+- [ ] AI Review is visually polished and keeps explicit confirmation.
+- [ ] QR/BARCODE modals visually match the rest of the application.
+- [ ] Existing loading/empty/error states are visually integrated.
+- [ ] Existing accessibility behavior remains intact.
+- [ ] Desktop layout is polished.
+- [ ] Mobile/responsive layout is usable.
+- [ ] Frontend tests pass.
+- [ ] Frontend production build passes.
+- [ ] No backend/domain/schema changes are introduced.
+
 ---
 
 ## Moving Mode
