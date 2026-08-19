@@ -1,6 +1,6 @@
 import { Container, CreateContainerRequest, UpdateContainerRequest } from '../types/container';
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || '/api/v1';
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || import.meta.env.VITE_API_URL || 'http://localhost:5056/api/v1';
 
 export async function fetchContainers(
   workspaceId: string,

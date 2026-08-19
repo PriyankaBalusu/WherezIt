@@ -40,9 +40,10 @@ public class FirebaseAuthenticationHandler : AuthenticationHandler<Authenticatio
             }
             catch
             {
-                // Fallback for environment without ADC file during local development/testing
+                // Fallback for local development/testing without ADC file
                 FirebaseApp.Create(new AppOptions
                 {
+                    Credential = GoogleCredential.FromAccessToken("placeholder-local-dev-token"),
                     ProjectId = projectId
                 });
             }
