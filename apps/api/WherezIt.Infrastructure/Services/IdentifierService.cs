@@ -120,7 +120,7 @@ public class IdentifierService : IIdentifierService
             }
 
             var existing = await _dbContext.Identifiers
-                .FirstOrDefaultAsync(i => i.WorkspaceId == workspaceId && i.ContainerId == containerId && i.Type == normalizedType, cancellationToken);
+                .FirstOrDefaultAsync(i => i.WorkspaceId == workspaceId && i.ContainerId == containerId && i.Type == normalizedType && !i.IsRevoked, cancellationToken);
 
             if (existing != null)
             {
@@ -144,6 +144,8 @@ public class IdentifierService : IIdentifierService
                 ContainerId = containerId,
                 Type = normalizedType,
                 Value = tokenValue,
+                IsRevoked = false,
+                RevokedAt = null,
                 CreatedAt = DateTimeOffset.UtcNow,
                 UpdatedAt = DateTimeOffset.UtcNow,
             };
@@ -181,7 +183,7 @@ public class IdentifierService : IIdentifierService
 
         var identifier = await _dbContext.Identifiers
             .AsNoTracking()
-            .FirstOrDefaultAsync(i => i.Value == tokenValue.Trim(), cancellationToken);
+            .FirstOrDefaultAsync(i => i.Value == tokenValue.Trim() && !i.IsRevoked, cancellationToken);
 
         if (identifier == null)
         {
@@ -220,7 +222,7 @@ public class IdentifierService : IIdentifierService
 
         var identifier = await _dbContext.Identifiers
             .AsNoTracking()
-            .FirstOrDefaultAsync(i => i.Value == trimmed, cancellationToken);
+            .FirstOrDefaultAsync(i => i.Value == trimmed && !i.IsRevoked, cancellationToken);
 
         if (identifier == null)
         {
@@ -284,6 +286,61 @@ public class IdentifierService : IIdentifierService
             BreadcrumbDisplay = breadcrumbDisplay,
             Items = items
         };
+    }
+
+    public async Task<WherezIt.Application.Identifiers.Dtos.RevokeIdentifierResponseDto> RevokeIdentifierAsync(
+        AuthenticatedIdentity identity,
+        Guid workspaceId,
+        Guid identifierId,
+        CancellationToken cancellationToken = default)
+    {
+        await _authorizationService.RequireWorkspaceMembershipAsync(identity, workspaceId, cancellationToken);
+
+        using var transaction = await _dbContext.Database.BeginTransactionAsync(cancellationToken);
+        try
+        {
+            var identifier = await _dbContext.Identifiers
+                .FirstOrDefaultAsync(i => i.WorkspaceId == workspaceId && i.Id == identifierId, cancellationToken);
+
+            if (identifier == null)
+            {
+                await transaction.RollbackAsync(cancellationToken);
+                throw new KeyNotFoundException($"Identifier '{identifierId}' was not found in workspace '{workspaceId}'.");
+            }
+
+            var container = await _dbContext.Containers
+                .AsNoTracking()
+                .FirstOrDefaultAsync(c => c.WorkspaceId == workspaceId && c.Id == identifier.ContainerId, cancellationToken);
+
+            if (container == null)
+            {
+                await transaction.RollbackAsync(cancellationToken);
+                throw new KeyNotFoundException($"Container '{identifier.ContainerId}' was not found in workspace '{workspaceId}'.");
+            }
+
+            if (!identifier.IsRevoked)
+            {
+                var now = DateTimeOffset.UtcNow;
+                identifier.IsRevoked = true;
+                identifier.RevokedAt = now;
+                identifier.UpdatedAt = now;
+                await _dbContext.SaveChangesAsync(cancellationToken);
+            }
+
+            await transaction.CommitAsync(cancellationToken);
+
+            return new WherezIt.Application.Identifiers.Dtos.RevokeIdentifierResponseDto(
+                identifier.Id,
+                identifier.Type,
+                identifier.IsRevoked,
+                identifier.RevokedAt
+            );
+        }
+        catch
+        {
+            await transaction.RollbackAsync(cancellationToken);
+            throw;
+        }
     }
 
     private static string GenerateSecureToken(string type)

@@ -1,3 +1,7 @@
+using System;
+using System.Collections.Generic;
+using System.Threading;
+using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
 using WherezIt.Application.Authentication;
 using WherezIt.Application.Containers.Dtos;
@@ -29,39 +33,96 @@ public class ContainerMoveService : IContainerMoveService
     {
         await _authorizationService.RequireWorkspaceMembershipAsync(identity, workspaceId, cancellationToken);
 
-        var container = await _dbContext.Containers
-            .FirstOrDefaultAsync(c => c.WorkspaceId == workspaceId && c.Id == containerId, cancellationToken);
-
-        if (container == null)
+        using var transaction = await _dbContext.Database.BeginTransactionAsync(cancellationToken);
+        try
         {
-            throw new KeyNotFoundException($"Container '{containerId}' was not found in workspace '{workspaceId}'.");
-        }
+            var container = await _dbContext.Containers
+                .FirstOrDefaultAsync(c => c.WorkspaceId == workspaceId && c.Id == containerId, cancellationToken);
 
-        if (container.IsArchived)
-        {
-            throw new InvalidOperationException("Cannot move an archived container.");
-        }
+            if (container == null)
+            {
+                await transaction.RollbackAsync(cancellationToken);
+                throw new KeyNotFoundException($"Container '{containerId}' was not found in workspace '{workspaceId}'.");
+            }
 
-        if (container.StorageNodeId == request.StorageNodeId)
-        {
+            if (container.IsArchived)
+            {
+                await transaction.RollbackAsync(cancellationToken);
+                throw new InvalidOperationException("Cannot move an archived container.");
+            }
+
+            // No-op move check
+            if (container.StorageNodeId == request.StorageNodeId)
+            {
+                await transaction.CommitAsync(cancellationToken);
+                return MapToDto(container);
+            }
+
+            var destinationNode = await _dbContext.StorageNodes
+                .AsNoTracking()
+                .FirstOrDefaultAsync(n => n.Id == request.StorageNodeId && n.WorkspaceId == workspaceId, cancellationToken);
+
+            if (destinationNode == null)
+            {
+                await transaction.RollbackAsync(cancellationToken);
+                throw new ArgumentException($"Destination storage location '{request.StorageNodeId}' does not exist in workspace '{workspaceId}'.", nameof(request));
+            }
+
+            var previousStorageNodeId = container.StorageNodeId;
+
+            // Capture immutable historical location snapshots BEFORE move is executed
+            var previousBreadcrumb = await BuildBreadcrumbDisplayAsync(workspaceId, previousStorageNodeId, cancellationToken);
+            var destinationBreadcrumb = await BuildBreadcrumbDisplayAsync(workspaceId, request.StorageNodeId, cancellationToken);
+
+            // Execute move
+            container.StorageNodeId = request.StorageNodeId;
+            container.UpdatedAt = DateTimeOffset.UtcNow;
+
+            // Create immutable ActivityHistory audit record
+            var history = new ActivityHistory
+            {
+                Id = Guid.NewGuid(),
+                WorkspaceId = workspaceId,
+                ActorUserId = identity.FirebaseUid,
+                ActivityType = "CONTAINER_MOVED",
+                ContainerId = containerId,
+                PreviousStorageNodeId = previousStorageNodeId,
+                DestinationStorageNodeId = request.StorageNodeId,
+                PreviousLocationDisplay = previousBreadcrumb,
+                DestinationLocationDisplay = destinationBreadcrumb,
+                OccurredAt = DateTimeOffset.UtcNow
+            };
+
+            _dbContext.ActivityHistories.Add(history);
+            await _dbContext.SaveChangesAsync(cancellationToken);
+            await transaction.CommitAsync(cancellationToken);
+
             return MapToDto(container);
         }
-
-        var destinationNode = await _dbContext.StorageNodes
-            .AsNoTracking()
-            .FirstOrDefaultAsync(n => n.Id == request.StorageNodeId, cancellationToken);
-
-        if (destinationNode == null || destinationNode.WorkspaceId != workspaceId)
+        catch
         {
-            throw new ArgumentException($"Destination storage location '{request.StorageNodeId}' does not exist in workspace '{workspaceId}'.", nameof(request));
+            await transaction.RollbackAsync(cancellationToken);
+            throw;
+        }
+    }
+
+    private async Task<string> BuildBreadcrumbDisplayAsync(Guid workspaceId, Guid storageNodeId, CancellationToken cancellationToken)
+    {
+        var parts = new List<string>();
+        var currentNodeId = (Guid?)storageNodeId;
+
+        while (currentNodeId.HasValue)
+        {
+            var node = await _dbContext.StorageNodes
+                .AsNoTracking()
+                .FirstOrDefaultAsync(n => n.Id == currentNodeId.Value && n.WorkspaceId == workspaceId, cancellationToken);
+
+            if (node == null) break;
+            parts.Insert(0, node.Name);
+            currentNodeId = node.ParentId;
         }
 
-        container.StorageNodeId = request.StorageNodeId;
-        container.UpdatedAt = DateTimeOffset.UtcNow;
-
-        await _dbContext.SaveChangesAsync(cancellationToken);
-
-        return MapToDto(container);
+        return parts.Count > 0 ? string.Join(" → ", parts) : "Unknown";
     }
 
     private static ContainerResponseDto MapToDto(Container c)

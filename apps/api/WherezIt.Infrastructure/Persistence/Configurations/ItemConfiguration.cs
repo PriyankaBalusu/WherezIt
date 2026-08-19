@@ -38,6 +38,10 @@ public class ItemConfiguration : IEntityTypeConfiguration<Item>
             .HasDefaultValue(1)
             .IsRequired();
 
+        builder.Property(i => i.Category)
+            .HasColumnName("category")
+            .HasMaxLength(50);
+
         builder.Property(i => i.Source)
             .HasColumnName("source")
             .HasMaxLength(20)

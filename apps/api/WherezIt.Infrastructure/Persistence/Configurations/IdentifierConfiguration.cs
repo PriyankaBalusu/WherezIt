@@ -11,6 +11,7 @@ public class IdentifierConfiguration : IEntityTypeConfiguration<Identifier>
         builder.ToTable("identifiers", t =>
         {
             t.HasCheckConstraint("ck_identifiers_type", "type IN ('QR', 'BARCODE')");
+            t.HasCheckConstraint("ck_identifiers_revocation_state", "(is_revoked = false AND revoked_at IS NULL) OR (is_revoked = true AND revoked_at IS NOT NULL)");
         });
 
         builder.HasKey(i => i.Id);
@@ -36,6 +37,15 @@ public class IdentifierConfiguration : IEntityTypeConfiguration<Identifier>
             .HasColumnName("value")
             .HasMaxLength(200)
             .IsRequired();
+
+        builder.Property(i => i.IsRevoked)
+            .HasColumnName("is_revoked")
+            .HasDefaultValue(false)
+            .IsRequired();
+
+        builder.Property(i => i.RevokedAt)
+            .HasColumnName("revoked_at")
+            .HasColumnType("timestamp with time zone");
 
         builder.Property(i => i.CreatedAt)
             .HasColumnName("created_at")

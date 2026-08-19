@@ -53,6 +53,21 @@ export const PrintQrLabelModal: React.FC<PrintQrLabelModalProps> = ({
     window.print();
   };
 
+  const handleRevoke = async () => {
+    if (!identifier) return;
+    const confirmed = window.confirm('Revoke this label? Existing printed/scanned copies will stop working.');
+    if (!confirmed) return;
+
+    try {
+      const { revokeIdentifier } = await import('../api/identifierApi');
+      await revokeIdentifier(workspaceId, identifier.identifierId);
+      setIdentifier(null);
+      setError('Label revoked successfully. Close or re-open to acquire a new active label.');
+    } catch (err: any) {
+      setError(err.message || 'Failed to revoke identifier.');
+    }
+  };
+
   return (
     <div
       style={{
@@ -170,6 +185,13 @@ export const PrintQrLabelModal: React.FC<PrintQrLabelModalProps> = ({
                 style={{ padding: '0.5rem 1rem', border: '1px solid #cbd5e0', borderRadius: '0.25rem', backgroundColor: '#fff', cursor: 'pointer' }}
               >
                 Close
+              </button>
+              <button
+                type="button"
+                onClick={handleRevoke}
+                style={{ padding: '0.5rem 1rem', border: '1px solid #e53e3e', color: '#e53e3e', borderRadius: '0.25rem', backgroundColor: '#fff', cursor: 'pointer', fontWeight: 500 }}
+              >
+                Revoke Label
               </button>
               <button
                 type="button"

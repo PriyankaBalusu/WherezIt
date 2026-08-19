@@ -2,5 +2,6 @@ namespace WherezIt.Application.Items.Dtos;
 
 public record UpdateItemRequestDto(
     string? Name,
-    int? Quantity
+    int? Quantity,
+    string? Category = null
 );

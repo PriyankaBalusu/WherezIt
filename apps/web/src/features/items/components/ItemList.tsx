@@ -18,6 +18,7 @@ export const ItemList: React.FC<ItemListProps> = ({
 
   const [name, setName] = useState('');
   const [quantity, setQuantity] = useState(1);
+  const [category, setCategory] = useState('');
   const [formError, setFormError] = useState<string | null>(null);
 
   const handleCreate = async (e: React.FormEvent) => {
@@ -40,9 +41,14 @@ export const ItemList: React.FC<ItemListProps> = ({
     }
 
     try {
-      await createItemMutation.mutateAsync({ name: name.trim(), quantity });
+      await createItemMutation.mutateAsync({
+        name: name.trim(),
+        quantity,
+        category: category.trim() ? category.trim() : undefined,
+      });
       setName('');
       setQuantity(1);
+      setCategory('');
     } catch (err: any) {
       setFormError(err.message || 'Failed to create item');
     }
@@ -70,13 +76,20 @@ export const ItemList: React.FC<ItemListProps> = ({
       )}
 
       {!isContainerArchived && (
-        <form onSubmit={handleCreate} style={{ display: 'flex', gap: '0.5rem', marginBottom: '1rem' }}>
+        <form onSubmit={handleCreate} style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', marginBottom: '1rem' }}>
           <input
             type="text"
             placeholder="Item name (e.g. Christmas Lights)"
             value={name}
             onChange={(e) => setName(e.target.value)}
-            style={{ flex: 1, padding: '0.5rem', borderRadius: '0.25rem', border: '1px solid #cbd5e0' }}
+            style={{ flex: 2, minWidth: '150px', padding: '0.5rem', borderRadius: '0.25rem', border: '1px solid #cbd5e0' }}
+          />
+          <input
+            type="text"
+            placeholder="Category (e.g. Holiday Decor)"
+            value={category}
+            onChange={(e) => setCategory(e.target.value)}
+            style={{ flex: 1, minWidth: '120px', padding: '0.5rem', borderRadius: '0.25rem', border: '1px solid #cbd5e0' }}
           />
           <input
             type="number"
@@ -123,6 +136,21 @@ export const ItemList: React.FC<ItemListProps> = ({
             >
               <div>
                 <span style={{ fontWeight: 500 }}>{item.name}</span>
+                {item.category && (
+                  <span
+                    style={{
+                      marginLeft: '0.5rem',
+                      backgroundColor: '#ebf8ff',
+                      color: '#2b6cb0',
+                      padding: '0.1rem 0.4rem',
+                      borderRadius: '0.25rem',
+                      fontSize: '0.75rem',
+                      fontWeight: 500,
+                    }}
+                  >
+                    {item.category}
+                  </span>
+                )}
                 <span
                   style={{
                     marginLeft: '0.5rem',

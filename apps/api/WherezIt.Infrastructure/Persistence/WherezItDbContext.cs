@@ -22,6 +22,7 @@ public class WherezItDbContext : DbContext
     public DbSet<DetectionSuggestion> DetectionSuggestions => Set<DetectionSuggestion>();
     public DbSet<AIProcessingJob> AIProcessingJobs => Set<AIProcessingJob>();
     public DbSet<Identifier> Identifiers => Set<Identifier>();
+    public DbSet<ActivityHistory> ActivityHistories => Set<ActivityHistory>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

@@ -105,6 +105,7 @@ public class ItemService : IItemService
             ContainerId = containerId,
             Name = request.Name.Trim(),
             Quantity = request.Quantity,
+            Category = NormalizeCategory(request.Category),
             Source = "MANUAL",
             IsVerified = true,
             IsArchived = false,
@@ -151,6 +152,11 @@ public class ItemService : IItemService
                 throw new ArgumentException("Item quantity must be greater than or equal to 1.", nameof(request));
             }
             item.Quantity = request.Quantity.Value;
+        }
+
+        if (request.Category != null)
+        {
+            item.Category = NormalizeCategory(request.Category);
         }
 
         item.UpdatedAt = DateTimeOffset.UtcNow;
@@ -205,6 +211,17 @@ public class ItemService : IItemService
         return MapToDto(item);
     }
 
+    private static string? NormalizeCategory(string? category)
+    {
+        if (string.IsNullOrWhiteSpace(category)) return null;
+        var trimmed = category.Trim();
+        if (trimmed.Length > 50)
+        {
+            throw new ArgumentException("Category cannot exceed 50 characters.");
+        }
+        return trimmed;
+    }
+
     private static ItemResponseDto MapToDto(Item i)
     {
         return new ItemResponseDto(
@@ -213,6 +230,7 @@ public class ItemService : IItemService
             i.ContainerId,
             i.Name,
             i.Quantity,
+            i.Category,
             i.Source,
             i.IsVerified,
             i.IsArchived,

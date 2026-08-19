@@ -134,6 +134,40 @@ public class IdentifiersController : ControllerBase
         }
     }
 
+    [HttpPost("api/v1/workspaces/{workspaceId}/identifiers/{identifierId}/revoke")]
+    [EnableRateLimiting("GeneralApiPolicy")]
+    public async Task<IActionResult> RevokeIdentifier(
+        [FromRoute] Guid workspaceId,
+        [FromRoute] Guid identifierId,
+        CancellationToken cancellationToken = default)
+    {
+        var identity = GetAuthenticatedIdentity();
+        if (identity == null)
+        {
+            return Unauthorized(new { error = "Firebase UID claim not found in authenticated principal." });
+        }
+
+        try
+        {
+            var result = await _identifierService.RevokeIdentifierAsync(identity, workspaceId, identifierId, cancellationToken);
+            return Ok(new
+            {
+                identifierId = result.IdentifierId,
+                type = result.Type,
+                isRevoked = result.IsRevoked,
+                revokedAt = result.RevokedAt
+            });
+        }
+        catch (KeyNotFoundException ex)
+        {
+            return NotFound(new { error = ex.Message });
+        }
+        catch (UnauthorizedAccessException)
+        {
+            return Forbid();
+        }
+    }
+
     private AuthenticatedIdentity? GetAuthenticatedIdentity()
     {
         var uid = User.FindFirst(ClaimTypes.NameIdentifier)?.Value

@@ -1,3 +1,5 @@
+using System;
+
 namespace WherezIt.Application.Items.Dtos;
 
 public record ItemResponseDto(
@@ -6,6 +8,7 @@ public record ItemResponseDto(
     Guid ContainerId,
     string Name,
     int Quantity,
+    string? Category,
     string Source,
     bool IsVerified,
     bool IsArchived,

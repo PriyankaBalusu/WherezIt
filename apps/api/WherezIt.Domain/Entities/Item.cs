@@ -7,6 +7,7 @@ public class Item
     public Guid ContainerId { get; set; }
     public string Name { get; set; } = null!;
     public int Quantity { get; set; } = 1;
+    public string? Category { get; set; }
     public string Source { get; set; } = null!;
     public bool IsVerified { get; set; }
     public bool IsArchived { get; set; }

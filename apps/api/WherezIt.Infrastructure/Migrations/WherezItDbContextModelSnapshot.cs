@@ -107,6 +107,11 @@ namespace WherezIt.Infrastructure.Migrations
                         .HasColumnType("uuid")
                         .HasColumnName("id");
 
+                    b.Property<string>("Category")
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("category");
+
                     b.Property<Guid>("ContainerId")
                         .HasColumnType("uuid")
                         .HasColumnName("container_id");
@@ -424,6 +429,16 @@ namespace WherezIt.Infrastructure.Migrations
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("updated_at");
 
+                    b.Property<bool>("IsRevoked")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(false)
+                        .HasColumnName("is_revoked");
+
+                    b.Property<DateTimeOffset?>("RevokedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("revoked_at");
+
                     b.Property<string>("Value")
                         .IsRequired()
                         .HasMaxLength(200)
@@ -446,6 +461,8 @@ namespace WherezIt.Infrastructure.Migrations
 
                     b.ToTable("identifiers", null, t =>
                         {
+                            t.HasCheckConstraint("ck_identifiers_revocation_state", "(is_revoked = false AND revoked_at IS NULL) OR (is_revoked = true AND revoked_at IS NOT NULL)");
+
                             t.HasCheckConstraint("ck_identifiers_type", "type IN ('QR', 'BARCODE')");
                         });
 
@@ -463,6 +480,101 @@ namespace WherezIt.Infrastructure.Migrations
                         .IsRequired();
 
                     b.Navigation("Container");
+
+                    b.Navigation("Workspace");
+                });
+
+            modelBuilder.Entity("WherezIt.Domain.Entities.ActivityHistory", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<string>("ActivityType")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("activity_type");
+
+                    b.Property<string>("ActorUserId")
+                        .IsRequired()
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)")
+                        .HasColumnName("actor_user_id");
+
+                    b.Property<Guid>("ContainerId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("container_id");
+
+                    b.Property<string>("DestinationLocationDisplay")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("destination_location_display");
+
+                    b.Property<Guid?>("DestinationStorageNodeId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("destination_storage_node_id");
+
+                    b.Property<DateTimeOffset>("OccurredAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("occurred_at");
+
+                    b.Property<string>("PreviousLocationDisplay")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("previous_location_display");
+
+                    b.Property<Guid?>("PreviousStorageNodeId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("previous_storage_node_id");
+
+                    b.Property<Guid>("WorkspaceId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("workspace_id");
+
+                    b.HasKey("Id")
+                        .HasName("pk_activity_histories");
+
+                    b.HasIndex("WorkspaceId", "ContainerId", "OccurredAt")
+                        .HasDatabaseName("ix_activity_histories_workspace_container_occurred");
+
+                    b.ToTable("activity_histories", null, t =>
+                        {
+                            t.HasCheckConstraint("ck_activity_histories_activity_type", "activity_type = 'CONTAINER_MOVED'");
+                        });
+
+                    b.HasOne("WherezIt.Domain.Entities.Workspace", "Workspace")
+                        .WithMany()
+                        .HasForeignKey("WorkspaceId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("WherezIt.Domain.Entities.Container", "Container")
+                        .WithMany()
+                        .HasForeignKey("WorkspaceId", "ContainerId")
+                        .HasPrincipalKey("WorkspaceId", "Id")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("WherezIt.Domain.Entities.StorageNode", "PreviousStorageNode")
+                        .WithMany()
+                        .HasForeignKey("WorkspaceId", "PreviousStorageNodeId")
+                        .HasPrincipalKey("WorkspaceId", "Id")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.HasOne("WherezIt.Domain.Entities.StorageNode", "DestinationStorageNode")
+                        .WithMany()
+                        .HasForeignKey("WorkspaceId", "DestinationStorageNodeId")
+                        .HasPrincipalKey("WorkspaceId", "Id")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.Navigation("Container");
+
+                    b.Navigation("DestinationStorageNode");
+
+                    b.Navigation("PreviousStorageNode");
 
                     b.Navigation("Workspace");
                 });

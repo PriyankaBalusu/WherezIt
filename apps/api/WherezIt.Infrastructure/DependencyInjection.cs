@@ -45,6 +45,7 @@ public static class DependencyInjection
         services.AddScoped<WherezIt.Application.AI.Services.IAICaptureReviewService, Services.AICaptureReviewService>();
         services.AddScoped<WherezIt.Application.AI.Services.IAICaptureConfirmationService, Services.AICaptureConfirmationService>();
         services.AddScoped<WherezIt.Application.Identifiers.Services.IIdentifierService, Services.IdentifierService>();
+        services.AddScoped<WherezIt.Application.ActivityHistory.Services.IActivityHistoryService, Services.ActivityHistoryService>();
 
         services.AddHealthChecks()
             .AddDbContextCheck<WherezItDbContext>("postgresql");

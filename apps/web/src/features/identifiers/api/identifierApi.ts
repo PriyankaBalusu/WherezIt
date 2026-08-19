@@ -74,3 +74,39 @@ export async function resolveContainerIdentifier(value: string): Promise<Resolve
 
   return response.json();
 }
+
+export interface RevokeIdentifierResponse {
+  identifierId: string;
+  type: string;
+  isRevoked: boolean;
+  revokedAt: string;
+}
+
+export async function revokeIdentifier(
+  workspaceId: string,
+  identifierId: string
+): Promise<RevokeIdentifierResponse> {
+  const currentUser = auth.currentUser;
+  if (!currentUser) {
+    throw new Error('User must be authenticated to revoke identifier.');
+  }
+
+  const token = await getIdToken(currentUser);
+  const response = await fetch(
+    `/api/v1/workspaces/${encodeURIComponent(workspaceId)}/identifiers/${encodeURIComponent(identifierId)}/revoke`,
+    {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
+    }
+  );
+
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(errorData.error || `Failed to revoke identifier with status ${response.status}`);
+  }
+
+  return response.json();
+}

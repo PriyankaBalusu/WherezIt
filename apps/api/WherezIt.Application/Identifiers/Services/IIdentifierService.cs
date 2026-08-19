@@ -47,4 +47,10 @@ public interface IIdentifierService
         AuthenticatedIdentity identity,
         string tokenValue,
         CancellationToken cancellationToken = default);
+
+    Task<WherezIt.Application.Identifiers.Dtos.RevokeIdentifierResponseDto> RevokeIdentifierAsync(
+        AuthenticatedIdentity identity,
+        Guid workspaceId,
+        Guid identifierId,
+        CancellationToken cancellationToken = default);
 }

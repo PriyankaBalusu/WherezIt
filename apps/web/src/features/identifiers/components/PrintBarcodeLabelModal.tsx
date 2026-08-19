@@ -53,6 +53,21 @@ export const PrintBarcodeLabelModal: React.FC<PrintBarcodeLabelModalProps> = ({
     }
   }, [identifier]);
 
+  const handleRevoke = async () => {
+    if (!identifier) return;
+    const confirmed = window.confirm('Revoke this label? Existing printed/scanned copies will stop working.');
+    if (!confirmed) return;
+
+    try {
+      const { revokeIdentifier } = await import('../api/identifierApi');
+      await revokeIdentifier(workspaceId, identifier.identifierId);
+      setIdentifier(null);
+      setError('Label revoked successfully. Close or re-open to acquire a new active label.');
+    } catch (err: any) {
+      setError(err.message || 'Failed to revoke identifier.');
+    }
+  };
+
   if (!isOpen) return null;
 
   return (
@@ -92,6 +107,13 @@ export const PrintBarcodeLabelModal: React.FC<PrintBarcodeLabelModalProps> = ({
             className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-md hover:bg-gray-200"
           >
             Close
+          </button>
+          <button
+            onClick={handleRevoke}
+            disabled={!identifier}
+            className="px-4 py-2 text-sm font-medium text-red-600 border border-red-600 bg-white rounded-md hover:bg-red-50 disabled:opacity-50"
+          >
+            Revoke Label
           </button>
           <button
             onClick={() => window.print()}
