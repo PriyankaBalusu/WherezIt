@@ -28,6 +28,18 @@ export const App: React.FC = () => {
             <Route path="/signup" element={<SignupForm />} />
             <Route path="/scan/:tokenValue" element={<ScanResolverScreen />} />
             <Route
+              path="/workspaces/:workspaceId/quick-pack"
+              element={
+                <ProtectedRoute>
+                  <WorkspaceProvider>
+                    <React.Suspense fallback={<div>Loading Quick Pack...</div>}>
+                      {React.createElement(React.lazy(() => import('./features/containers/QuickPackScreen').then(m => ({ default: m.QuickPackScreen }))))}
+                    </React.Suspense>
+                  </WorkspaceProvider>
+                </ProtectedRoute>
+              }
+            />
+            <Route
               path="/"
               element={
                 <ProtectedRoute>

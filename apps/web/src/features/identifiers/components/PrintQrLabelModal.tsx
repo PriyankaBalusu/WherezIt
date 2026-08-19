@@ -68,6 +68,16 @@ export const PrintQrLabelModal: React.FC<PrintQrLabelModalProps> = ({
     }
   };
 
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        onClose();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [onClose]);
+
   return (
     <div
       style={{
@@ -84,6 +94,9 @@ export const PrintQrLabelModal: React.FC<PrintQrLabelModalProps> = ({
         padding: '1rem',
       }}
       className="qr-modal-backdrop"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="qr-modal-title"
     >
       <style>{`
         @media print {
@@ -124,7 +137,7 @@ export const PrintQrLabelModal: React.FC<PrintQrLabelModalProps> = ({
         }}
       >
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }} className="no-print">
-          <h3 style={{ margin: 0, fontSize: '1.25rem', color: '#1a202c' }}>Print QR Container Label</h3>
+          <h3 id="qr-modal-title" style={{ margin: 0, fontSize: '1.25rem', color: '#1a202c' }}>Print QR Container Label</h3>
           <button
             type="button"
             onClick={onClose}
