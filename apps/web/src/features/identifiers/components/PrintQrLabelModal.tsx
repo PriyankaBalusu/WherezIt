@@ -175,8 +175,11 @@ export const PrintQrLabelModal: React.FC<PrintQrLabelModalProps> = ({
                 boxSizing: 'border-box',
               }}
             >
-              <div style={{ fontSize: '0.85rem', fontWeight: 800, letterSpacing: '0.1em', color: '#4a5568', textTransform: 'uppercase', marginBottom: '0.25rem' }}>
-                WHEREZIT
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.375rem', marginBottom: '0.25rem' }}>
+                <img src="/icons/icon-192.svg" alt="WherezIt Logo" style={{ width: '20px', height: '20px', borderRadius: '4px' }} />
+                <span style={{ fontSize: '0.85rem', fontWeight: 800, letterSpacing: '0.1em', color: '#0f172a', textTransform: 'uppercase' }}>
+                  WHEREZIT
+                </span>
               </div>
               <div style={{ fontSize: '1.75rem', fontWeight: 800, color: '#1a202c', marginBottom: '1rem' }}>
                 {boxDisplayId}

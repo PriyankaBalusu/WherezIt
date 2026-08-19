@@ -46,7 +46,7 @@ export const CaptureReviewScreen: React.FC<CaptureReviewScreenProps> = ({
 
   if (isLoading) {
     return (
-      <div style={{ textAlign: 'center', padding: '3rem', color: '#4a5568' }}>
+      <div style={{ textAlign: 'center', padding: '3rem', color: '#64748b' }}>
         Loading AI capture review...
       </div>
     );
@@ -54,7 +54,7 @@ export const CaptureReviewScreen: React.FC<CaptureReviewScreenProps> = ({
 
   if (isError || !reviewData) {
     return (
-      <div role="alert" style={{ backgroundColor: '#fff5f5', border: '1px solid #feb2b2', color: '#c53030', padding: '1rem', borderRadius: '0.375rem', maxWidth: '600px', margin: '2rem auto' }}>
+      <div role="alert" style={{ backgroundColor: '#fef2f2', border: '1px solid #fca5a5', color: '#dc2626', padding: '1rem', borderRadius: '0.5rem', maxWidth: '600px', margin: '2rem auto' }}>
         {error?.message || 'Failed to load capture review.'}
       </div>
     );
@@ -63,9 +63,9 @@ export const CaptureReviewScreen: React.FC<CaptureReviewScreenProps> = ({
   // 1. Status == PROCESSING
   if (reviewData.status === 'PROCESSING') {
     return (
-      <div style={{ textAlign: 'center', padding: '3rem', backgroundColor: '#ebf8ff', borderRadius: '0.5rem', maxWidth: '600px', margin: '2rem auto' }}>
-        <h3 style={{ color: '#2b6cb0', marginTop: 0 }}>AI Processing in Progress</h3>
-        <p style={{ color: '#4a5568' }}>
+      <div style={{ textAlign: 'center', padding: '3rem', backgroundColor: '#e0f2fe', borderRadius: '0.75rem', maxWidth: '600px', margin: '2rem auto', border: '1px solid #7dd3fc' }}>
+        <h3 style={{ color: '#0369a1', marginTop: 0 }}>AI Processing in Progress</h3>
+        <p style={{ color: '#0c4a6e' }}>
           Photo processing for container <strong>{reviewData.boxDisplayId}</strong> is still underway. Please check back shortly.
         </p>
       </div>
@@ -75,24 +75,16 @@ export const CaptureReviewScreen: React.FC<CaptureReviewScreenProps> = ({
   // 2. Status == FAILED
   if (reviewData.status === 'FAILED') {
     return (
-      <div style={{ padding: '2rem', backgroundColor: '#fff5f5', border: '1px solid #feb2b2', borderRadius: '0.5rem', maxWidth: '600px', margin: '2rem auto' }}>
-        <h3 style={{ color: '#c53030', marginTop: 0 }}>AI Processing Failed</h3>
-        <p style={{ color: '#4a5568' }}>
+      <div style={{ padding: '2rem', backgroundColor: '#fef2f2', border: '1px solid #fca5a5', borderRadius: '0.75rem', maxWidth: '600px', margin: '2rem auto' }}>
+        <h3 style={{ color: '#dc2626', marginTop: 0 }}>AI Processing Failed</h3>
+        <p style={{ color: '#7f1d1d', marginBottom: '1.5rem' }}>
           {reviewData.failureReason || 'AI was unable to detect items in this photo.'}
         </p>
         {onNavigateToManualEntry && (
           <button
             type="button"
+            className="btn-danger"
             onClick={() => onNavigateToManualEntry(reviewData.containerId)}
-            style={{
-              padding: '0.5rem 1rem',
-              backgroundColor: '#e53e3e',
-              color: '#fff',
-              border: 'none',
-              borderRadius: '0.25rem',
-              cursor: 'pointer',
-              fontWeight: 600,
-            }}
           >
             Go to Manual Item Entry for {reviewData.boxDisplayId}
           </button>
@@ -174,204 +166,181 @@ export const CaptureReviewScreen: React.FC<CaptureReviewScreenProps> = ({
   };
 
   return (
-    <div style={{ maxWidth: '700px', margin: '0 auto', padding: '1rem' }}>
+    <div style={{ maxWidth: '900px', margin: '0 auto', padding: '1rem' }}>
       <div style={{ marginBottom: '1.5rem', borderBottom: '1px solid #e2e8f0', paddingBottom: '1rem' }}>
-        <h2 style={{ margin: 0, color: '#1a202c' }}>
-          {isReadOnly ? 'Confirmed Container Photo' : 'Review AI Suggestions'}
-        </h2>
-        <div style={{ fontSize: '0.875rem', color: '#718096', marginTop: '0.25rem' }}>
-          Container: <strong>{reviewData.boxDisplayId}</strong>
-          {reviewData.breadcrumbDisplay && ` • ${reviewData.breadcrumbDisplay}`}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '0.25rem' }}>
+          <h2 style={{ margin: 0, color: '#0f172a', fontSize: '1.75rem', fontWeight: 800 }}>
+            {isReadOnly ? 'Confirmed Container Photo' : 'Review AI Suggestions'}
+          </h2>
+          {!isReadOnly && <span className="badge badge-ai-suggested">✨ AI Suggested</span>}
+        </div>
+        <div style={{ fontSize: '0.875rem', color: '#64748b' }}>
+          Container: <strong style={{ color: '#0f172a' }}>{reviewData.boxDisplayId}</strong>
+          {reviewData.breadcrumbDisplay && ` • 📍 ${reviewData.breadcrumbDisplay}`}
         </div>
       </div>
 
       {confirmError && (
-        <div role="alert" style={{ backgroundColor: '#fff5f5', border: '1px solid #feb2b2', color: '#c53030', padding: '1rem', borderRadius: '0.375rem', marginBottom: '1rem' }}>
+        <div role="alert" style={{ backgroundColor: '#fef2f2', border: '1px solid #fca5a5', color: '#dc2626', padding: '1rem', borderRadius: '0.5rem', marginBottom: '1rem' }}>
           {confirmError}
         </div>
       )}
 
       {confirmedSuccess && (
-        <div role="status" style={{ backgroundColor: '#f0fff4', border: '1px solid #9ae6b4', color: '#276749', padding: '1rem', borderRadius: '0.375rem', marginBottom: '1rem', fontWeight: 600 }}>
-          Inventory confirmed successfully! Trusted items have been created for container {reviewData.boxDisplayId}.
+        <div role="status" style={{ backgroundColor: '#f0fdf4', border: '1px solid #86efac', color: '#166534', padding: '1rem', borderRadius: '0.5rem', marginBottom: '1rem', fontWeight: 600 }}>
+          ✓ Inventory confirmed successfully! Trusted items have been created for container {reviewData.boxDisplayId}.
         </div>
       )}
 
-      {/* Authorized Image Preview */}
-      <div style={{ marginBottom: '1.5rem', textAlign: 'center' }}>
-        <img
-          src={imageUrl}
-          alt={`Container ${reviewData.boxDisplayId}`}
-          style={{
-            maxWidth: '100%',
-            maxHeight: '300px',
-            borderRadius: '0.5rem',
-            boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
-            objectFit: 'cover',
-          }}
-        />
-      </div>
+      {/* Flagship Two-Column Review Composition */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(340px, 1fr))', gap: '1.5rem' }}>
+        {/* Left Column: Authorized Image Preview */}
+        <div className="card" style={{ padding: '1rem', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+          <img
+            src={imageUrl}
+            alt={`Container ${reviewData.boxDisplayId}`}
+            style={{
+              maxWidth: '100%',
+              maxHeight: '380px',
+              borderRadius: '0.5rem',
+              objectFit: 'cover',
+            }}
+          />
+          <span style={{ fontSize: '0.75rem', color: '#64748b', marginTop: '0.75rem' }}>
+            Uploaded Container Photo
+          </span>
+        </div>
 
-      <div style={{ backgroundColor: '#fff', border: '1px solid #e2e8f0', borderRadius: '0.5rem', padding: '1.25rem' }}>
-        <h3 style={{ marginTop: 0, fontSize: '1.1rem', color: '#2d3748' }}>
-          Detected Items Draft ({draftItems.length})
-        </h3>
-        <p style={{ fontSize: '0.875rem', color: '#718096', marginBottom: '1rem' }}>
-          Review suggested names and quantities before confirming inventory.
-        </p>
+        {/* Right Column: AI Suggestions Review Draft */}
+        <div className="card" style={{ padding: '1.5rem' }}>
+          <h3 style={{ marginTop: 0, fontSize: '1.25rem', color: '#0f172a', fontWeight: 700 }}>
+            Detected Items Draft ({draftItems.length})
+          </h3>
+          <p style={{ fontSize: '0.875rem', color: '#64748b', marginBottom: '1.25rem' }}>
+            Review and adjust AI-suggested items before explicit confirmation.
+          </p>
 
-        {draftItems.length === 0 ? (
-          <div style={{ padding: '1rem', backgroundColor: '#f7fafc', borderRadius: '0.375rem', textAlign: 'center', color: '#a0aec0' }}>
-            No items in current review draft.
-          </div>
-        ) : (
-          <div style={{ display: 'grid', gap: '0.75rem', marginBottom: '1.5rem' }}>
-            {draftItems.map((item) => (
-              <div
-                key={item.id}
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '0.5rem',
-                  padding: '0.75rem',
-                  backgroundColor: '#f7fafc',
-                  border: '1px solid #edf2f7',
-                  borderRadius: '0.375rem',
-                }}
-              >
-                <input
-                  type="text"
-                  value={item.name}
-                  onChange={(e) => handleNameChange(item.id, e.target.value)}
-                  disabled={isReadOnly}
-                  aria-label="Item name"
+          {draftItems.length === 0 ? (
+            <div style={{ padding: '1.5rem', backgroundColor: '#f8fafc', borderRadius: '0.5rem', textAlign: 'center', color: '#64748b', border: '1px dashed #cbd5e1' }}>
+              No items in current review draft.
+            </div>
+          ) : (
+            <div style={{ display: 'grid', gap: '0.75rem', marginBottom: '1.5rem' }}>
+              {draftItems.map((item) => (
+                <div
+                  key={item.id}
                   style={{
-                    flex: 1,
-                    padding: '0.5rem',
-                    border: '1px solid #cbd5e0',
-                    borderRadius: '0.25rem',
-                    fontSize: '0.95rem',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '0.5rem',
+                    padding: '0.75rem',
+                    backgroundColor: '#f8fafc',
+                    border: '1px solid #e2e8f0',
+                    borderRadius: '0.5rem',
                   }}
-                />
-
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
-                  <button
-                    type="button"
-                    onClick={() => handleQuantityChange(item.id, item.quantity - 1)}
-                    disabled={isReadOnly || item.quantity <= 1}
-                    aria-label="Decrease quantity"
-                    style={{
-                      padding: '0.25rem 0.5rem',
-                      backgroundColor: '#e2e8f0',
-                      border: 'none',
-                      borderRadius: '0.25rem',
-                      cursor: isReadOnly || item.quantity <= 1 ? 'not-allowed' : 'pointer',
-                    }}
-                  >
-                    -
-                  </button>
-                  <span style={{ minWidth: '2rem', textAlign: 'center', fontWeight: 600 }}>
-                    {item.quantity}
-                  </span>
-                  <button
-                    type="button"
-                    onClick={() => handleQuantityChange(item.id, item.quantity + 1)}
+                >
+                  <input
+                    type="text"
+                    value={item.name}
+                    onChange={(e) => handleNameChange(item.id, e.target.value)}
                     disabled={isReadOnly}
-                    aria-label="Increase quantity"
+                    aria-label="Item name"
                     style={{
-                      padding: '0.25rem 0.5rem',
-                      backgroundColor: '#e2e8f0',
-                      border: 'none',
-                      borderRadius: '0.25rem',
-                      cursor: isReadOnly ? 'not-allowed' : 'pointer',
+                      flex: 1,
+                      padding: '0.5rem',
+                      border: '1px solid #cbd5e1',
+                      borderRadius: '0.375rem',
+                      fontSize: '0.875rem',
                     }}
-                  >
-                    +
-                  </button>
+                  />
+
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+                    <button
+                      type="button"
+                      className="btn-secondary"
+                      onClick={() => handleQuantityChange(item.id, item.quantity - 1)}
+                      disabled={isReadOnly || item.quantity <= 1}
+                      aria-label="Decrease quantity"
+                      style={{ padding: '0.25rem 0.5rem', fontSize: '0.75rem' }}
+                    >
+                      -
+                    </button>
+                    <span style={{ minWidth: '2rem', textAlign: 'center', fontWeight: 700, fontSize: '0.875rem' }}>
+                      {item.quantity}
+                    </span>
+                    <button
+                      type="button"
+                      className="btn-secondary"
+                      onClick={() => handleQuantityChange(item.id, item.quantity + 1)}
+                      disabled={isReadOnly}
+                      aria-label="Increase quantity"
+                      style={{ padding: '0.25rem 0.5rem', fontSize: '0.75rem' }}
+                    >
+                      +
+                    </button>
+                  </div>
+
+                  {!isReadOnly && (
+                    <button
+                      type="button"
+                      className="btn-secondary"
+                      onClick={() => handleRemove(item.id)}
+                      aria-label="Remove item"
+                      style={{ padding: '0.35rem 0.65rem', color: '#dc2626', fontSize: '0.75rem' }}
+                    >
+                      Remove
+                    </button>
+                  )}
                 </div>
+              ))}
+            </div>
+          )}
 
-                {!isReadOnly && (
-                  <button
-                    type="button"
-                    onClick={() => handleRemove(item.id)}
-                    aria-label="Remove item"
-                    style={{
-                      padding: '0.35rem 0.65rem',
-                      backgroundColor: '#fff5f5',
-                      color: '#c53030',
-                      border: '1px solid #feb2b2',
-                      borderRadius: '0.25rem',
-                      cursor: 'pointer',
-                      fontSize: '0.85rem',
-                    }}
-                  >
-                    Remove
-                  </button>
-                )}
-              </div>
-            ))}
-          </div>
-        )}
+          {/* Add missing item draft form */}
+          {!isReadOnly && (
+            <form onSubmit={handleAddMissingItem} style={{ display: 'flex', gap: '0.5rem', borderTop: '1px solid #f1f5f9', paddingTop: '1rem', marginBottom: '1.5rem' }}>
+              <input
+                type="text"
+                value={newItemName}
+                onChange={(e) => setNewItemName(e.target.value)}
+                placeholder="Add missing item name..."
+                aria-label="Missing item name"
+                style={{ flex: 1, padding: '0.5rem', border: '1px solid #cbd5e1', borderRadius: '0.375rem', fontSize: '0.875rem' }}
+              />
+              <input
+                type="number"
+                min={1}
+                value={newItemQuantity}
+                onChange={(e) => setNewItemQuantity(parseInt(e.target.value, 10) || 1)}
+                style={{ width: '60px', padding: '0.5rem', border: '1px solid #cbd5e1', borderRadius: '0.375rem', fontSize: '0.875rem' }}
+                aria-label="Missing item quantity"
+              />
+              <button
+                type="submit"
+                className="btn-primary"
+                disabled={!newItemName.trim()}
+                style={{ padding: '0.5rem 1rem', fontSize: '0.875rem' }}
+              >
+                + Add Item
+              </button>
+            </form>
+          )}
 
-        {/* Add missing item draft form */}
-        {!isReadOnly && (
-          <form onSubmit={handleAddMissingItem} style={{ display: 'flex', gap: '0.5rem', borderTop: '1px solid #edf2f7', paddingTop: '1rem', marginBottom: '1.5rem' }}>
-            <input
-              type="text"
-              value={newItemName}
-              onChange={(e) => setNewItemName(e.target.value)}
-              placeholder="Add missing item name..."
-              aria-label="Missing item name"
-              style={{ flex: 1, padding: '0.5rem', border: '1px solid #cbd5e0', borderRadius: '0.25rem' }}
-            />
-            <input
-              type="number"
-              min={1}
-              value={newItemQuantity}
-              onChange={(e) => setNewItemQuantity(parseInt(e.target.value, 10) || 1)}
-              style={{ width: '60px', padding: '0.5rem', border: '1px solid #cbd5e0', borderRadius: '0.25rem' }}
-              aria-label="Missing item quantity"
-            />
-            <button
-              type="submit"
-              disabled={!newItemName.trim()}
-              style={{
-                padding: '0.5rem 1rem',
-                backgroundColor: !newItemName.trim() ? '#cbd5e0' : '#38a169',
-                color: '#fff',
-                border: 'none',
-                borderRadius: '0.25rem',
-                cursor: !newItemName.trim() ? 'not-allowed' : 'pointer',
-                fontWeight: 600,
-              }}
-            >
-              + Add Item
-            </button>
-          </form>
-        )}
-
-        {/* Action Confirm Button */}
-        {!isReadOnly && (
-          <div style={{ display: 'flex', justifyContent: 'flex-end', borderTop: '1px solid #edf2f7', paddingTop: '1rem' }}>
-            <button
-              type="button"
-              onClick={handleConfirmSubmission}
-              disabled={draftItems.length === 0 || isSubmittingConfirm}
-              style={{
-                padding: '0.75rem 1.5rem',
-                fontSize: '1rem',
-                fontWeight: 700,
-                backgroundColor: draftItems.length === 0 || isSubmittingConfirm ? '#cbd5e0' : '#2b6cb0',
-                color: '#fff',
-                border: 'none',
-                borderRadius: '0.375rem',
-                cursor: draftItems.length === 0 || isSubmittingConfirm ? 'not-allowed' : 'pointer',
-              }}
-            >
-              {isSubmittingConfirm ? 'Confirming Inventory...' : 'Confirm Inventory'}
-            </button>
-          </div>
-        )}
+          {/* Action Confirm Button */}
+          {!isReadOnly && (
+            <div style={{ display: 'flex', justifyContent: 'flex-end', borderTop: '1px solid #f1f5f9', paddingTop: '1rem' }}>
+              <button
+                type="button"
+                className="btn-primary"
+                onClick={handleConfirmSubmission}
+                disabled={draftItems.length === 0 || isSubmittingConfirm}
+                style={{ padding: '0.75rem 1.5rem', fontSize: '1rem' }}
+              >
+                {isSubmittingConfirm ? 'Confirming Inventory...' : 'Confirm Inventory'}
+              </button>
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );

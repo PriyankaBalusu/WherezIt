@@ -106,132 +106,144 @@ export const QuickPackScreen: React.FC = () => {
 
   if (isLocationsLoading) {
     return (
-      <div style={{ padding: '2rem', textAlign: 'center', color: '#718096' }}>
+      <div style={{ padding: '3rem', textAlign: 'center', color: '#64748b' }}>
         Loading storage locations...
       </div>
     );
   }
 
   return (
-    <div style={{ maxWidth: '600px', margin: '2rem auto', padding: '1.5rem', backgroundColor: '#fff', borderRadius: '0.5rem', boxShadow: '0 4px 6px rgba(0,0,0,0.05)', border: '1px solid #e2e8f0' }}>
-      <h2 style={{ fontSize: '1.5rem', fontWeight: 700, marginBottom: '1.5rem', color: '#1a202c' }}>
-        Quick Pack Container
-      </h2>
+    <div style={{ maxWidth: '680px', margin: '2rem auto', padding: '1rem' }}>
+      <div style={{ marginBottom: '1.5rem' }}>
+        <span style={{ fontSize: '0.75rem', fontWeight: 700, color: '#0284c7', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+          GUIDED WORKFLOW
+        </span>
+        <h2 style={{ fontSize: '1.875rem', fontWeight: 800, margin: '0.25rem 0', color: '#0f172a' }}>
+          Quick Pack Container
+        </h2>
+        <p style={{ color: '#64748b', fontSize: '0.95rem' }}>
+          Pack a box, assign location metadata, and scan/photo contents for AI recognition.
+        </p>
+      </div>
 
       {error && (
-        <div role="alert" style={{ backgroundColor: '#fff5f5', color: '#c53030', padding: '0.75rem 1rem', borderRadius: '0.375rem', marginBottom: '1rem', border: '1px solid #feb2b2' }}>
+        <div role="alert" style={{ backgroundColor: '#fef2f2', color: '#dc2626', padding: '1rem', borderRadius: '0.5rem', marginBottom: '1.5rem', border: '1px solid #fca5a5' }}>
           {error}
         </div>
       )}
 
-      <form onSubmit={handleSubmit}>
-        {/* Current Location */}
-        <div style={{ marginBottom: '1.25rem' }}>
-          <label htmlFor="quickpack-current-location" style={{ display: 'block', fontWeight: 600, marginBottom: '0.5rem', fontSize: '0.875rem' }}>
-            Current Storage Location *
-          </label>
-          <select
-            id="quickpack-current-location"
-            value={storageNodeId}
-            onChange={(e) => setStorageNodeId(e.target.value)}
-            style={{ width: '100%', padding: '0.625rem', borderRadius: '0.375rem', border: '1px solid #cbd5e0' }}
-            required
-          >
-            <option value="">-- Select Current Location --</option>
-            {locations?.map((loc) => (
-              <option key={loc.id} value={loc.id}>
-                {loc.name}
-              </option>
-            ))}
-          </select>
-        </div>
+      <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+        {/* Step 1: Location & Destination */}
+        <div className="card" style={{ padding: '1.5rem' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.625rem', marginBottom: '1rem' }}>
+            <span style={{ backgroundColor: '#0284c7', color: '#ffffff', fontWeight: 800, width: '24px', height: '24px', borderRadius: '50%', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.75rem' }}>1</span>
+            <h3 style={{ margin: 0, fontSize: '1.125rem', fontWeight: 700, color: '#0f172a' }}>Storage & Destination Locations</h3>
+          </div>
 
-        {/* Intended Destination Location */}
-        <div style={{ marginBottom: '1.25rem' }}>
-          <label htmlFor="quickpack-destination-location" style={{ display: 'block', fontWeight: 600, marginBottom: '0.5rem', fontSize: '0.875rem' }}>
-            Intended Destination Room / Location (Optional)
-          </label>
-          <select
-            id="quickpack-destination-location"
-            value={destinationStorageNodeId}
-            onChange={(e) => setDestinationStorageNodeId(e.target.value)}
-            style={{ width: '100%', padding: '0.625rem', borderRadius: '0.375rem', border: '1px solid #cbd5e0' }}
-          >
-            <option value="">-- None / Unknown --</option>
-            {locations?.map((loc) => (
-              <option key={loc.id} value={loc.id}>
-                {loc.name}
-              </option>
-            ))}
-          </select>
-        </div>
-
-        {/* Container Name */}
-        <div style={{ marginBottom: '1.25rem' }}>
-          <label htmlFor="quickpack-container-name" style={{ display: 'block', fontWeight: 600, marginBottom: '0.5rem', fontSize: '0.875rem' }}>
-            Container Name *
-          </label>
-          <input
-            id="quickpack-container-name"
-            type="text"
-            placeholder="e.g. Kitchen Supplies Box A"
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            style={{ width: '100%', padding: '0.625rem', borderRadius: '0.375rem', border: '1px solid #cbd5e0' }}
-            required
-          />
-        </div>
-
-        {/* Description */}
-        <div style={{ marginBottom: '1.25rem' }}>
-          <label htmlFor="quickpack-container-desc" style={{ display: 'block', fontWeight: 600, marginBottom: '0.5rem', fontSize: '0.875rem' }}>
-            Description (Optional)
-          </label>
-          <input
-            id="quickpack-container-desc"
-            type="text"
-            placeholder="e.g. Fragile glassware and pots"
-            value={description}
-            onChange={(e) => setDescription(e.target.value)}
-            style={{ width: '100%', padding: '0.625rem', borderRadius: '0.375rem', border: '1px solid #cbd5e0' }}
-          />
-        </div>
-
-        {/* Packing Metadata */}
-        <div style={{ display: 'flex', gap: '1rem', alignItems: 'center', marginBottom: '1.25rem' }}>
-          <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer', fontSize: '0.875rem', fontWeight: 600 }}>
-            <input
-              type="checkbox"
-              checked={isPacked}
-              onChange={(e) => setIsPacked(e.target.checked)}
-              aria-label="Is Packed"
-            />
-            Mark as Packed
-          </label>
-
-          <div style={{ flex: 1 }}>
-            <label htmlFor="quickpack-priority" style={{ display: 'block', fontWeight: 600, marginBottom: '0.25rem', fontSize: '0.875rem' }}>
-              Moving Priority
-            </label>
+          <div className="form-group">
+            <label htmlFor="quickpack-current-location">Current Storage Location *</label>
             <select
-              id="quickpack-priority"
-              value={movingPriority}
-              onChange={(e) => setMovingPriority(e.target.value)}
-              style={{ width: '100%', padding: '0.5rem', borderRadius: '0.375rem', border: '1px solid #cbd5e0' }}
+              id="quickpack-current-location"
+              value={storageNodeId}
+              onChange={(e) => setStorageNodeId(e.target.value)}
+              required
             >
-              <option value="">Normal</option>
-              <option value="LOW">Low</option>
-              <option value="MEDIUM">Medium</option>
-              <option value="HIGH">High</option>
+              <option value="">-- Select Current Location --</option>
+              {locations?.map((loc) => (
+                <option key={loc.id} value={loc.id}>
+                  {loc.name}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div className="form-group" style={{ marginBottom: 0 }}>
+            <label htmlFor="quickpack-destination-location">Intended Destination Room / Location (Optional)</label>
+            <select
+              id="quickpack-destination-location"
+              value={destinationStorageNodeId}
+              onChange={(e) => setDestinationStorageNodeId(e.target.value)}
+            >
+              <option value="">-- None / Unknown --</option>
+              {locations?.map((loc) => (
+                <option key={loc.id} value={loc.id}>
+                  {loc.name}
+                </option>
+              ))}
             </select>
           </div>
         </div>
 
-        {/* Photo Upload Section */}
-        <div style={{ marginBottom: '1.5rem', padding: '1rem', backgroundColor: '#f7fafc', borderRadius: '0.375rem', border: '1px dashed #cbd5e0' }}>
-          <label htmlFor="quickpack-photo" style={{ display: 'block', fontWeight: 600, marginBottom: '0.5rem', fontSize: '0.875rem' }}>
-            Container Photo for AI Inventory Recognition (Optional)
-          </label>
+        {/* Step 2: Container Details */}
+        <div className="card" style={{ padding: '1.5rem' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.625rem', marginBottom: '1rem' }}>
+            <span style={{ backgroundColor: '#0284c7', color: '#ffffff', fontWeight: 800, width: '24px', height: '24px', borderRadius: '50%', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.75rem' }}>2</span>
+            <h3 style={{ margin: 0, fontSize: '1.125rem', fontWeight: 700, color: '#0f172a' }}>Container Information & Status</h3>
+          </div>
+
+          <div className="form-group">
+            <label htmlFor="quickpack-container-name">Container Name *</label>
+            <input
+              id="quickpack-container-name"
+              type="text"
+              placeholder="e.g. Kitchen Supplies Box A"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              required
+            />
+          </div>
+
+          <div className="form-group">
+            <label htmlFor="quickpack-container-desc">Description (Optional)</label>
+            <input
+              id="quickpack-container-desc"
+              type="text"
+              placeholder="e.g. Fragile glassware and pots"
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+            />
+          </div>
+
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', alignItems: 'center' }}>
+            <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer', fontSize: '0.875rem', fontWeight: 600 }}>
+              <input
+                type="checkbox"
+                checked={isPacked}
+                onChange={(e) => setIsPacked(e.target.checked)}
+                aria-label="Is Packed"
+              />
+              Mark as Packed
+            </label>
+
+            <div>
+              <label htmlFor="quickpack-priority" style={{ display: 'block', fontWeight: 600, marginBottom: '0.25rem', fontSize: '0.875rem' }}>
+                Moving Priority
+              </label>
+              <select
+                id="quickpack-priority"
+                value={movingPriority}
+                onChange={(e) => setMovingPriority(e.target.value)}
+                style={{ width: '100%', padding: '0.5rem', borderRadius: '0.375rem', border: '1px solid #cbd5e1' }}
+              >
+                <option value="">Normal</option>
+                <option value="LOW">Low</option>
+                <option value="MEDIUM">Medium</option>
+                <option value="HIGH">High</option>
+              </select>
+            </div>
+          </div>
+        </div>
+
+        {/* Step 3: Photo Capture / AI Recognition */}
+        <div className="card" style={{ padding: '1.5rem', backgroundColor: '#f8fafc', border: '1px dashed #cbd5e1' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.625rem', marginBottom: '0.75rem' }}>
+            <span style={{ backgroundColor: '#f59e0b', color: '#ffffff', fontWeight: 800, width: '24px', height: '24px', borderRadius: '50%', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.75rem' }}>3</span>
+            <h3 style={{ margin: 0, fontSize: '1.125rem', fontWeight: 700, color: '#0f172a' }}>Contents Photo & AI Recognition (Optional)</h3>
+          </div>
+          <p style={{ fontSize: '0.875rem', color: '#64748b', marginBottom: '1rem' }}>
+            Take or upload a photo of the box contents. AI will detect items for explicit human review.
+          </p>
+
           <input
             id="quickpack-photo"
             type="file"
@@ -240,26 +252,28 @@ export const QuickPackScreen: React.FC = () => {
             onChange={handleFileChange}
             style={{ width: '100%', marginBottom: '0.5rem' }}
           />
+
           {previewUrl && (
-            <div style={{ marginTop: '0.5rem', textAlign: 'center' }}>
-              <img src={previewUrl} alt="Preview" style={{ maxHeight: '180px', borderRadius: '0.25rem', objectFit: 'cover' }} />
+            <div style={{ marginTop: '0.75rem', textAlign: 'center' }}>
+              <img src={previewUrl} alt="Preview" style={{ maxHeight: '200px', borderRadius: '0.5rem', objectFit: 'cover' }} />
             </div>
           )}
         </div>
 
-        {/* Buttons */}
-        <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'flex-end' }}>
+        {/* Actions */}
+        <div style={{ display: 'flex', gap: '1rem', justifyContent: 'flex-end', marginTop: '0.5rem' }}>
           <button
             type="button"
+            className="btn-secondary"
             onClick={() => navigate(-1)}
-            style={{ padding: '0.625rem 1.25rem', border: '1px solid #cbd5e0', borderRadius: '0.375rem', backgroundColor: '#fff', cursor: 'pointer' }}
           >
             Cancel
           </button>
           <button
             type="submit"
+            className="btn-primary"
             disabled={isSubmitting}
-            style={{ padding: '0.625rem 1.5rem', backgroundColor: '#3182ce', color: '#fff', border: 'none', borderRadius: '0.375rem', fontWeight: 600, cursor: isSubmitting ? 'not-allowed' : 'pointer' }}
+            style={{ padding: '0.75rem 1.75rem' }}
           >
             {isSubmitting ? 'Processing Quick Pack...' : selectedFile ? 'Upload & Analyze Photo' : 'Save Container'}
           </button>

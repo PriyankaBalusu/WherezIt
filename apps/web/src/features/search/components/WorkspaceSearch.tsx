@@ -25,10 +25,12 @@ export const WorkspaceSearch: React.FC<WorkspaceSearchProps> = ({ workspaceId })
   };
 
   return (
-    <div style={{ maxWidth: '800px', margin: '0 auto', padding: '1rem' }}>
-      <h2 style={{ marginBottom: '1rem', color: '#1a202c' }}>Workspace Inventory Search</h2>
+    <div style={{ maxWidth: '850px', margin: '0 auto', padding: '1rem' }}>
+      <h2 style={{ marginBottom: '1rem', color: '#0f172a', fontSize: '1.75rem', fontWeight: 800 }}>
+        Workspace Inventory Search
+      </h2>
 
-      <form onSubmit={handleSearchSubmit} style={{ display: 'flex', gap: '0.5rem', marginBottom: '1.5rem' }}>
+      <form onSubmit={handleSearchSubmit} style={{ display: 'flex', gap: '0.75rem', marginBottom: '1.75rem' }}>
         <input
           type="text"
           value={inputQuery}
@@ -40,23 +42,17 @@ export const WorkspaceSearch: React.FC<WorkspaceSearchProps> = ({ workspaceId })
             flex: 1,
             padding: '0.75rem 1rem',
             fontSize: '1rem',
-            border: '1px solid #cbd5e0',
-            borderRadius: '0.375rem',
+            border: '1px solid #cbd5e1',
+            borderRadius: '0.5rem',
+            backgroundColor: '#ffffff',
+            color: '#0f172a',
           }}
         />
         <button
           type="submit"
+          className="btn-primary"
           disabled={!inputQuery.trim() || isLoading}
-          style={{
-            padding: '0.75rem 1.5rem',
-            fontSize: '1rem',
-            fontWeight: 600,
-            backgroundColor: !inputQuery.trim() || isLoading ? '#cbd5e0' : '#3182ce',
-            color: '#fff',
-            border: 'none',
-            borderRadius: '0.375rem',
-            cursor: !inputQuery.trim() || isLoading ? 'not-allowed' : 'pointer',
-          }}
+          style={{ padding: '0.75rem 1.75rem', fontSize: '1rem' }}
         >
           {isLoading ? 'Searching...' : 'Search'}
         </button>
@@ -64,14 +60,14 @@ export const WorkspaceSearch: React.FC<WorkspaceSearchProps> = ({ workspaceId })
 
       {/* Loading state */}
       {isLoading && (
-        <div style={{ textAlign: 'center', padding: '2rem', color: '#4a5568' }}>
+        <div style={{ textAlign: 'center', padding: '2.5rem', color: '#64748b' }}>
           Searching workspace inventory...
         </div>
       )}
 
       {/* Error state */}
       {isError && (
-        <div role="alert" style={{ backgroundColor: '#fff5f5', border: '1px solid #feb2b2', color: '#c53030', padding: '1rem', borderRadius: '0.375rem', marginBottom: '1rem' }}>
+        <div role="alert" style={{ backgroundColor: '#fef2f2', border: '1px solid #fca5a5', color: '#dc2626', padding: '1rem', borderRadius: '0.5rem', marginBottom: '1rem' }}>
           {error?.message || 'Search failed. Please try again.'}
         </div>
       )}
@@ -80,43 +76,38 @@ export const WorkspaceSearch: React.FC<WorkspaceSearchProps> = ({ workspaceId })
       {submitted && !isLoading && !isError && results && (
         <div>
           {results.length === 0 ? (
-            <div style={{ textAlign: 'center', padding: '2rem', color: '#718096', backgroundColor: '#f7fafc', borderRadius: '0.375rem' }}>
-              No inventory matching "{activeQuery}" was found.
+            <div style={{ textAlign: 'center', padding: '3rem 1.5rem', color: '#64748b', backgroundColor: '#f8fafc', borderRadius: '0.5rem', border: '1px dashed #cbd5e1' }}>
+              No inventory matching "{activeQuery}" was found. Check your search terms or verify container contents.
             </div>
           ) : (
-            <div style={{ display: 'grid', gap: '1rem' }}>
+            <div style={{ display: 'grid', gap: '1.25rem' }}>
               {results.map((res, index) => (
                 <div
                   key={res.itemId || `${res.containerId}-${index}`}
+                  className="card"
                   style={{
-                    backgroundColor: '#fff',
-                    border: '1px solid #e2e8f0',
-                    borderRadius: '0.5rem',
-                    padding: '1.25rem',
-                    boxShadow: '0 1px 3px rgba(0,0,0,0.05)',
+                    backgroundColor: '#ffffff',
+                    borderLeft: res.resultType === 'ITEM' ? '4px solid #0284c7' : '4px solid #f59e0b',
                   }}
                 >
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '0.5rem' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '0.75rem' }}>
                     <div>
                       {res.resultType === 'ITEM' ? (
-                        <h3 style={{ margin: 0, fontSize: '1.25rem', color: '#2d3748' }}>
+                        <h3 style={{ margin: 0, fontSize: '1.375rem', color: '#0f172a', fontWeight: 800 }}>
                           {res.itemName}
                         </h3>
                       ) : (
-                        <h3 style={{ margin: 0, fontSize: '1.25rem', color: '#2b6cb0' }}>
+                        <h3 style={{ margin: 0, fontSize: '1.375rem', color: '#0f172a', fontWeight: 800 }}>
                           Container {res.boxDisplayId}
                         </h3>
                       )}
                     </div>
                     <span
+                      className="badge"
                       style={{
-                        backgroundColor: res.resultType === 'ITEM' ? '#ebf8ff' : '#feebc8',
-                        color: res.resultType === 'ITEM' ? '#2b6cb0' : '#744210',
-                        fontSize: '0.75rem',
-                        fontWeight: 700,
-                        padding: '0.25rem 0.5rem',
-                        borderRadius: '0.25rem',
-                        textTransform: 'uppercase',
+                        backgroundColor: res.resultType === 'ITEM' ? '#e0f2fe' : '#fef3c7',
+                        color: res.resultType === 'ITEM' ? '#0369a1' : '#d97706',
+                        border: res.resultType === 'ITEM' ? '1px solid rgba(2, 132, 199, 0.2)' : '1px solid rgba(217, 119, 6, 0.2)',
                       }}
                     >
                       {res.resultType}
@@ -124,20 +115,20 @@ export const WorkspaceSearch: React.FC<WorkspaceSearchProps> = ({ workspaceId })
                   </div>
 
                   {res.resultType === 'ITEM' && res.quantity != null && (
-                    <div style={{ fontSize: '0.875rem', color: '#4a5568', marginBottom: '0.5rem' }}>
+                    <div style={{ fontSize: '0.875rem', color: '#475569', marginBottom: '0.75rem' }}>
                       Quantity: <strong>{res.quantity}</strong>
                     </div>
                   )}
 
-                  <div style={{ display: 'flex', gap: '1.5rem', fontSize: '0.875rem', color: '#4a5568', marginTop: '0.75rem', paddingTop: '0.75rem', borderTop: '1px solid #edf2f7' }}>
-                    <div>
-                      <span style={{ color: '#718096' }}>Container: </span>
-                      <strong>{res.boxDisplayId}</strong>
+                  <div style={{ display: 'flex', gap: '1.5rem', fontSize: '0.875rem', color: '#334155', marginTop: '0.75rem', paddingTop: '0.75rem', borderTop: '1px solid #f1f5f9', flexWrap: 'wrap', alignItems: 'center' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.375rem' }}>
+                      <span style={{ color: '#64748b' }}>Container:</span>
+                      <span className="badge badge-boxid">{res.boxDisplayId}</span>
                     </div>
                     {res.breadcrumbDisplay && (
-                      <div>
-                        <span style={{ color: '#718096' }}>Location: </span>
-                        <strong>{res.breadcrumbDisplay}</strong>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.375rem' }}>
+                        <span style={{ color: '#64748b' }}>Location:</span>
+                        <strong style={{ color: '#d97706' }}>{res.breadcrumbDisplay}</strong>
                       </div>
                     )}
                   </div>

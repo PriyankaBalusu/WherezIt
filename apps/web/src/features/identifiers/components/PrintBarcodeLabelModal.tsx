@@ -105,9 +105,12 @@ export const PrintBarcodeLabelModal: React.FC<PrintBarcodeLabelModalProps> = ({
 
         {identifier && (
           <div className="flex flex-col items-center border border-dashed border-gray-400 p-6 rounded bg-white my-4 print:border-none print:shadow-none">
-            <span className="text-xs uppercase tracking-widest font-semibold text-gray-500 mb-1">
-              WHEREZIT
-            </span>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.375rem', marginBottom: '0.25rem' }}>
+              <img src="/icons/icon-192.svg" alt="WherezIt Logo" style={{ width: '20px', height: '20px', borderRadius: '4px' }} />
+              <span className="text-xs uppercase tracking-widest font-semibold text-gray-500 mb-1">
+                WHEREZIT
+              </span>
+            </div>
             <span className="text-2xl font-black text-gray-900 mb-3">{boxDisplayId}</span>
             
             <svg ref={svgRef} className="max-w-full h-auto" />

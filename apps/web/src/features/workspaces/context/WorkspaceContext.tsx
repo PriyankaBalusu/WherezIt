@@ -6,6 +6,7 @@ import { WorkspaceErrorState } from '../components/WorkspaceErrorState';
 import { ZeroWorkspaceState } from '../components/ZeroWorkspaceState';
 import { WorkspaceSelector } from '../components/WorkspaceSelector';
 import { WorkspaceHome } from '../components/WorkspaceHome';
+import { useAuth } from '../../auth/useAuth';
 
 interface WorkspaceContextType {
   workspaces: Workspace[];
@@ -26,6 +27,7 @@ export const useWorkspaceContext = () => {
 export const WorkspaceProvider: React.FC<{ children?: React.ReactNode }> = ({ children }) => {
   const { data: workspaces = [], isLoading, isError, error, refetch } = useWorkspaces();
   const [activeWorkspaceId, setActiveWorkspaceId] = useState<string>('');
+  const { signOut } = useAuth();
 
   useEffect(() => {
     if (workspaces.length > 0) {
@@ -51,23 +53,73 @@ export const WorkspaceProvider: React.FC<{ children?: React.ReactNode }> = ({ ch
 
   const activeWorkspace = workspaces.find((w) => w.id === activeWorkspaceId) || workspaces[0];
 
+  const handleSignOut = async () => {
+    try {
+      await signOut();
+    } catch {
+      // Ignore
+    }
+    window.location.href = '/login';
+  };
+
   return (
     <WorkspaceContext.Provider value={{ workspaces, activeWorkspace, setActiveWorkspaceId }}>
-      <div className="workspace-layout">
-        <header className="workspace-nav" style={{ padding: '0.8rem 1.5rem', backgroundColor: '#f8f9fa', borderBottom: '1px solid #e9ecef', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <div className="nav-left">
-            <span style={{ fontWeight: 'bold', fontSize: '1.2rem', color: '#2c3e50' }}>WherezIt</span>
+      <div className="workspace-layout" style={{ minHeight: '100vh', backgroundColor: '#f8fafc', display: 'flex', flexDirection: 'column' }}>
+        <header
+          className="workspace-nav"
+          style={{
+            backgroundColor: '#0f172a',
+            color: '#f8fafc',
+            borderBottom: '1px solid #1e293b',
+            padding: '0.75rem 1.5rem',
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            flexWrap: 'wrap',
+            gap: '1rem',
+          }}
+        >
+          <div className="nav-left" style={{ display: 'flex', alignItems: 'center', gap: '1.5rem' }}>
+            <a href="/" style={{ display: 'flex', alignItems: 'center', gap: '0.625rem', textDecoration: 'none', color: '#ffffff' }}>
+              <img src="/icons/icon-192.svg" alt="WherezIt Logo" style={{ width: '32px', height: '32px', borderRadius: '8px' }} />
+              <span style={{ fontWeight: 800, fontSize: '1.25rem', letterSpacing: '-0.025em' }}>WherezIt</span>
+            </a>
+
+            <nav style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+              <a href="/" style={{ color: '#e2e8f0', textDecoration: 'none', fontSize: '0.875rem', fontWeight: 600 }}>
+                Home
+              </a>
+              <a href={`/workspaces/${activeWorkspace.id}/quick-pack`} style={{ color: '#38bdf8', textDecoration: 'none', fontSize: '0.875rem', fontWeight: 700 }}>
+                + Quick Pack
+              </a>
+            </nav>
           </div>
-          <div className="nav-right">
+
+          <div className="nav-right" style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
             <WorkspaceSelector
               workspaces={workspaces}
               activeWorkspaceId={activeWorkspace.id}
               onSelectWorkspace={setActiveWorkspaceId}
             />
+            <button
+              onClick={handleSignOut}
+              style={{
+                backgroundColor: 'transparent',
+                border: '1px solid #334155',
+                color: '#94a3b8',
+                padding: '0.375rem 0.75rem',
+                borderRadius: '0.375rem',
+                fontSize: '0.75rem',
+                fontWeight: 600,
+                cursor: 'pointer',
+              }}
+            >
+              Sign Out
+            </button>
           </div>
         </header>
 
-        <main className="workspace-main">
+        <main className="workspace-main" style={{ flex: 1 }}>
           {children || <WorkspaceHome activeWorkspace={activeWorkspace} />}
         </main>
       </div>

@@ -25,14 +25,14 @@ export const StorageLocationList: React.FC<StorageLocationListProps> = ({ worksp
   const [actionError, setActionError] = useState<string | null>(null);
 
   if (isLoading) {
-    return <div>Loading storage locations...</div>;
+    return <div style={{ color: '#64748b', padding: '1rem' }}>Loading storage locations...</div>;
   }
 
   if (isError) {
     return (
-      <div style={{ color: 'red' }}>
+      <div style={{ color: '#dc2626', padding: '1rem', backgroundColor: '#fef2f2', borderRadius: '0.5rem', border: '1px solid #fca5a5' }}>
         <p>Error loading locations: {(error as Error)?.message}</p>
-        <button onClick={() => refetch()}>Retry</button>
+        <button onClick={() => refetch()} className="btn-secondary" style={{ marginTop: '0.5rem' }}>Retry</button>
       </div>
     );
   }
@@ -86,27 +86,32 @@ export const StorageLocationList: React.FC<StorageLocationListProps> = ({ worksp
     if (nodes.length === 0) return null;
 
     return (
-      <ul style={{ listStyleType: 'none', paddingLeft: depth === 0 ? 0 : '1.5rem', marginTop: '0.5rem' }}>
+      <ul style={{ listStyleType: 'none', paddingLeft: depth === 0 ? 0 : '1.25rem', marginTop: '0.5rem', borderLeft: depth > 0 ? '2px solid #e2e8f0' : 'none' }}>
         {nodes.map((node) => (
-          <li key={node.id} style={{ marginBottom: '0.8rem', padding: '0.5rem', backgroundColor: '#fdfdfd', border: '1px solid #eee', borderRadius: '4px' }}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <li key={node.id} style={{ marginBottom: '0.75rem', padding: '0.75rem 1rem', backgroundColor: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '0.5rem', boxShadow: '0 1px 2px rgba(0,0,0,0.03)' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '0.5rem' }}>
               {editingId === node.id ? (
-                <div style={{ display: 'flex', gap: '0.5rem' }}>
+                <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
                   <input
                     type="text"
                     value={editingName}
                     onChange={(e) => setEditingName(e.target.value)}
-                    style={{ padding: '0.2rem 0.4rem' }}
+                    style={{ padding: '0.375rem 0.625rem', borderRadius: '0.375rem', border: '1px solid #cbd5e1', fontSize: '0.875rem' }}
                   />
-                  <button onClick={() => handleRename(node.id)}>Save</button>
-                  <button onClick={() => setEditingId(null)}>Cancel</button>
+                  <button className="btn-primary" style={{ padding: '0.375rem 0.75rem', fontSize: '0.75rem' }} onClick={() => handleRename(node.id)}>Save</button>
+                  <button className="btn-secondary" style={{ padding: '0.375rem 0.75rem', fontSize: '0.75rem' }} onClick={() => setEditingId(null)}>Cancel</button>
                 </div>
               ) : (
-                <span style={{ fontWeight: depth === 0 ? 600 : 400 }}>{node.name}</span>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                  <span style={{ fontSize: '1rem' }}>{depth === 0 ? '🏠' : depth === 1 ? '🗄️' : '📁'}</span>
+                  <span style={{ fontWeight: depth === 0 ? 700 : 600, color: '#0f172a', fontSize: '0.95rem' }}>{node.name}</span>
+                </div>
               )}
 
-              <div style={{ display: 'flex', gap: '0.5rem', fontSize: '0.85rem' }}>
+              <div style={{ display: 'flex', gap: '0.375rem', fontSize: '0.75rem' }}>
                 <button
+                  className="btn-secondary"
+                  style={{ padding: '0.25rem 0.5rem', fontSize: '0.75rem' }}
                   onClick={() => {
                     setSelectedParentId(node.id);
                   }}
@@ -115,6 +120,8 @@ export const StorageLocationList: React.FC<StorageLocationListProps> = ({ worksp
                 </button>
 
                 <button
+                  className="btn-secondary"
+                  style={{ padding: '0.25rem 0.5rem', fontSize: '0.75rem' }}
                   onClick={() => {
                     setEditingId(node.id);
                     setEditingName(node.name);
@@ -124,10 +131,20 @@ export const StorageLocationList: React.FC<StorageLocationListProps> = ({ worksp
                 </button>
 
                 {node.parentId !== null && (
-                  <button onClick={() => handleMove(node.id, null)}>Move to Root</button>
+                  <button
+                    className="btn-secondary"
+                    style={{ padding: '0.25rem 0.5rem', fontSize: '0.75rem' }}
+                    onClick={() => handleMove(node.id, null)}
+                  >
+                    Move to Root
+                  </button>
                 )}
 
-                <button onClick={() => handleDelete(node.id)} style={{ color: '#c0392b' }}>
+                <button
+                  className="btn-secondary"
+                  style={{ padding: '0.25rem 0.5rem', fontSize: '0.75rem', color: '#dc2626' }}
+                  onClick={() => handleDelete(node.id)}
+                >
                   Delete
                 </button>
               </div>
@@ -141,42 +158,47 @@ export const StorageLocationList: React.FC<StorageLocationListProps> = ({ worksp
   };
 
   return (
-    <div className="storage-locations-container" style={{ padding: '1rem', backgroundColor: '#fff', borderRadius: '6px', border: '1px solid #e0e0e0' }}>
-      <h3 style={{ marginTop: 0 }}>Storage Hierarchy</h3>
+    <div className="card">
+      <h3 style={{ marginTop: 0, marginBottom: '1.25rem', fontSize: '1.25rem', fontWeight: 700, color: '#0f172a' }}>
+        Storage Location Hierarchy
+      </h3>
 
       {actionError && (
-        <div style={{ color: '#c0392b', marginBottom: '1rem', padding: '0.5rem', backgroundColor: '#fdf0ed', borderRadius: '4px' }}>
+        <div style={{ color: '#dc2626', marginBottom: '1rem', padding: '0.75rem 1rem', backgroundColor: '#fef2f2', borderRadius: '0.375rem', border: '1px solid #fca5a5', fontSize: '0.875rem' }}>
           {actionError}
         </div>
       )}
 
-      <form onSubmit={handleCreate} style={{ marginBottom: '1.5rem', display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+      <form onSubmit={handleCreate} style={{ marginBottom: '1.5rem', display: 'flex', gap: '0.75rem', alignItems: 'center', flexWrap: 'wrap' }}>
         <input
           type="text"
           placeholder={selectedParentId ? 'Add sub-location name...' : 'Add root location (e.g. Garage)...'}
           value={newLocationName}
           onChange={(e) => setNewLocationName(e.target.value)}
-          style={{ padding: '0.5rem', width: '250px', borderRadius: '4px', border: '1px solid #ccc' }}
+          style={{ padding: '0.5rem 0.875rem', width: '280px', borderRadius: '0.375rem', border: '1px solid #cbd5e1', fontSize: '0.875rem' }}
         />
         {selectedParentId && (
-          <span style={{ fontSize: '0.85rem', color: '#666' }}>
-            Under: {locations.find((l) => l.id === selectedParentId)?.name}
+          <span style={{ fontSize: '0.875rem', color: '#64748b', display: 'inline-flex', alignItems: 'center', gap: '0.5rem' }}>
+            Under: <strong>{locations.find((l) => l.id === selectedParentId)?.name}</strong>
             <button
               type="button"
               onClick={() => setSelectedParentId(null)}
-              style={{ marginLeft: '0.4rem', cursor: 'pointer' }}
+              className="btn-secondary"
+              style={{ padding: '0.2rem 0.5rem', fontSize: '0.75rem' }}
             >
               Clear
             </button>
           </span>
         )}
         <button type="submit" className="btn-primary" style={{ padding: '0.5rem 1rem' }}>
-          Add Location
+          + Add Location
         </button>
       </form>
 
       {locations.length === 0 ? (
-        <p style={{ color: '#666' }}>No storage locations yet. Create your first root location above.</p>
+        <div style={{ textAlign: 'center', padding: '2rem', color: '#64748b', backgroundColor: '#f8fafc', borderRadius: '0.5rem', border: '1px dashed #cbd5e1' }}>
+          No storage locations yet. Create your first root location above.
+        </div>
       ) : (
         renderTree(null, 0)
       )}
