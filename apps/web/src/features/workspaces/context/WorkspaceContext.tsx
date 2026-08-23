@@ -5,6 +5,7 @@ import { WorkspaceLoadingState } from '../components/WorkspaceLoadingState';
 import { WorkspaceErrorState } from '../components/WorkspaceErrorState';
 import { ZeroWorkspaceState } from '../components/ZeroWorkspaceState';
 import { WorkspaceSelector } from '../components/WorkspaceSelector';
+import { CreateWorkspaceModal } from '../components/CreateWorkspaceModal';
 import { WorkspaceHome } from '../components/WorkspaceHome';
 import { useAuth } from '../../auth/useAuth';
 
@@ -12,6 +13,7 @@ interface WorkspaceContextType {
   workspaces: Workspace[];
   activeWorkspace: Workspace | null;
   setActiveWorkspaceId: (id: string) => void;
+  openCreateWorkspaceModal: () => void;
 }
 
 const WorkspaceContext = createContext<WorkspaceContextType | undefined>(undefined);
@@ -27,6 +29,7 @@ export const useWorkspaceContext = () => {
 export const WorkspaceProvider: React.FC<{ children?: React.ReactNode }> = ({ children }) => {
   const { data: workspaces = [], isLoading, isError, error, refetch } = useWorkspaces();
   const [activeWorkspaceId, setActiveWorkspaceId] = useState<string>('');
+  const [isCreateModalOpen, setIsCreateModalOpen] = useState<boolean>(false);
   const { signOut } = useAuth();
 
   useEffect(() => {
@@ -41,6 +44,16 @@ export const WorkspaceProvider: React.FC<{ children?: React.ReactNode }> = ({ ch
 
   const activeWorkspace = workspaces.find((w) => w.id === activeWorkspaceId) || workspaces[0] || null;
 
+  const handleSelectWorkspace = (newId: string) => {
+    if (newId !== activeWorkspaceId) {
+      setActiveWorkspaceId(newId);
+      // Safe navigation on workspace switch: if currently on detail route, reset to root
+      if (window.location.pathname !== '/' && window.location.pathname !== '') {
+        window.location.href = '/';
+      }
+    }
+  };
+
   const handleSignOut = async () => {
     try {
       await signOut();
@@ -51,7 +64,14 @@ export const WorkspaceProvider: React.FC<{ children?: React.ReactNode }> = ({ ch
   };
 
   return (
-    <WorkspaceContext.Provider value={{ workspaces, activeWorkspace, setActiveWorkspaceId }}>
+    <WorkspaceContext.Provider
+      value={{
+        workspaces,
+        activeWorkspace,
+        setActiveWorkspaceId: handleSelectWorkspace,
+        openCreateWorkspaceModal: () => setIsCreateModalOpen(true),
+      }}
+    >
       <div className="workspace-layout" style={{ minHeight: '100vh', backgroundColor: '#f8fafc', display: 'flex', flexDirection: 'column' }}>
         <header
           className="workspace-nav"
@@ -90,7 +110,8 @@ export const WorkspaceProvider: React.FC<{ children?: React.ReactNode }> = ({ ch
               <WorkspaceSelector
                 workspaces={workspaces}
                 activeWorkspaceId={activeWorkspace.id}
-                onSelectWorkspace={setActiveWorkspaceId}
+                onSelectWorkspace={handleSelectWorkspace}
+                onCreateWorkspace={() => setIsCreateModalOpen(true)}
               />
             )}
             <button
@@ -122,6 +143,15 @@ export const WorkspaceProvider: React.FC<{ children?: React.ReactNode }> = ({ ch
             children || <WorkspaceHome activeWorkspace={activeWorkspace} />
           )}
         </main>
+
+        <CreateWorkspaceModal
+          isOpen={isCreateModalOpen}
+          onClose={() => setIsCreateModalOpen(false)}
+          onCreated={(newWorkspaceId) => {
+            setActiveWorkspaceId(newWorkspaceId);
+            refetch();
+          }}
+        />
       </div>
     </WorkspaceContext.Provider>
   );

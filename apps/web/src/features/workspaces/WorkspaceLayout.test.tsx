@@ -1,4 +1,4 @@
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { WorkspaceProvider } from './context/WorkspaceContext';
@@ -28,13 +28,19 @@ const createTestQueryClient = () =>
     },
   });
 
-describe('Workspace UI Foundation (WS-UI-001)', () => {
+describe('Workspace Multi-Workspace Selection & Onboarding (WS-UI-002)', () => {
+  beforeEach(() => {
+    vi.resetAllMocks();
+  });
+
   it('renders loading state with authenticated shell header and Sign Out button', () => {
     vi.mocked(workspaceApi.fetchWorkspaces).mockReturnValue(new Promise(() => {}));
 
     render(
       <QueryClientProvider client={createTestQueryClient()}>
-        <WorkspaceProvider />
+        <WorkspaceProvider>
+          <div>Main Content</div>
+        </WorkspaceProvider>
       </QueryClientProvider>
     );
 
@@ -48,7 +54,9 @@ describe('Workspace UI Foundation (WS-UI-001)', () => {
 
     render(
       <QueryClientProvider client={createTestQueryClient()}>
-        <WorkspaceProvider />
+        <WorkspaceProvider>
+          <div>Main Content</div>
+        </WorkspaceProvider>
       </QueryClientProvider>
     );
 
@@ -65,7 +73,9 @@ describe('Workspace UI Foundation (WS-UI-001)', () => {
 
     render(
       <QueryClientProvider client={createTestQueryClient()}>
-        <WorkspaceProvider />
+        <WorkspaceProvider>
+          <div>Main Content</div>
+        </WorkspaceProvider>
       </QueryClientProvider>
     );
 
@@ -78,24 +88,27 @@ describe('Workspace UI Foundation (WS-UI-001)', () => {
     });
   });
 
-  it('automatically selects single workspace when user has 1 workspace', async () => {
+  it('automatically selects single workspace and shows selector button', async () => {
     vi.mocked(workspaceApi.fetchWorkspaces).mockResolvedValue([
       { id: 'ws-1', name: 'Sole Workspace', role: 'OWNER', createdAt: '2026-08-15T00:00:00Z' },
     ]);
 
     render(
       <QueryClientProvider client={createTestQueryClient()}>
-        <WorkspaceProvider />
+        <WorkspaceProvider>
+          <div>Sole Workspace Content</div>
+        </WorkspaceProvider>
       </QueryClientProvider>
     );
 
     await waitFor(() => {
+      expect(screen.getByRole('button', { name: /Select active workspace/i })).toBeInTheDocument();
       expect(screen.getByText('Sole Workspace')).toBeInTheDocument();
-      expect(screen.getByText(/Role: OWNER/i)).toBeInTheDocument();
+      expect(screen.getByText('Sole Workspace Content')).toBeInTheDocument();
     });
   });
 
-  it('renders selector and allows switching between multiple workspaces', async () => {
+  it('renders selector dropdown and allows switching between multiple workspaces', async () => {
     vi.mocked(workspaceApi.fetchWorkspaces).mockResolvedValue([
       { id: 'ws-1', name: 'Home Workspace', role: 'OWNER', createdAt: '2026-08-15T00:00:00Z' },
       { id: 'ws-2', name: 'Office Workspace', role: 'MEMBER', createdAt: '2026-08-15T00:00:00Z' },
@@ -103,20 +116,66 @@ describe('Workspace UI Foundation (WS-UI-001)', () => {
 
     render(
       <QueryClientProvider client={createTestQueryClient()}>
-        <WorkspaceProvider />
+        <WorkspaceProvider>
+          <div>Workspace Body</div>
+        </WorkspaceProvider>
       </QueryClientProvider>
     );
 
     await waitFor(() => {
       expect(screen.getByText('Home Workspace')).toBeInTheDocument();
-      expect(screen.getByRole('combobox')).toBeInTheDocument();
     });
 
-    fireEvent.change(screen.getByRole('combobox'), { target: { value: 'ws-2' } });
+    const selectorBtn = screen.getByRole('button', { name: /Select active workspace/i });
+    fireEvent.click(selectorBtn);
+
+    expect(screen.getByRole('menu')).toBeInTheDocument();
+    expect(screen.getByText('Office Workspace')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByText('Office Workspace'));
 
     await waitFor(() => {
-      expect(screen.getByText('Office Workspace')).toBeInTheDocument();
-      expect(screen.getByText(/Role: MEMBER/i)).toBeInTheDocument();
+      expect(screen.getAllByText('Office Workspace').length).toBeGreaterThan(0);
+    });
+  });
+
+  it('opens Create Workspace modal when + Create Workspace action is clicked in dropdown', async () => {
+    vi.mocked(workspaceApi.fetchWorkspaces).mockResolvedValue([
+      { id: 'ws-1', name: 'Home Workspace', role: 'OWNER', createdAt: '2026-08-15T00:00:00Z' },
+    ]);
+    vi.mocked(workspaceApi.createWorkspace).mockResolvedValue({
+      id: 'ws-new',
+      name: 'New Workshop',
+      role: 'OWNER',
+      createdAt: '2026-08-23T00:00:00Z',
+    });
+
+    render(
+      <QueryClientProvider client={createTestQueryClient()}>
+        <WorkspaceProvider>
+          <div>Workspace Body</div>
+        </WorkspaceProvider>
+      </QueryClientProvider>
+    );
+
+    await waitFor(() => {
+      expect(screen.getByText('Home Workspace')).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: /Select active workspace/i }));
+    fireEvent.click(screen.getByRole('menuitem', { name: /\+ Create Workspace/i }));
+
+    expect(screen.getByRole('dialog')).toBeInTheDocument();
+    expect(screen.getByLabelText(/Workspace Name/i)).toBeInTheDocument();
+
+    fireEvent.change(screen.getByLabelText(/Workspace Name/i), { target: { value: 'New Workshop' } });
+    fireEvent.click(screen.getByRole('button', { name: /^Create Workspace$/i }));
+
+    await waitFor(() => {
+      expect(workspaceApi.createWorkspace).toHaveBeenCalledWith(
+        { name: 'New Workshop' },
+        expect.any(Function)
+      );
     });
   });
 
@@ -125,7 +184,9 @@ describe('Workspace UI Foundation (WS-UI-001)', () => {
 
     render(
       <QueryClientProvider client={createTestQueryClient()}>
-        <WorkspaceProvider />
+        <WorkspaceProvider>
+          <div>Workspace Body</div>
+        </WorkspaceProvider>
       </QueryClientProvider>
     );
 
