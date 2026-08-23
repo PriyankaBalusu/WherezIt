@@ -4,10 +4,13 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { WorkspaceProvider } from './context/WorkspaceContext';
 import * as workspaceApi from './api/workspaceApi';
 
+const mockSignOut = vi.fn();
+
 vi.mock('../auth/useAuth', () => ({
   useAuth: () => ({
     user: { uid: 'test_user_uid_123', email: 'test@example.com' },
     getIdToken: vi.fn().mockResolvedValue('fake_id_token'),
+    signOut: mockSignOut,
   }),
 }));
 
@@ -26,7 +29,7 @@ const createTestQueryClient = () =>
   });
 
 describe('Workspace UI Foundation (WS-UI-001)', () => {
-  it('renders loading state when workspaces query is pending', () => {
+  it('renders loading state with authenticated shell header and Sign Out button', () => {
     vi.mocked(workspaceApi.fetchWorkspaces).mockReturnValue(new Promise(() => {}));
 
     render(
@@ -35,10 +38,12 @@ describe('Workspace UI Foundation (WS-UI-001)', () => {
       </QueryClientProvider>
     );
 
+    expect(screen.getByText('WherezIt')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Sign Out/i })).toBeInTheDocument();
     expect(screen.getByText(/Loading your workspaces/i)).toBeInTheDocument();
   });
 
-  it('renders error state when workspace query fails', async () => {
+  it('renders error state with authenticated shell header and Sign Out button', async () => {
     vi.mocked(workspaceApi.fetchWorkspaces).mockRejectedValue(new Error('Network error'));
 
     render(
@@ -48,12 +53,14 @@ describe('Workspace UI Foundation (WS-UI-001)', () => {
     );
 
     await waitFor(() => {
+      expect(screen.getByText('WherezIt')).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: /Sign Out/i })).toBeInTheDocument();
       expect(screen.getByText(/Unable to Load Workspaces/i)).toBeInTheDocument();
       expect(screen.getByText(/Network error/i)).toBeInTheDocument();
     });
   });
 
-  it('renders zero-workspace onboarding when user has 0 workspaces', async () => {
+  it('renders zero-workspace onboarding within authenticated shell containing Sign Out', async () => {
     vi.mocked(workspaceApi.fetchWorkspaces).mockResolvedValue([]);
 
     render(
@@ -63,7 +70,10 @@ describe('Workspace UI Foundation (WS-UI-001)', () => {
     );
 
     await waitFor(() => {
-      expect(screen.getByText(/You don't belong to any workspace yet/i)).toBeInTheDocument();
+      expect(screen.getByText('WherezIt')).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: /Sign Out/i })).toBeInTheDocument();
+      expect(screen.getByText(/Welcome to WherezIt/i)).toBeInTheDocument();
+      expect(screen.getByText(/Create Your First Workspace/i)).toBeInTheDocument();
       expect(screen.getByRole('button', { name: /Create Workspace/i })).toBeInTheDocument();
     });
   });
@@ -110,15 +120,21 @@ describe('Workspace UI Foundation (WS-UI-001)', () => {
     });
   });
 
-  it('does not include firebase_uid as authorization payload in fetchWorkspaces API call', async () => {
-    const mockGetIdToken = vi.fn().mockResolvedValue('test_token');
-    vi.mocked(workspaceApi.fetchWorkspaces).mockImplementation(async (getToken) => {
-      const token = await getToken();
-      expect(token).toBe('test_token');
-      return [];
+  it('invokes signOut when Sign Out button is clicked', async () => {
+    vi.mocked(workspaceApi.fetchWorkspaces).mockResolvedValue([]);
+
+    render(
+      <QueryClientProvider client={createTestQueryClient()}>
+        <WorkspaceProvider />
+      </QueryClientProvider>
+    );
+
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: /Sign Out/i })).toBeInTheDocument();
     });
 
-    await workspaceApi.fetchWorkspaces(mockGetIdToken);
-    expect(mockGetIdToken).toHaveBeenCalled();
+    fireEvent.click(screen.getByRole('button', { name: /Sign Out/i }));
+
+    expect(mockSignOut).toHaveBeenCalled();
   });
 });

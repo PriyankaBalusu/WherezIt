@@ -1,11 +1,15 @@
 using System;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Migrations;
+using WherezIt.Infrastructure.Persistence;
 
 #nullable disable
 
 namespace WherezIt.Infrastructure.Migrations
 {
-    /// <inheritdoc />
+    [DbContext(typeof(WherezItDbContext))]
+    [Migration("20260818030000_CreateAiCaptureFoundation")]
     public partial class CreateAiCaptureFoundation : Migration
     {
         /// <inheritdoc />

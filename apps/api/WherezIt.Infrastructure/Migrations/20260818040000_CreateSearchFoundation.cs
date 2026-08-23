@@ -1,10 +1,14 @@
+using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Migrations;
+using WherezIt.Infrastructure.Persistence;
 
 #nullable disable
 
 namespace WherezIt.Infrastructure.Migrations
 {
-    /// <inheritdoc />
+    [DbContext(typeof(WherezItDbContext))]
+    [Migration("20260818040000_CreateSearchFoundation")]
     public partial class CreateSearchFoundation : Migration
     {
         /// <inheritdoc />

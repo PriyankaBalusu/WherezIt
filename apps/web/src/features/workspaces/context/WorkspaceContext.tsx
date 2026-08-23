@@ -39,19 +39,7 @@ export const WorkspaceProvider: React.FC<{ children?: React.ReactNode }> = ({ ch
     }
   }, [workspaces, activeWorkspaceId]);
 
-  if (isLoading) {
-    return <WorkspaceLoadingState />;
-  }
-
-  if (isError) {
-    return <WorkspaceErrorState error={error as Error} onRetry={() => refetch()} />;
-  }
-
-  if (workspaces.length === 0) {
-    return <ZeroWorkspaceState />;
-  }
-
-  const activeWorkspace = workspaces.find((w) => w.id === activeWorkspaceId) || workspaces[0];
+  const activeWorkspace = workspaces.find((w) => w.id === activeWorkspaceId) || workspaces[0] || null;
 
   const handleSignOut = async () => {
     try {
@@ -85,22 +73,26 @@ export const WorkspaceProvider: React.FC<{ children?: React.ReactNode }> = ({ ch
               <span style={{ fontWeight: 800, fontSize: '1.25rem', letterSpacing: '-0.025em' }}>WherezIt</span>
             </a>
 
-            <nav style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-              <a href="/" style={{ color: '#e2e8f0', textDecoration: 'none', fontSize: '0.875rem', fontWeight: 600 }}>
-                Home
-              </a>
-              <a href={`/workspaces/${activeWorkspace.id}/quick-pack`} style={{ color: '#38bdf8', textDecoration: 'none', fontSize: '0.875rem', fontWeight: 700 }}>
-                + Quick Pack
-              </a>
-            </nav>
+            {activeWorkspace && (
+              <nav style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                <a href="/" style={{ color: '#e2e8f0', textDecoration: 'none', fontSize: '0.875rem', fontWeight: 600 }}>
+                  Home
+                </a>
+                <a href={`/workspaces/${activeWorkspace.id}/quick-pack`} style={{ color: '#38bdf8', textDecoration: 'none', fontSize: '0.875rem', fontWeight: 700 }}>
+                  + Quick Pack
+                </a>
+              </nav>
+            )}
           </div>
 
           <div className="nav-right" style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-            <WorkspaceSelector
-              workspaces={workspaces}
-              activeWorkspaceId={activeWorkspace.id}
-              onSelectWorkspace={setActiveWorkspaceId}
-            />
+            {workspaces.length > 0 && activeWorkspace && (
+              <WorkspaceSelector
+                workspaces={workspaces}
+                activeWorkspaceId={activeWorkspace.id}
+                onSelectWorkspace={setActiveWorkspaceId}
+              />
+            )}
             <button
               onClick={handleSignOut}
               style={{
@@ -120,7 +112,15 @@ export const WorkspaceProvider: React.FC<{ children?: React.ReactNode }> = ({ ch
         </header>
 
         <main className="workspace-main" style={{ flex: 1 }}>
-          {children || <WorkspaceHome activeWorkspace={activeWorkspace} />}
+          {isLoading ? (
+            <WorkspaceLoadingState />
+          ) : isError ? (
+            <WorkspaceErrorState error={error as Error} onRetry={() => refetch()} />
+          ) : workspaces.length === 0 ? (
+            <ZeroWorkspaceState />
+          ) : (
+            children || <WorkspaceHome activeWorkspace={activeWorkspace} />
+          )}
         </main>
       </div>
     </WorkspaceContext.Provider>

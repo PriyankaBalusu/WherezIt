@@ -1,11 +1,15 @@
 using System;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Migrations;
+using WherezIt.Infrastructure.Persistence;
 
 #nullable disable
 
 namespace WherezIt.Infrastructure.Migrations
 {
-    /// <inheritdoc />
+    [DbContext(typeof(WherezItDbContext))]
+    [Migration("20260820020000_AddIdentifierRevocation")]
     public partial class AddIdentifierRevocation : Migration
     {
         /// <inheritdoc />
