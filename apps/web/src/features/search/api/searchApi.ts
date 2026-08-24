@@ -15,6 +15,8 @@ export interface SearchResult {
   breadcrumbDisplay: string;
 }
 
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || import.meta.env.VITE_API_URL || '/api/v1';
+
 export async function searchWorkspace(workspaceId: string, query: string): Promise<SearchResult[]> {
   const currentUser = auth.currentUser;
   if (!currentUser) {
@@ -22,7 +24,8 @@ export async function searchWorkspace(workspaceId: string, query: string): Promi
   }
 
   const token = await getIdToken(currentUser);
-  const response = await fetch(`/api/v1/workspaces/${encodeURIComponent(workspaceId)}/search?q=${encodeURIComponent(query)}`, {
+  const response = await fetch(`${API_BASE_URL}/workspaces/${encodeURIComponent(workspaceId)}/search?q=${encodeURIComponent(query)}`, {
+
     headers: {
       Authorization: `Bearer ${token}`,
     },

@@ -41,13 +41,11 @@ public class ContainerMoveService : IContainerMoveService
 
             if (container == null)
             {
-                await transaction.RollbackAsync(cancellationToken);
                 throw new KeyNotFoundException($"Container '{containerId}' was not found in workspace '{workspaceId}'.");
             }
 
             if (container.IsArchived)
             {
-                await transaction.RollbackAsync(cancellationToken);
                 throw new InvalidOperationException("Cannot move an archived container.");
             }
 
@@ -64,7 +62,6 @@ public class ContainerMoveService : IContainerMoveService
 
             if (destinationNode == null)
             {
-                await transaction.RollbackAsync(cancellationToken);
                 throw new ArgumentException($"Destination storage location '{request.StorageNodeId}' does not exist in workspace '{workspaceId}'.", nameof(request));
             }
 

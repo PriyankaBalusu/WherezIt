@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { MemoryRouter } from 'react-router-dom';
 import { WorkspaceProvider } from './context/WorkspaceContext';
 import * as workspaceApi from './api/workspaceApi';
 
@@ -38,11 +39,14 @@ describe('Workspace Multi-Workspace Selection & Onboarding (WS-UI-002)', () => {
 
     render(
       <QueryClientProvider client={createTestQueryClient()}>
-        <WorkspaceProvider>
-          <div>Main Content</div>
-        </WorkspaceProvider>
+        <MemoryRouter>
+          <WorkspaceProvider>
+            <div>Main Content</div>
+          </WorkspaceProvider>
+        </MemoryRouter>
       </QueryClientProvider>
     );
+
 
     expect(screen.getByText('WherezIt')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /Sign Out/i })).toBeInTheDocument();
@@ -54,9 +58,11 @@ describe('Workspace Multi-Workspace Selection & Onboarding (WS-UI-002)', () => {
 
     render(
       <QueryClientProvider client={createTestQueryClient()}>
-        <WorkspaceProvider>
-          <div>Main Content</div>
-        </WorkspaceProvider>
+        <MemoryRouter>
+          <WorkspaceProvider>
+            <div>Main Content</div>
+          </WorkspaceProvider>
+        </MemoryRouter>
       </QueryClientProvider>
     );
 
@@ -73,9 +79,11 @@ describe('Workspace Multi-Workspace Selection & Onboarding (WS-UI-002)', () => {
 
     render(
       <QueryClientProvider client={createTestQueryClient()}>
-        <WorkspaceProvider>
-          <div>Main Content</div>
-        </WorkspaceProvider>
+        <MemoryRouter>
+          <WorkspaceProvider>
+            <div>Main Content</div>
+          </WorkspaceProvider>
+        </MemoryRouter>
       </QueryClientProvider>
     );
 
@@ -95,9 +103,11 @@ describe('Workspace Multi-Workspace Selection & Onboarding (WS-UI-002)', () => {
 
     render(
       <QueryClientProvider client={createTestQueryClient()}>
-        <WorkspaceProvider>
-          <div>Sole Workspace Content</div>
-        </WorkspaceProvider>
+        <MemoryRouter>
+          <WorkspaceProvider>
+            <div>Sole Workspace Content</div>
+          </WorkspaceProvider>
+        </MemoryRouter>
       </QueryClientProvider>
     );
 
@@ -116,9 +126,11 @@ describe('Workspace Multi-Workspace Selection & Onboarding (WS-UI-002)', () => {
 
     render(
       <QueryClientProvider client={createTestQueryClient()}>
-        <WorkspaceProvider>
-          <div>Workspace Body</div>
-        </WorkspaceProvider>
+        <MemoryRouter>
+          <WorkspaceProvider>
+            <div>Workspace Body</div>
+          </WorkspaceProvider>
+        </MemoryRouter>
       </QueryClientProvider>
     );
 
@@ -152,9 +164,11 @@ describe('Workspace Multi-Workspace Selection & Onboarding (WS-UI-002)', () => {
 
     render(
       <QueryClientProvider client={createTestQueryClient()}>
-        <WorkspaceProvider>
-          <div>Workspace Body</div>
-        </WorkspaceProvider>
+        <MemoryRouter>
+          <WorkspaceProvider>
+            <div>Workspace Body</div>
+          </WorkspaceProvider>
+        </MemoryRouter>
       </QueryClientProvider>
     );
 
@@ -184,9 +198,11 @@ describe('Workspace Multi-Workspace Selection & Onboarding (WS-UI-002)', () => {
 
     render(
       <QueryClientProvider client={createTestQueryClient()}>
-        <WorkspaceProvider>
-          <div>Workspace Body</div>
-        </WorkspaceProvider>
+        <MemoryRouter>
+          <WorkspaceProvider>
+            <div>Workspace Body</div>
+          </WorkspaceProvider>
+        </MemoryRouter>
       </QueryClientProvider>
     );
 

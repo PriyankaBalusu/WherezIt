@@ -1,5 +1,7 @@
 import { ImageUploadResponse } from '../types/image';
 
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || import.meta.env.VITE_API_URL || '/api/v1';
+
 export async function uploadContainerImage(
   workspaceId: string,
   containerId: string,
@@ -10,8 +12,9 @@ export async function uploadContainerImage(
   formData.append('file', file);
 
   const response = await fetch(
-    `/api/v1/workspaces/${workspaceId}/containers/${containerId}/images`,
+    `${API_BASE_URL}/workspaces/${workspaceId}/containers/${containerId}/images`,
     {
+
       method: 'POST',
       headers: {
         Authorization: `Bearer ${token}`,

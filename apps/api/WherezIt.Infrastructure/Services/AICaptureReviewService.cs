@@ -81,6 +81,8 @@ public class AICaptureReviewService : IAICaptureReviewService
 
         var suggestionDtos = capture.Suggestions
             .Where(s => !s.IsRemoved)
+            .OrderByDescending(s => s.Confidence)
+            .ThenBy(s => s.CreatedAt)
             .Select(s => new DetectionSuggestionDto
             {
                 Id = s.Id,

@@ -104,18 +104,16 @@ public class IdentifierService : IIdentifierService
         try
         {
             var container = await _dbContext.Containers
-                .FromSqlRaw("SELECT * FROM containers WHERE id = {0} AND workspace_id = {1} FOR UPDATE;", containerId, workspaceId)
+                .FromSqlRaw("SELECT * FROM containers WHERE id = {0} AND workspace_id = {1} FOR UPDATE", containerId, workspaceId)
                 .FirstOrDefaultAsync(cancellationToken);
 
             if (container == null)
             {
-                await transaction.RollbackAsync(cancellationToken);
                 throw new KeyNotFoundException($"Container '{containerId}' was not found in workspace '{workspaceId}'.");
             }
 
             if (container.IsArchived)
             {
-                await transaction.RollbackAsync(cancellationToken);
                 throw new InvalidOperationException($"Cannot acquire new {normalizedType} label for archived container.");
             }
 
@@ -230,7 +228,14 @@ public class IdentifierService : IIdentifierService
         }
 
         // Workspace authorization check BEFORE loading container details
-        await _authorizationService.RequireWorkspaceMembershipAsync(identity, identifier.WorkspaceId, cancellationToken);
+        try
+        {
+            await _authorizationService.RequireWorkspaceMembershipAsync(identity, identifier.WorkspaceId, cancellationToken);
+        }
+        catch (UnauthorizedAccessException)
+        {
+            throw new KeyNotFoundException("Container not found or unavailable.");
+        }
 
         var container = await _dbContext.Containers
             .AsNoTracking()
@@ -304,7 +309,6 @@ public class IdentifierService : IIdentifierService
 
             if (identifier == null)
             {
-                await transaction.RollbackAsync(cancellationToken);
                 throw new KeyNotFoundException($"Identifier '{identifierId}' was not found in workspace '{workspaceId}'.");
             }
 
@@ -314,7 +318,6 @@ public class IdentifierService : IIdentifierService
 
             if (container == null)
             {
-                await transaction.RollbackAsync(cancellationToken);
                 throw new KeyNotFoundException($"Container '{identifier.ContainerId}' was not found in workspace '{workspaceId}'.");
             }
 

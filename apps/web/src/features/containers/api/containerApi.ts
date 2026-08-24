@@ -127,3 +127,27 @@ export async function restoreContainer(
 
   return response.json();
 }
+
+export async function fetchContainer(
+  workspaceId: string,
+  containerId: string,
+  getIdToken: () => Promise<string | null>
+): Promise<Container> {
+  const token = await getIdToken();
+  if (!token) throw new Error('User is not authenticated.');
+
+  const response = await fetch(`${API_BASE_URL}/workspaces/${workspaceId}/containers/${containerId}`, {
+    method: 'GET',
+    headers: {
+      'Authorization': `Bearer ${token}`,
+      'Content-Type': 'application/json',
+    },
+  });
+
+  if (!response.ok) {
+    throw new Error(`Failed to fetch container: ${response.statusText}`);
+  }
+
+  return response.json();
+}
+

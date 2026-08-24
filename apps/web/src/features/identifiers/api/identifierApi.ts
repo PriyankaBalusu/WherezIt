@@ -25,6 +25,8 @@ export interface ResolvedContainerResponse {
   items: ResolvedContainerItem[];
 }
 
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || import.meta.env.VITE_API_URL || '/api/v1';
+
 export async function acquireContainerQrIdentifier(
   workspaceId: string,
   containerId: string
@@ -36,7 +38,7 @@ export async function acquireContainerQrIdentifier(
 
   const token = await getIdToken(currentUser);
   const response = await fetch(
-    `/api/v1/workspaces/${encodeURIComponent(workspaceId)}/containers/${encodeURIComponent(containerId)}/identifiers/qr`,
+    `${API_BASE_URL}/workspaces/${encodeURIComponent(workspaceId)}/containers/${encodeURIComponent(containerId)}/identifiers/qr`,
     {
       method: 'POST',
       headers: {
@@ -61,7 +63,7 @@ export async function resolveContainerIdentifier(value: string): Promise<Resolve
   }
 
   const token = await getIdToken(currentUser);
-  const response = await fetch(`/api/v1/identifiers/resolve?value=${encodeURIComponent(value)}`, {
+  const response = await fetch(`${API_BASE_URL}/identifiers/resolve?value=${encodeURIComponent(value)}`, {
     headers: {
       Authorization: `Bearer ${token}`,
     },
@@ -93,7 +95,7 @@ export async function revokeIdentifier(
 
   const token = await getIdToken(currentUser);
   const response = await fetch(
-    `/api/v1/workspaces/${encodeURIComponent(workspaceId)}/identifiers/${encodeURIComponent(identifierId)}/revoke`,
+    `${API_BASE_URL}/workspaces/${encodeURIComponent(workspaceId)}/identifiers/${encodeURIComponent(identifierId)}/revoke`,
     {
       method: 'POST',
       headers: {
@@ -110,3 +112,4 @@ export async function revokeIdentifier(
 
   return response.json();
 }
+

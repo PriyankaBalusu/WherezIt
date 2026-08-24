@@ -1,6 +1,6 @@
 import { Item, CreateItemPayload, UpdateItemPayload } from '../types/item';
 
-const API_BASE = '/api/v1';
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || import.meta.env.VITE_API_URL || '/api/v1';
 
 export async function getItemsByContainer(
   workspaceId: string,
@@ -8,7 +8,7 @@ export async function getItemsByContainer(
   token: string,
   includeArchived = false
 ): Promise<Item[]> {
-  const url = `${API_BASE}/workspaces/${workspaceId}/containers/${containerId}/items?includeArchived=${includeArchived}`;
+  const url = `${API_BASE_URL}/workspaces/${workspaceId}/containers/${containerId}/items?includeArchived=${includeArchived}`;
   const res = await fetch(url, {
     headers: { Authorization: `Bearer ${token}` },
   });
@@ -24,7 +24,7 @@ export async function createItem(
   payload: CreateItemPayload,
   token: string
 ): Promise<Item> {
-  const res = await fetch(`${API_BASE}/workspaces/${workspaceId}/containers/${containerId}/items`, {
+  const res = await fetch(`${API_BASE_URL}/workspaces/${workspaceId}/containers/${containerId}/items`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -45,7 +45,7 @@ export async function updateItem(
   payload: UpdateItemPayload,
   token: string
 ): Promise<Item> {
-  const res = await fetch(`${API_BASE}/workspaces/${workspaceId}/items/${itemId}`, {
+  const res = await fetch(`${API_BASE_URL}/workspaces/${workspaceId}/items/${itemId}`, {
     method: 'PATCH',
     headers: {
       'Content-Type': 'application/json',
@@ -65,7 +65,7 @@ export async function archiveItem(
   itemId: string,
   token: string
 ): Promise<Item> {
-  const res = await fetch(`${API_BASE}/workspaces/${workspaceId}/items/${itemId}/archive`, {
+  const res = await fetch(`${API_BASE_URL}/workspaces/${workspaceId}/items/${itemId}/archive`, {
     method: 'POST',
     headers: { Authorization: `Bearer ${token}` },
   });
@@ -80,7 +80,7 @@ export async function restoreItem(
   itemId: string,
   token: string
 ): Promise<Item> {
-  const res = await fetch(`${API_BASE}/workspaces/${workspaceId}/items/${itemId}/restore`, {
+  const res = await fetch(`${API_BASE_URL}/workspaces/${workspaceId}/items/${itemId}/restore`, {
     method: 'POST',
     headers: { Authorization: `Bearer ${token}` },
   });

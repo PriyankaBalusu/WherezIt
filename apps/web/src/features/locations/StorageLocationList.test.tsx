@@ -57,37 +57,48 @@ describe('Storage Location UI (LOC-002 & LOC-003)', () => {
     });
   });
 
-  it('calls createLocation API when submitting create location form', async () => {
-    vi.mocked(locationApi.fetchLocations).mockResolvedValue([]);
-    vi.mocked(locationApi.createLocation).mockResolvedValue({
-      id: 'new-loc',
-      workspaceId: 'ws-123',
-      parentId: null,
-      name: 'Basement',
-      createdAt: '2026-08-17T00:00:00Z',
-      updatedAt: '2026-08-17T00:00:00Z',
-    });
+  it('triggers onAddSublocation when choosing + Sub-location from menu', async () => {
+    vi.mocked(locationApi.fetchLocations).mockResolvedValue([
+      { id: 'loc-1', workspaceId: 'ws-123', parentId: null, name: 'Garage', createdAt: '2026-08-17T00:00:00Z', updatedAt: '2026-08-17T00:00:00Z' },
+    ]);
+    const mockAddSub = vi.fn();
 
     render(
       <QueryClientProvider client={createTestQueryClient()}>
-        <StorageLocationList workspaceId="ws-123" />
+        <StorageLocationList workspaceId="ws-123" onAddSublocation={mockAddSub} />
       </QueryClientProvider>
     );
 
     await waitFor(() => {
-      expect(screen.getByPlaceholderText(/Add root location/i)).toBeInTheDocument();
+      expect(screen.getByText('Garage')).toBeInTheDocument();
     });
 
-    fireEvent.change(screen.getByPlaceholderText(/Add root location/i), { target: { value: 'Basement' } });
-    fireEvent.click(screen.getByRole('button', { name: /Add Location/i }));
+    fireEvent.click(screen.getByRole('button', { name: /Location actions/i }));
+    fireEvent.click(screen.getByRole('button', { name: /\+ Sub-location/i }));
+
+    expect(mockAddSub).toHaveBeenCalledWith('loc-1');
+  });
+
+  it('triggers onRenameLocation when choosing Rename from menu', async () => {
+    vi.mocked(locationApi.fetchLocations).mockResolvedValue([
+      { id: 'loc-1', workspaceId: 'ws-123', parentId: null, name: 'Garage', createdAt: '2026-08-17T00:00:00Z', updatedAt: '2026-08-17T00:00:00Z' },
+    ]);
+    const mockRename = vi.fn();
+
+    render(
+      <QueryClientProvider client={createTestQueryClient()}>
+        <StorageLocationList workspaceId="ws-123" onRenameLocation={mockRename} />
+      </QueryClientProvider>
+    );
 
     await waitFor(() => {
-      expect(locationApi.createLocation).toHaveBeenCalledWith(
-        'ws-123',
-        { name: 'Basement', parentId: null },
-        expect.any(Function)
-      );
+      expect(screen.getByText('Garage')).toBeInTheDocument();
     });
+
+    fireEvent.click(screen.getByRole('button', { name: /Location actions/i }));
+    fireEvent.click(screen.getByRole('button', { name: /Rename/i }));
+
+    expect(mockRename).toHaveBeenCalledWith('loc-1', 'Garage');
   });
 
   it('calls deleteLocation API when clicking Delete button', async () => {
@@ -106,6 +117,7 @@ describe('Storage Location UI (LOC-002 & LOC-003)', () => {
       expect(screen.getByText('Empty Node')).toBeInTheDocument();
     });
 
+    fireEvent.click(screen.getByRole('button', { name: /Location actions/i }));
     fireEvent.click(screen.getByRole('button', { name: /Delete/i }));
 
     await waitFor(() => {
@@ -137,6 +149,7 @@ describe('Storage Location UI (LOC-002 & LOC-003)', () => {
       expect(screen.getByText('Child')).toBeInTheDocument();
     });
 
+    fireEvent.click(screen.getAllByRole('button', { name: /Location actions/i })[1]);
     fireEvent.click(screen.getByRole('button', { name: /Move to Root/i }));
 
     await waitFor(() => {
@@ -149,3 +162,5 @@ describe('Storage Location UI (LOC-002 & LOC-003)', () => {
     });
   });
 });
+
+

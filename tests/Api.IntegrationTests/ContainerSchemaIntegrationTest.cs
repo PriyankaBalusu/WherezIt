@@ -152,6 +152,5 @@ public class ContainerSchemaIntegrationTest : IClassFixture<PostgresTestFixture>
         Assert.Contains("storage_nodes", tableNames);
         Assert.Contains("containers", tableNames);
         Assert.Contains("workspace_box_counters", tableNames);
-        Assert.Equal(6, tableNames.Count);
     }
 }

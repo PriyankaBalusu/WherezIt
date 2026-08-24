@@ -1,123 +1,443 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Workspace } from '../types/workspace';
 import { StorageLocationList } from '../../locations/components/StorageLocationList';
 import { ContainerList } from '../../containers/components/ContainerList';
+import {
+  useStorageLocations,
+  useCreateStorageLocation,
+  useRenameStorageLocation,
+} from '../../locations/hooks/useStorageLocations';
+import { useCreateContainer } from '../../containers/hooks/useContainers';
 
 interface WorkspaceHomeProps {
   activeWorkspace: Workspace;
 }
 
 export const WorkspaceHome: React.FC<WorkspaceHomeProps> = ({ activeWorkspace }) => {
+  const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState('');
+  const [selectedLocationId, setSelectedLocationId] = useState<string | null>(null);
+
+  // Modal visibility states
+  const [isAddLocationOpen, setIsAddLocationOpen] = useState(false);
+  const [addLocationParentId, setAddLocationParentId] = useState<string | null>(null);
+  const [addLocationName, setAddLocationName] = useState('');
+
+  const [isAddBoxOpen, setIsAddBoxOpen] = useState(false);
+  const [addBoxLocationId, setAddBoxLocationId] = useState('');
+  const [addBoxName, setAddBoxName] = useState('');
+  const [addBoxDesc, setAddBoxDesc] = useState('');
+
+  const [isRenameLocationOpen, setIsRenameLocationOpen] = useState(false);
+  const [renameLocationId, setRenameLocationId] = useState<string | null>(null);
+  const [renameLocationName, setRenameLocationName] = useState('');
+
+  const [formError, setFormError] = useState<string | null>(null);
+
+  // Queries & Mutations
+  const { data: locations = [] } = useStorageLocations(activeWorkspace.id);
+  const createLocationMutation = useCreateStorageLocation(activeWorkspace.id);
+  const renameLocationMutation = useRenameStorageLocation(activeWorkspace.id);
+  const createBoxMutation = useCreateContainer(activeWorkspace.id);
+
+  const selectedLocation = locations.find(l => l.id === selectedLocationId);
+
+  // Close modals on Escape key
+  useEffect(() => {
+    const handleEscape = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setIsAddLocationOpen(false);
+        setIsAddBoxOpen(false);
+        setIsRenameLocationOpen(false);
+      }
+    };
+    window.addEventListener('keydown', handleEscape);
+    return () => window.removeEventListener('keydown', handleEscape);
+  }, []);
 
   const handleSearchSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (searchQuery.trim()) {
-      window.location.href = `/search?q=${encodeURIComponent(searchQuery.trim())}`;
+      navigate(`/workspaces/${activeWorkspace.id}/search?q=${encodeURIComponent(searchQuery.trim())}`);
     }
   };
 
+  const handleAddLocationSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setFormError(null);
+    if (!addLocationName.trim()) return;
+
+    try {
+      await createLocationMutation.mutateAsync({
+        name: addLocationName.trim(),
+        parentId: addLocationParentId || null,
+      });
+      setAddLocationName('');
+      setIsAddLocationOpen(false);
+    } catch (err: any) {
+      setFormError(err.message || 'Failed to create location.');
+    }
+  };
+
+  const handleRenameLocationSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setFormError(null);
+    if (!renameLocationId || !renameLocationName.trim()) return;
+
+    try {
+      await renameLocationMutation.mutateAsync({
+        locationId: renameLocationId,
+        data: { name: renameLocationName.trim() },
+      });
+      setIsRenameLocationOpen(false);
+      setRenameLocationId(null);
+    } catch (err: any) {
+      setFormError(err.message || 'Failed to rename location.');
+    }
+  };
+
+  const handleAddBoxSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setFormError(null);
+    if (!addBoxName.trim() || !addBoxLocationId) {
+      setFormError('Please fill in the box name and select a storage location.');
+      return;
+    }
+
+    try {
+      const newBox = await createBoxMutation.mutateAsync({
+        storageNodeId: addBoxLocationId,
+        name: addBoxName.trim(),
+        description: addBoxDesc.trim() || undefined,
+      });
+      setAddBoxName('');
+      setAddBoxDesc('');
+      setIsAddBoxOpen(false);
+      
+      // Optionally navigate to new box detail screen
+      if (newBox && newBox.id) {
+        navigate(`/workspaces/${activeWorkspace.id}/containers/${newBox.id}`);
+      }
+    } catch (err: any) {
+      setFormError(err.message || 'Failed to create box.');
+    }
+  };
+
+  const openAddLocationModal = (parentId: string | null = null) => {
+    setAddLocationParentId(parentId);
+    setAddLocationName('');
+    setFormError(null);
+    setIsAddLocationOpen(true);
+  };
+
+  const openAddBoxModal = () => {
+    setAddBoxLocationId(selectedLocationId || '');
+    setAddBoxName('');
+    setAddBoxDesc('');
+    setFormError(null);
+    setIsAddBoxOpen(true);
+  };
+
+  const openRenameLocationModal = (id: string, currentName: string) => {
+    setRenameLocationId(id);
+    setRenameLocationName(currentName);
+    setFormError(null);
+    setIsRenameLocationOpen(true);
+  };
+
   return (
-    <div className="app-container" style={{ padding: '2rem 1rem' }}>
-      {/* Search Hero Banner */}
+    <div className="app-container" style={{ padding: '1rem' }}>
+      {/* Search Hero Area */}
       <section
         style={{
-          backgroundColor: '#0f172a',
-          color: '#ffffff',
-          borderRadius: '1rem',
-          padding: '2.5rem 2rem',
-          marginBottom: '2.5rem',
-          boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.1)',
-          position: 'relative',
-          overflow: 'hidden',
+          textAlign: 'center',
+          padding: '1.75rem 1rem 2.25rem 1rem',
+          maxWidth: '650px',
+          margin: '0 auto 1.5rem auto',
         }}
       >
-        <div style={{ maxWidth: '650px' }}>
-          <span style={{ fontSize: '0.75rem', fontWeight: 700, color: '#38bdf8', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-            STORAGE COMMAND CENTER
-          </span>
-          <h1 style={{ fontSize: '2rem', fontWeight: 800, marginTop: '0.25rem', marginBottom: '0.25rem', color: '#ffffff' }}>
-            {activeWorkspace.name}
-          </h1>
-          <div style={{ marginBottom: '1rem' }}>
-            <span className="badge" style={{ backgroundColor: 'rgba(56, 189, 248, 0.15)', color: '#38bdf8', border: '1px solid rgba(56, 189, 248, 0.3)' }}>
-              Role: {activeWorkspace.role}
-            </span>
-          </div>
-          <p style={{ color: '#94a3b8', fontSize: '0.95rem', marginBottom: '1.5rem' }}>
-            Search your stored inventory, manage locations, and pack containers effortlessly.
-          </p>
-
-          <form onSubmit={handleSearchSubmit} style={{ display: 'flex', gap: '0.5rem', width: '100%' }}>
-            <input
-              type="text"
-              placeholder="Search stored items, containers, or locations... (e.g. Christmas lights)"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              style={{
-                flex: 1,
-                padding: '0.75rem 1rem',
-                borderRadius: '0.5rem',
-                border: '1px solid #334155',
-                backgroundColor: '#1e293b',
-                color: '#ffffff',
-                fontSize: '0.95rem',
-              }}
-            />
-            <button
-              type="submit"
-              className="btn-primary"
-              style={{ padding: '0.75rem 1.5rem', whiteSpace: 'nowrap' }}
-            >
-              Search
-            </button>
-          </form>
-        </div>
+        <h1 style={{ fontSize: '2.25rem', fontWeight: 800, color: '#0f172a', margin: '0 0 0.5rem 0', letterSpacing: '-0.025em' }}>
+          Where is it?
+        </h1>
+        <p style={{ color: '#64748b', fontSize: '0.95rem', margin: '0 0 1.25rem 0' }}>
+          Find any item, box, or storage location.
+        </p>
+        
+        <form onSubmit={handleSearchSubmit} style={{ display: 'flex', gap: '0.5rem', boxShadow: '0 4px 12px rgba(0,0,0,0.05)', borderRadius: '0.5rem', backgroundColor: '#ffffff', padding: '0.375rem', border: '1px solid #e2e8f0' }}>
+          <input
+            type="text"
+            placeholder="Search items, boxes, or locations... (e.g. Christmas lights)"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            style={{
+              flex: 1,
+              padding: '0.625rem 0.875rem',
+              border: 'none',
+              fontSize: '1rem',
+              color: '#0f172a',
+              outline: 'none',
+            }}
+          />
+          <button
+            type="submit"
+            className="btn-primary"
+            style={{ padding: '0.625rem 1.25rem' }}
+          >
+            Search
+          </button>
+        </form>
       </section>
 
-      {/* Quick Action Shortcuts */}
-      <section style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '1.25rem', marginBottom: '2.5rem' }}>
-        <a
-          href={`/workspaces/${activeWorkspace.id}/quick-pack`}
-          style={{ textDecoration: 'none', color: 'inherit' }}
-        >
-          <div className="card" style={{ borderLeft: '4px solid #0284c7', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <span style={{ fontWeight: 700, fontSize: '1.125rem', color: '#0f172a' }}>Quick Pack</span>
-              <span style={{ fontSize: '1.25rem' }}>📦</span>
+      {/* Main Browse Columns */}
+      <div className="home-grid">
+        {/* Left Column: Storage Location Tree */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', minHeight: '36px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+              <h2 style={{ fontSize: '1.15rem', fontWeight: 700, color: '#0f172a', margin: 0 }}>
+                Storage Locations
+              </h2>
+              {selectedLocationId && (
+                <button
+                  type="button"
+                  className="btn-secondary"
+                  onClick={() => setSelectedLocationId(null)}
+                  style={{ padding: '0.2rem 0.4rem', fontSize: '0.7rem' }}
+                >
+                  Clear
+                </button>
+              )}
             </div>
-            <p style={{ fontSize: '0.875rem', color: '#64748b', margin: 0 }}>
-              Guided workflow to pack a box, add location metadata, and scan/photo contents.
-            </p>
+            <button
+              type="button"
+              className="btn-secondary"
+              onClick={() => openAddLocationModal(null)}
+              style={{ padding: '0.35rem 0.7rem', fontSize: '0.8rem' }}
+            >
+              + Add Location
+            </button>
           </div>
-        </a>
 
-        <div className="card" style={{ borderLeft: '4px solid #f59e0b', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <span style={{ fontWeight: 700, fontSize: '1.125rem', color: '#0f172a' }}>Storage Hierarchy</span>
-            <span style={{ fontSize: '1.25rem' }}>📍</span>
-          </div>
-          <p style={{ fontSize: '0.875rem', color: '#64748b', margin: 0 }}>
-            Organize rooms, racks, and shelves to maintain clear location breadcrumbs.
-          </p>
+          <StorageLocationList
+            workspaceId={activeWorkspace.id}
+            selectedLocationId={selectedLocationId}
+            onSelectLocation={setSelectedLocationId}
+            onAddSublocation={(parentId) => openAddLocationModal(parentId)}
+            onRenameLocation={(id, name) => openRenameLocationModal(id, name)}
+          />
         </div>
 
-        <div className="card" style={{ borderLeft: '4px solid #16a34a', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <span style={{ fontWeight: 700, fontSize: '1.125rem', color: '#0f172a' }}>AI Contents Recognition</span>
-            <span style={{ fontSize: '1.25rem' }}>✨</span>
+        {/* Right Column: Your Boxes */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', minHeight: '36px' }}>
+            <h2 style={{ fontSize: '1.15rem', fontWeight: 700, color: '#0f172a', margin: 0 }}>
+              {selectedLocation ? `Boxes in ${selectedLocation.name}` : 'Your Boxes'}
+            </h2>
+            <button
+              type="button"
+              className="btn-primary"
+              onClick={openAddBoxModal}
+              style={{ padding: '0.35rem 0.7rem', fontSize: '0.8rem' }}
+            >
+              + Add Box
+            </button>
           </div>
-          <p style={{ fontSize: '0.875rem', color: '#64748b', margin: 0 }}>
-            Upload container photos to automatically detect items for explicit human review.
-          </p>
-        </div>
-      </section>
 
-      {/* Main Workspace Sections */}
-      <section className="workspace-content" style={{ display: 'flex', flexDirection: 'column', gap: '2.5rem' }}>
-        <StorageLocationList workspaceId={activeWorkspace.id} />
-        <ContainerList workspaceId={activeWorkspace.id} />
-      </section>
+          <ContainerList
+            workspaceId={activeWorkspace.id}
+            selectedLocationId={selectedLocationId}
+            onAddBox={openAddBoxModal}
+          />
+        </div>
+      </div>
+
+      {/* Add Location Modal */}
+      {isAddLocationOpen && (
+        <div className="modal-overlay" onClick={() => setIsAddLocationOpen(false)}>
+          <div className="modal-dialog" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h3>Add Storage Location</h3>
+              <button
+                type="button"
+                onClick={() => setIsAddLocationOpen(false)}
+                style={{ background: 'none', border: 'none', fontSize: '1.25rem', color: '#64748b', cursor: 'pointer' }}
+              >
+                ✕
+              </button>
+            </div>
+            <form onSubmit={handleAddLocationSubmit}>
+              <div className="modal-body">
+                {formError && (
+                  <div className="auth-error" style={{ marginBottom: '1rem' }}>{formError}</div>
+                )}
+                <div className="form-group">
+                  <label htmlFor="location-name">Location Name</label>
+                  <input
+                    type="text"
+                    id="location-name"
+                    placeholder="e.g. Garage, Rack A, Shelf 1"
+                    value={addLocationName}
+                    onChange={(e) => setAddLocationName(e.target.value)}
+                    required
+                    autoFocus
+                  />
+                </div>
+                <div className="form-group">
+                  <label htmlFor="parent-location">Parent Location</label>
+                  <select
+                    id="parent-location"
+                    value={addLocationParentId || ''}
+                    onChange={(e) => setAddLocationParentId(e.target.value || null)}
+                  >
+                    <option value="">None — Root Location</option>
+                    {locations.map((loc) => (
+                      <option key={loc.id} value={loc.id}>
+                        {loc.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+              <div className="modal-footer">
+                <button
+                  type="button"
+                  className="btn-secondary"
+                  onClick={() => setIsAddLocationOpen(false)}
+                >
+                  Cancel
+                </button>
+                <button type="submit" className="btn-primary">
+                  Add Location
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Rename Location Modal */}
+      {isRenameLocationOpen && (
+        <div className="modal-overlay" onClick={() => setIsRenameLocationOpen(false)}>
+          <div className="modal-dialog" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h3>Rename Location</h3>
+              <button
+                type="button"
+                onClick={() => setIsRenameLocationOpen(false)}
+                style={{ background: 'none', border: 'none', fontSize: '1.25rem', color: '#64748b', cursor: 'pointer' }}
+              >
+                ✕
+              </button>
+            </div>
+            <form onSubmit={handleRenameLocationSubmit}>
+              <div className="modal-body">
+                {formError && (
+                  <div className="auth-error" style={{ marginBottom: '1rem' }}>{formError}</div>
+                )}
+                <div className="form-group">
+                  <label htmlFor="rename-location-name">Location Name</label>
+                  <input
+                    type="text"
+                    id="rename-location-name"
+                    value={renameLocationName}
+                    onChange={(e) => setRenameLocationName(e.target.value)}
+                    required
+                    autoFocus
+                  />
+                </div>
+              </div>
+              <div className="modal-footer">
+                <button
+                  type="button"
+                  className="btn-secondary"
+                  onClick={() => setIsRenameLocationOpen(false)}
+                >
+                  Cancel
+                </button>
+                <button type="submit" className="btn-primary">
+                  Rename
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Add Box Modal */}
+      {isAddBoxOpen && (
+        <div className="modal-overlay" onClick={() => setIsAddBoxOpen(false)}>
+          <div className="modal-dialog" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h3>Add Box</h3>
+              <button
+                type="button"
+                onClick={() => setIsAddBoxOpen(false)}
+                style={{ background: 'none', border: 'none', fontSize: '1.25rem', color: '#64748b', cursor: 'pointer' }}
+              >
+                ✕
+              </button>
+            </div>
+            <form onSubmit={handleAddBoxSubmit}>
+              <div className="modal-body">
+                {formError && (
+                  <div className="auth-error" style={{ marginBottom: '1rem' }}>{formError}</div>
+                )}
+                <div className="form-group">
+                  <label htmlFor="box-name">Box Name</label>
+                  <input
+                    type="text"
+                    id="box-name"
+                    placeholder="e.g. Holiday Decorations, Camping Gear"
+                    value={addBoxName}
+                    onChange={(e) => setAddBoxName(e.target.value)}
+                    required
+                    autoFocus
+                  />
+                </div>
+                <div className="form-group">
+                  <label htmlFor="box-location">Storage Location</label>
+                  <select
+                    id="box-location"
+                    value={addBoxLocationId}
+                    onChange={(e) => setAddBoxLocationId(e.target.value)}
+                    required
+                  >
+                    <option value="">-- Select Location --</option>
+                    {locations.map((loc) => (
+                      <option key={loc.id} value={loc.id}>
+                        {loc.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div className="form-group">
+                  <label htmlFor="box-description">Description</label>
+                  <textarea
+                    id="box-description"
+                    placeholder="Optional description..."
+                    value={addBoxDesc}
+                    onChange={(e) => setAddBoxDesc(e.target.value)}
+                    rows={3}
+                  />
+                </div>
+              </div>
+              <div className="modal-footer">
+                <button
+                  type="button"
+                  className="btn-secondary"
+                  onClick={() => setIsAddBoxOpen(false)}
+                >
+                  Cancel
+                </button>
+                <button type="submit" className="btn-primary">
+                  Create Box
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

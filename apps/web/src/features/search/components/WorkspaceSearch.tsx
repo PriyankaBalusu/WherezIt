@@ -1,14 +1,24 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
 import { useWorkspaceSearch } from '../hooks/useSearch';
 
 interface WorkspaceSearchProps {
   workspaceId: string;
+  initialQuery?: string;
 }
 
-export const WorkspaceSearch: React.FC<WorkspaceSearchProps> = ({ workspaceId }) => {
-  const [inputQuery, setInputQuery] = useState('');
-  const [activeQuery, setActiveQuery] = useState('');
-  const [submitted, setSubmitted] = useState(false);
+export const WorkspaceSearch: React.FC<WorkspaceSearchProps> = ({ workspaceId, initialQuery = '' }) => {
+  const [inputQuery, setInputQuery] = useState(initialQuery);
+  const [activeQuery, setActiveQuery] = useState(initialQuery);
+  const [submitted, setSubmitted] = useState(Boolean(initialQuery));
+
+  useEffect(() => {
+    if (initialQuery) {
+      setInputQuery(initialQuery);
+      setActiveQuery(initialQuery);
+      setSubmitted(true);
+    }
+  }, [initialQuery]);
 
   const { data: results, isLoading, isError, error } = useWorkspaceSearch(
     workspaceId,
@@ -120,17 +130,26 @@ export const WorkspaceSearch: React.FC<WorkspaceSearchProps> = ({ workspaceId })
                     </div>
                   )}
 
-                  <div style={{ display: 'flex', gap: '1.5rem', fontSize: '0.875rem', color: '#334155', marginTop: '0.75rem', paddingTop: '0.75rem', borderTop: '1px solid #f1f5f9', flexWrap: 'wrap', alignItems: 'center' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.375rem' }}>
-                      <span style={{ color: '#64748b' }}>Container:</span>
-                      <span className="badge badge-boxid">{res.boxDisplayId}</span>
-                    </div>
-                    {res.breadcrumbDisplay && (
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '0.75rem', paddingTop: '0.75rem', borderTop: '1px solid #f1f5f9', flexWrap: 'wrap', gap: '0.5rem' }}>
+                    <div style={{ display: 'flex', gap: '1.5rem', fontSize: '0.875rem', color: '#334155', flexWrap: 'wrap', alignItems: 'center' }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '0.375rem' }}>
-                        <span style={{ color: '#64748b' }}>Location:</span>
-                        <strong style={{ color: '#d97706' }}>{res.breadcrumbDisplay}</strong>
+                        <span style={{ color: '#64748b' }}>Container:</span>
+                        <span className="badge badge-boxid">{res.boxDisplayId}</span>
                       </div>
-                    )}
+                      {res.breadcrumbDisplay && (
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.375rem' }}>
+                          <span style={{ color: '#64748b' }}>Location:</span>
+                          <strong style={{ color: '#d97706' }}>{res.breadcrumbDisplay}</strong>
+                        </div>
+                      )}
+                    </div>
+                    <Link
+                      to={`/workspaces/${workspaceId}/containers/${res.containerId}`}
+                      className="btn-secondary"
+                      style={{ padding: '0.375rem 0.75rem', fontSize: '0.75rem', textDecoration: 'none' }}
+                    >
+                      Open Box →
+                    </Link>
                   </div>
                 </div>
               ))}
@@ -141,3 +160,4 @@ export const WorkspaceSearch: React.FC<WorkspaceSearchProps> = ({ workspaceId })
     </div>
   );
 };
+

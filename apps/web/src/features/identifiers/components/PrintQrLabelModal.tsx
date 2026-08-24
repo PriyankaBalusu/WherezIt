@@ -16,35 +16,22 @@ export const PrintQrLabelModal: React.FC<PrintQrLabelModalProps> = ({
   onClose,
 }) => {
   const [identifier, setIdentifier] = useState<QrIdentifierResponse | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    let isMounted = true;
-
-    async function loadIdentifier() {
-      try {
-        setIsLoading(true);
-        setError(null);
-        const res = await acquireContainerQrIdentifier(workspaceId, containerId);
-        if (isMounted) {
-          setIdentifier(res);
-          setIsLoading(false);
-        }
-      } catch (err: any) {
-        if (isMounted) {
-          setError(err.message || 'Failed to generate QR label.');
-          setIsLoading(false);
-        }
-      }
+  const handleGenerate = async () => {
+    try {
+      setIsLoading(true);
+      setError(null);
+      const res = await acquireContainerQrIdentifier(workspaceId, containerId);
+      setIdentifier(res);
+      setIsLoading(false);
+    } catch (err: any) {
+      setError(err.message || 'Failed to generate QR label.');
+      setIsLoading(false);
     }
+  };
 
-    loadIdentifier();
-
-    return () => {
-      isMounted = false;
-    };
-  }, [workspaceId, containerId]);
 
   const baseUrl = import.meta.env.VITE_APP_BASE_URL || window.location.origin;
   const qrTargetUrl = identifier ? `${baseUrl}/scan/${encodeURIComponent(identifier.value)}` : '';
@@ -157,6 +144,31 @@ export const PrintQrLabelModal: React.FC<PrintQrLabelModalProps> = ({
         {error && (
           <div role="alert" style={{ backgroundColor: '#fff5f5', border: '1px solid #feb2b2', color: '#c53030', padding: '1rem', borderRadius: '0.375rem', marginBottom: '1rem' }}>
             {error}
+          </div>
+        )}
+
+        {!identifier && !isLoading && (
+          <div style={{ textAlign: 'center', padding: '1.5rem 0' }}>
+            <p style={{ color: '#4a5568', marginBottom: '1.5rem', fontSize: '0.95rem' }}>
+              No QR code has been created for this box.
+            </p>
+            <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'center' }}>
+              <button
+                type="button"
+                className="btn-secondary"
+                onClick={onClose}
+                style={{ padding: '0.5rem 1rem', borderRadius: '0.25rem', border: '1px solid #cbd5e0', cursor: 'pointer' }}
+              >
+                Close
+              </button>
+              <button
+                type="button"
+                onClick={handleGenerate}
+                style={{ padding: '0.5rem 1.25rem', backgroundColor: '#2b6cb0', color: '#fff', border: 'none', borderRadius: '0.25rem', fontWeight: 600, cursor: 'pointer' }}
+              >
+                Generate QR Code
+              </button>
+            </div>
           </div>
         )}
 

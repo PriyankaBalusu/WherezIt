@@ -54,12 +54,38 @@ public class IdentifierResolverApiTests : IClassFixture<PostgresTestFixture>
         // Add trusted item
         await itemService.CreateItemAsync(identity1, ws1.Id, container.Id, new CreateItemRequestDto("Christmas Lights", 2));
 
+        var imageAsset = new Domain.Entities.ImageAsset
+        {
+            Id = Guid.NewGuid(),
+            WorkspaceId = ws1.Id,
+            ContainerId = container.Id,
+            ObjectPath = "captures/resolver_test.jpg",
+            ContentType = "image/jpeg",
+            SizeBytes = 1024,
+            Status = "READY",
+            CreatedAt = DateTimeOffset.UtcNow,
+            UpdatedAt = DateTimeOffset.UtcNow
+        };
+        db.ImageAssets.Add(imageAsset);
+
+        var capture = new InventoryCapture
+        {
+            Id = Guid.NewGuid(),
+            WorkspaceId = ws1.Id,
+            ContainerId = container.Id,
+            ImageAssetId = imageAsset.Id,
+            Status = "UPLOADED",
+            CreatedAt = DateTimeOffset.UtcNow,
+            UpdatedAt = DateTimeOffset.UtcNow
+        };
+        db.InventoryCaptures.Add(capture);
+
         // Add DetectionSuggestion (should be excluded)
         var sugg = new DetectionSuggestion
         {
             Id = Guid.NewGuid(),
             WorkspaceId = ws1.Id,
-            CaptureId = Guid.NewGuid(),
+            CaptureId = capture.Id,
             Name = "Untrusted AI Suggestion",
             Quantity = 1,
             Confidence = 0.8m,

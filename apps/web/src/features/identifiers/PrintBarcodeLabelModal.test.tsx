@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen, waitFor, fireEvent } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { PrintBarcodeLabelModal } from './components/PrintBarcodeLabelModal';
 import * as barcodeApi from './api/barcodeApi';
@@ -27,6 +27,14 @@ describe('PrintBarcodeLabelModal (ID-003)', () => {
         onClose={() => {}}
       />
     );
+
+    // Initial state: Show "No Barcode" message and "Generate Barcode" button
+    expect(screen.getByText('No Barcode has been created for this box.')).toBeInTheDocument();
+    const generateBtn = screen.getByRole('button', { name: 'Generate Barcode' });
+    expect(generateBtn).toBeInTheDocument();
+
+    // Click to generate
+    fireEvent.click(generateBtn);
 
     await waitFor(() => {
       expect(screen.getByText('BOX 010')).toBeInTheDocument();

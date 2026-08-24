@@ -8,6 +8,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using WherezIt.Infrastructure;
+using WherezIt.Application.Seed.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -100,6 +101,33 @@ app.MapGet("/api/v1/health", () => Results.Ok(new { status = "Healthy", version 
 app.MapHealthChecks("/health/ready").DisableRateLimiting();
 
 app.MapControllers();
+
+// Development-only demo seed CLI
+if (app.Environment.IsDevelopment() && args.Contains("--seed-demo"))
+{
+    var index = Array.IndexOf(args, "--seed-demo");
+
+    if (index + 2 >= args.Length)
+    {
+        Console.Error.WriteLine(
+            "Usage: dotnet run -- --seed-demo <firebaseUid> <email>");
+        return;
+    }
+
+    var firebaseUid = args[index + 1];
+    var email = args[index + 2];
+
+    using var scope = app.Services.CreateScope();
+
+    var seedService =
+        scope.ServiceProvider.GetRequiredService<IDemoSeedService>();
+
+    var result =
+        await seedService.SeedDemoDataAsync(firebaseUid, email);
+
+    Console.WriteLine($"Demo seed completed: {result.Message}");
+    return;
+}
 
 app.Run();
 

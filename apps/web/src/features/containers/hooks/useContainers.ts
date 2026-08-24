@@ -6,6 +6,7 @@ import {
   updateContainer,
   archiveContainer,
   restoreContainer,
+  fetchContainer,
 } from '../api/containerApi';
 import { CreateContainerRequest, UpdateContainerRequest } from '../types/container';
 
@@ -18,6 +19,17 @@ export function useContainers(workspaceId: string | undefined, storageNodeId?: s
     enabled: !!workspaceId,
   });
 }
+
+export function useContainer(workspaceId: string | undefined, containerId: string | undefined) {
+  const { getIdToken } = useAuth();
+
+  return useQuery({
+    queryKey: ['container', workspaceId, containerId],
+    queryFn: () => fetchContainer(workspaceId!, containerId!, getIdToken),
+    enabled: !!workspaceId && !!containerId,
+  });
+}
+
 
 export function useCreateContainer(workspaceId: string) {
   const { getIdToken } = useAuth();

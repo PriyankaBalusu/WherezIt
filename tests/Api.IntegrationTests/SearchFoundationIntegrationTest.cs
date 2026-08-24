@@ -59,11 +59,26 @@ public class SearchFoundationIntegrationTest : IClassFixture<PostgresTestFixture
         var itemWs2 = await itemService.CreateItemAsync(identity2, ws2.Id, container2.Id, new CreateItemRequestDto("Christmas Lights", 5));
 
         // Create untrusted DetectionSuggestion in WS1
+        var imageAsset = new Domain.Entities.ImageAsset
+        {
+            Id = Guid.NewGuid(),
+            WorkspaceId = ws1.Id,
+            ContainerId = container1.Id,
+            ObjectPath = "captures/search_test.jpg",
+            ContentType = "image/jpeg",
+            SizeBytes = 1024,
+            Status = "READY",
+            CreatedAt = DateTimeOffset.UtcNow,
+            UpdatedAt = DateTimeOffset.UtcNow
+        };
+        db.ImageAssets.Add(imageAsset);
+
         var capture = new InventoryCapture
         {
             Id = Guid.NewGuid(),
             WorkspaceId = ws1.Id,
             ContainerId = container1.Id,
+            ImageAssetId = imageAsset.Id,
             Status = "UPLOADED",
             CreatedAt = DateTimeOffset.UtcNow,
             UpdatedAt = DateTimeOffset.UtcNow

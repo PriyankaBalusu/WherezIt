@@ -8,6 +8,8 @@ export interface BarcodeIdentifierResponse {
   createdAt: string;
 }
 
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || import.meta.env.VITE_API_URL || '/api/v1';
+
 export async function acquireContainerBarcodeIdentifier(
   workspaceId: string,
   containerId: string
@@ -17,7 +19,7 @@ export async function acquireContainerBarcodeIdentifier(
   const token = await getIdToken(user);
 
   const res = await fetch(
-    `/api/v1/workspaces/${workspaceId}/containers/${containerId}/identifiers/barcode`,
+    `${API_BASE_URL}/workspaces/${workspaceId}/containers/${containerId}/identifiers/barcode`,
     {
       method: 'POST',
       headers: {
@@ -26,6 +28,7 @@ export async function acquireContainerBarcodeIdentifier(
       },
     }
   );
+
 
   if (!res.ok) {
     const errorData = await res.json().catch(() => ({}));

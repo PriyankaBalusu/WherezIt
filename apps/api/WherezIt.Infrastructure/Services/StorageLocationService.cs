@@ -156,6 +156,14 @@ public class StorageLocationService : IStorageLocationService
             throw new KeyNotFoundException($"Storage location '{locationId}' was not found in workspace '{workspaceId}'.");
         }
 
+        var hasChildren = await _dbContext.StorageNodes
+            .AnyAsync(n => n.WorkspaceId == workspaceId && n.ParentId == locationId, cancellationToken);
+
+        if (hasChildren)
+        {
+            throw new InvalidOperationException("Cannot delete storage location because it contains child locations.");
+        }
+
         try
         {
             _dbContext.StorageNodes.Remove(node);

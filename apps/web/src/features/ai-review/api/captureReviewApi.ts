@@ -21,6 +21,8 @@ export interface CaptureReviewResponse {
   suggestions: DetectionSuggestion[];
 }
 
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || import.meta.env.VITE_API_URL || '/api/v1';
+
 export async function fetchCaptureReview(workspaceId: string, captureId: string): Promise<CaptureReviewResponse> {
   const currentUser = auth.currentUser;
   if (!currentUser) {
@@ -28,7 +30,7 @@ export async function fetchCaptureReview(workspaceId: string, captureId: string)
   }
 
   const token = await getIdToken(currentUser);
-  const response = await fetch(`/api/v1/workspaces/${encodeURIComponent(workspaceId)}/captures/${encodeURIComponent(captureId)}/review`, {
+  const response = await fetch(`${API_BASE_URL}/workspaces/${encodeURIComponent(workspaceId)}/captures/${encodeURIComponent(captureId)}/review`, {
     headers: {
       Authorization: `Bearer ${token}`,
     },
@@ -67,7 +69,7 @@ export async function confirmCaptureReview(
   }
 
   const token = await getIdToken(currentUser);
-  const response = await fetch(`/api/v1/workspaces/${encodeURIComponent(workspaceId)}/captures/${encodeURIComponent(captureId)}/confirm`, {
+  const response = await fetch(`${API_BASE_URL}/workspaces/${encodeURIComponent(workspaceId)}/captures/${encodeURIComponent(captureId)}/confirm`, {
     method: 'POST',
     headers: {
       Authorization: `Bearer ${token}`,
@@ -83,3 +85,4 @@ export async function confirmCaptureReview(
 
   return response.json();
 }
+

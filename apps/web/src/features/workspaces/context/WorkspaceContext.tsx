@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
 import { Workspace } from '../types/workspace';
 import { useWorkspaces } from '../hooks/useWorkspaces';
 import { WorkspaceLoadingState } from '../components/WorkspaceLoadingState';
@@ -88,21 +89,19 @@ export const WorkspaceProvider: React.FC<{ children?: React.ReactNode }> = ({ ch
           }}
         >
           <div className="nav-left" style={{ display: 'flex', alignItems: 'center', gap: '1.5rem' }}>
-            <a href="/" style={{ display: 'flex', alignItems: 'center', gap: '0.625rem', textDecoration: 'none', color: '#ffffff' }}>
+            <Link to="/" style={{ display: 'flex', alignItems: 'center', gap: '0.625rem', textDecoration: 'none', color: '#ffffff' }}>
               <img src="/icons/icon-192.svg" alt="WherezIt Logo" style={{ width: '32px', height: '32px', borderRadius: '8px' }} />
               <span style={{ fontWeight: 800, fontSize: '1.25rem', letterSpacing: '-0.025em' }}>WherezIt</span>
-            </a>
+            </Link>
 
             {activeWorkspace && (
               <nav style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-                <a href="/" style={{ color: '#e2e8f0', textDecoration: 'none', fontSize: '0.875rem', fontWeight: 600 }}>
-                  Home
-                </a>
-                <a href={`/workspaces/${activeWorkspace.id}/quick-pack`} style={{ color: '#38bdf8', textDecoration: 'none', fontSize: '0.875rem', fontWeight: 700 }}>
+                <Link to={`/workspaces/${activeWorkspace.id}/quick-pack`} style={{ color: '#38bdf8', textDecoration: 'none', fontSize: '0.875rem', fontWeight: 700 }}>
                   + Quick Pack
-                </a>
+                </Link>
               </nav>
             )}
+
           </div>
 
           <div className="nav-right" style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>

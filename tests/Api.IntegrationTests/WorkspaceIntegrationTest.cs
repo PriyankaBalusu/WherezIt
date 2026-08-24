@@ -115,10 +115,27 @@ public class WorkspaceIntegrationTest : IClassFixture<PostgresTestFixture>
 
         var tableNames = dbContext.Model.GetEntityTypes().Select(e => e.GetTableName()).ToList();
 
-        Assert.Contains("users", tableNames);
-        Assert.Contains("workspaces", tableNames);
-        Assert.Contains("workspace_members", tableNames);
-        Assert.Equal(3, tableNames.Count);
+        var expectedTables = new[]
+        {
+            "users",
+            "workspaces",
+            "workspace_members",
+            "workspace_box_counters",
+            "containers",
+            "items",
+            "storage_nodes",
+            "identifiers",
+            "activity_histories",
+            "ai_processing_jobs",
+            "inventory_captures",
+            "image_assets",
+            "detection_suggestions"
+        };
+
+        foreach (var expectedTable in expectedTables)
+        {
+            Assert.Contains(expectedTable, tableNames);
+        }
     }
 
     [Fact]
@@ -176,8 +193,11 @@ public class WorkspaceIntegrationTest : IClassFixture<PostgresTestFixture>
         dbContext.WorkspaceMembers.Add(member1);
         await dbContext.SaveChangesAsync();
 
-        dbContext.WorkspaceMembers.Add(member2);
-        var ex = await Assert.ThrowsAsync<DbUpdateException>(() => dbContext.SaveChangesAsync());
+        using var scope2 = _fixture.Services.CreateScope();
+        var dbContext2 = scope2.ServiceProvider.GetRequiredService<WherezItDbContext>();
+
+        dbContext2.WorkspaceMembers.Add(member2);
+        var ex = await Assert.ThrowsAsync<DbUpdateException>(() => dbContext2.SaveChangesAsync());
         Assert.NotNull(ex.InnerException);
         Assert.IsType<Npgsql.PostgresException>(ex.InnerException);
         Assert.Equal("23505", ((Npgsql.PostgresException)ex.InnerException).SqlState);

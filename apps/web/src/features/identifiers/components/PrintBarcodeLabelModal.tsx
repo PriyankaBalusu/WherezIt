@@ -22,21 +22,19 @@ export const PrintBarcodeLabelModal: React.FC<PrintBarcodeLabelModalProps> = ({
   const [error, setError] = useState<string | null>(null);
   const svgRef = useRef<SVGSVGElement | null>(null);
 
-  useEffect(() => {
-    if (isOpen && workspaceId && containerId) {
-      setIsLoading(true);
-      setError(null);
-      acquireContainerBarcodeIdentifier(workspaceId, containerId)
-        .then((data) => {
-          setIdentifier(data);
-          setIsLoading(false);
-        })
-        .catch((err) => {
-          setError(err.message || 'Failed to acquire barcode');
-          setIsLoading(false);
-        });
+  const handleGenerate = async () => {
+    setIsLoading(true);
+    setError(null);
+    try {
+      const data = await acquireContainerBarcodeIdentifier(workspaceId, containerId);
+      setIdentifier(data);
+      setIsLoading(false);
+    } catch (err: any) {
+      setError(err.message || 'Failed to acquire barcode');
+      setIsLoading(false);
     }
-  }, [isOpen, workspaceId, containerId]);
+  };
+
 
   useEffect(() => {
     if (identifier && svgRef.current) {
@@ -102,6 +100,20 @@ export const PrintBarcodeLabelModal: React.FC<PrintBarcodeLabelModalProps> = ({
 
         {isLoading && <p className="text-gray-600 my-4">Generating barcode label...</p>}
         {error && <p className="text-red-600 my-4">{error}</p>}
+
+        {!identifier && !isLoading && (
+          <div className="text-center my-6">
+            <p className="text-gray-600 mb-4 text-sm">
+              No Barcode has been created for this box.
+            </p>
+            <button
+              onClick={handleGenerate}
+              className="px-4 py-2 text-sm font-semibold text-white bg-blue-600 rounded-md hover:bg-blue-700"
+            >
+              Generate Barcode
+            </button>
+          </div>
+        )}
 
         {identifier && (
           <div className="flex flex-col items-center border border-dashed border-gray-400 p-6 rounded bg-white my-4 print:border-none print:shadow-none">

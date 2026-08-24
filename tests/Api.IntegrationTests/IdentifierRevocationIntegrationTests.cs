@@ -94,7 +94,7 @@ public class IdentifierRevocationIntegrationTests : IClassFixture<PostgresTestFi
 
         // 8. Tenant isolation: Cross-workspace revoke denied
         await Assert.ThrowsAsync<KeyNotFoundException>(async () =>
-            await identifierService.RevokeIdentifierAsync(userA, wsB.Id, bar1.Id));
+            await identifierService.RevokeIdentifierAsync(userB, wsB.Id, bar1.Id));
 
         // 9. Archived container revocation allowed, but replacement acquisition rejected
         var archContainer = await containerService.CreateContainerAsync(userA, wsA.Id, new CreateContainerRequestDto(locA.Id, "Box Arch", "Desc Arch"));

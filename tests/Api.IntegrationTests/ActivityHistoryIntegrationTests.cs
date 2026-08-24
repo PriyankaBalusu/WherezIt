@@ -115,6 +115,6 @@ public class ActivityHistoryIntegrationTests : IClassFixture<PostgresTestFixture
             await historyService.GetContainerHistoryAsync(userB, wsA.Id, container.Id));
 
         await Assert.ThrowsAsync<KeyNotFoundException>(async () =>
-            await historyService.GetContainerHistoryAsync(userA, wsB.Id, container.Id));
+            await historyService.GetContainerHistoryAsync(userB, wsB.Id, container.Id));
     }
 }

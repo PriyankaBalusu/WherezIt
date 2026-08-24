@@ -73,7 +73,7 @@ public class SearchApiTests : IClassFixture<PostgresTestFixture>
         Assert.Equal(container4.Id, firstItem.ContainerId);
         Assert.Equal(4, firstItem.BoxNumber);
         Assert.Equal("BOX 004", firstItem.BoxDisplayId);
-        Assert.Equal("Garage → Rack A → Shelf 2", firstItem.BreadcrumbDisplay);
+        Assert.Equal("SRCH002 WS 1 → Garage → Rack A → Shelf 2", firstItem.BreadcrumbDisplay);
 
         // 2. BOX query "BOX 004" -> returns CONTAINER result
         var box004Results = await searchService.SearchWorkspaceAsync(identity1, ws1.Id, "BOX 004");
@@ -86,7 +86,7 @@ public class SearchApiTests : IClassFixture<PostgresTestFixture>
         Assert.Equal(container4.Id, boxRes.ContainerId);
         Assert.Equal(4, boxRes.BoxNumber);
         Assert.Equal("BOX 004", boxRes.BoxDisplayId);
-        Assert.Equal("Garage → Rack A → Shelf 2", boxRes.BreadcrumbDisplay);
+        Assert.Equal("SRCH002 WS 1 → Garage → Rack A → Shelf 2", boxRes.BreadcrumbDisplay);
 
         // 3. BOX query "4" -> returns CONTAINER result
         var box4Results = await searchService.SearchWorkspaceAsync(identity1, ws1.Id, "4");

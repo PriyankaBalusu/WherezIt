@@ -1,5 +1,5 @@
 import React from 'react';
-import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, useParams, useSearchParams, useNavigate } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { AuthProvider } from './features/auth/AuthProvider';
 import { LoginForm } from './features/auth/LoginForm';
@@ -8,6 +8,9 @@ import { ProtectedRoute } from './routes/ProtectedRoute';
 import { WorkspaceProvider } from './features/workspaces/context/WorkspaceContext';
 
 import { ScanResolverScreen } from './features/identifiers/components/ScanResolverScreen';
+import { ContainerDetailScreen } from './features/containers/components/ContainerDetailScreen';
+import { WorkspaceSearch } from './features/search/components/WorkspaceSearch';
+import { CaptureReviewScreen } from './features/ai-review/components/CaptureReviewScreen';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -17,6 +20,27 @@ const queryClient = new QueryClient({
     },
   },
 });
+
+const WorkspaceSearchScreen: React.FC = () => {
+  const { workspaceId } = useParams<{ workspaceId: string }>();
+  const [searchParams] = useSearchParams();
+  const query = searchParams.get('q') || '';
+  return <WorkspaceSearch workspaceId={workspaceId!} initialQuery={query} />;
+};
+
+const CaptureReviewScreenWrapper: React.FC = () => {
+  const { workspaceId, captureId } = useParams<{ workspaceId: string; captureId: string }>();
+  const navigate = useNavigate();
+
+  return (
+    <CaptureReviewScreen
+      workspaceId={workspaceId!}
+      captureId={captureId!}
+      onNavigateToManualEntry={(containerId) => navigate(`/workspaces/${workspaceId}/containers/${containerId}`)}
+      onConfirmSuccess={(containerId) => navigate(`/workspaces/${workspaceId}/containers/${containerId}`)}
+    />
+  );
+};
 
 export const App: React.FC = () => {
   return (
@@ -40,6 +64,36 @@ export const App: React.FC = () => {
               }
             />
             <Route
+              path="/workspaces/:workspaceId/containers/:containerId"
+              element={
+                <ProtectedRoute>
+                  <WorkspaceProvider>
+                    <ContainerDetailScreen />
+                  </WorkspaceProvider>
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/workspaces/:workspaceId/search"
+              element={
+                <ProtectedRoute>
+                  <WorkspaceProvider>
+                    <WorkspaceSearchScreen />
+                  </WorkspaceProvider>
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/workspaces/:workspaceId/captures/:captureId/review"
+              element={
+                <ProtectedRoute>
+                  <WorkspaceProvider>
+                    <CaptureReviewScreenWrapper />
+                  </WorkspaceProvider>
+                </ProtectedRoute>
+              }
+            />
+            <Route
               path="/"
               element={
                 <ProtectedRoute>
@@ -55,3 +109,4 @@ export const App: React.FC = () => {
 };
 
 export default App;
+

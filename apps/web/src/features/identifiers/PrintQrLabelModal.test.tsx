@@ -29,6 +29,14 @@ describe('PrintQrLabelModal (ID-002)', () => {
       />
     );
 
+    // Initial state: Show "No QR code" message and "Generate QR Code" button
+    expect(screen.getByText('No QR code has been created for this box.')).toBeInTheDocument();
+    const generateBtn = screen.getByRole('button', { name: 'Generate QR Code' });
+    expect(generateBtn).toBeInTheDocument();
+
+    // Click to generate
+    fireEvent.click(generateBtn);
+
     await waitFor(() => {
       expect(screen.getByText('BOX 004')).toBeInTheDocument();
       expect(screen.getByText('Scan to find this box')).toBeInTheDocument();

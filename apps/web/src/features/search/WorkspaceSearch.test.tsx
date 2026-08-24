@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { MemoryRouter } from 'react-router-dom';
 import { WorkspaceSearch } from './components/WorkspaceSearch';
 import * as searchApi from './api/searchApi';
 
@@ -21,10 +22,13 @@ describe('WorkspaceSearch (SRCH-002)', () => {
   const renderComponent = (workspaceId = 'ws-123') => {
     return render(
       <QueryClientProvider client={queryClient}>
-        <WorkspaceSearch workspaceId={workspaceId} />
+        <MemoryRouter>
+          <WorkspaceSearch workspaceId={workspaceId} />
+        </MemoryRouter>
       </QueryClientProvider>
     );
   };
+
 
   it('renders search input and submit button in initial idle state', () => {
     renderComponent();

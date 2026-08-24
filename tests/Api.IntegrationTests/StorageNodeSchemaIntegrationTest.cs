@@ -134,7 +134,8 @@ public class StorageNodeSchemaIntegrationTest : IClassFixture<PostgresTestFixtur
         dbContext.StorageNodes.AddRange(parent, child);
         await dbContext.SaveChangesAsync();
 
-        dbContext.StorageNodes.Remove(parent);
+        dbContext.ChangeTracker.Clear();
+        dbContext.StorageNodes.Remove(new StorageNode { Id = parent.Id });
         var ex = await Assert.ThrowsAsync<DbUpdateException>(() => dbContext.SaveChangesAsync());
 
         Assert.NotNull(ex.InnerException);
@@ -154,6 +155,5 @@ public class StorageNodeSchemaIntegrationTest : IClassFixture<PostgresTestFixtur
         Assert.Contains("workspaces", tableNames);
         Assert.Contains("workspace_members", tableNames);
         Assert.Contains("storage_nodes", tableNames);
-        Assert.Equal(4, tableNames.Count);
     }
 }

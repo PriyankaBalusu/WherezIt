@@ -42,7 +42,7 @@ public class ImageUploadAndRetrievalIntegrationTest : IClassFixture<PostgresTest
         var loc = await locationService.CreateLocationAsync(identity, ws.Id, new CreateStorageLocationRequestDto("Storage Bay", null));
         var container = await containerService.CreateContainerAsync(identity, ws.Id, new CreateContainerRequestDto(loc.Id, "Bin A", null));
 
-        var sampleBytes = Encoding.UTF8.GetBytes("fake-jpeg-binary-data");
+        var sampleBytes = new byte[] { 0xFF, 0xD8, 0xFF, 0xE0, 0x00, 0x10, 0x4A, 0x46, 0x49, 0x46, 0x00, 0x01 };
         using var uploadStream = new MemoryStream(sampleBytes);
 
         // Act: Upload

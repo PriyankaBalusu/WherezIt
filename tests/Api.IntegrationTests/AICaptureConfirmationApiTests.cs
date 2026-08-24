@@ -49,11 +49,26 @@ public class AICaptureConfirmationApiTests : IClassFixture<PostgresTestFixture>
         var loc = await locationService.CreateLocationAsync(identity1, ws1.Id, new CreateStorageLocationRequestDto("Basement", null));
         var container = await containerService.CreateContainerAsync(identity1, ws1.Id, new CreateContainerRequestDto(loc.Id, "Confirmation Box", null));
 
+        var imageAsset = new Domain.Entities.ImageAsset
+        {
+            Id = Guid.NewGuid(),
+            WorkspaceId = ws1.Id,
+            ContainerId = container.Id,
+            ObjectPath = "captures/confirmation_test.jpg",
+            ContentType = "image/jpeg",
+            SizeBytes = 1024,
+            Status = "READY",
+            CreatedAt = DateTimeOffset.UtcNow,
+            UpdatedAt = DateTimeOffset.UtcNow
+        };
+        db.ImageAssets.Add(imageAsset);
+
         var capture = new InventoryCapture
         {
             Id = Guid.NewGuid(),
             WorkspaceId = ws1.Id,
             ContainerId = container.Id,
+            ImageAssetId = imageAsset.Id,
             Status = "REVIEW_REQUIRED",
             CreatedAt = DateTimeOffset.UtcNow,
             UpdatedAt = DateTimeOffset.UtcNow

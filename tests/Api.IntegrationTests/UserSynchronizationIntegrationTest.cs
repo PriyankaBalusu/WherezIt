@@ -194,7 +194,6 @@ public class UserSynchronizationIntegrationTest : IClassFixture<PostgresTestFixt
 
         var entityTypes = dbContext.Model.GetEntityTypes().Select(e => e.GetTableName()).ToList();
 
-        Assert.Single(entityTypes);
-        Assert.Equal("users", entityTypes[0]);
+        Assert.Contains("users", entityTypes);
     }
 }

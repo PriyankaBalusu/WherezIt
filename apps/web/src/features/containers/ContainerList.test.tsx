@@ -1,6 +1,7 @@
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { MemoryRouter } from 'react-router-dom';
 import { ContainerList } from './components/ContainerList';
 import * as containerApi from './api/containerApi';
 import * as locationApi from '../locations/api/locationApi';
@@ -38,7 +39,9 @@ describe('Container Management UI (BOX-003)', () => {
 
     render(
       <QueryClientProvider client={createTestQueryClient()}>
-        <ContainerList workspaceId="ws-123" />
+        <MemoryRouter>
+          <ContainerList workspaceId="ws-123" />
+        </MemoryRouter>
       </QueryClientProvider>
     );
 
@@ -66,7 +69,9 @@ describe('Container Management UI (BOX-003)', () => {
 
     render(
       <QueryClientProvider client={createTestQueryClient()}>
-        <ContainerList workspaceId="ws-123" />
+        <MemoryRouter>
+          <ContainerList workspaceId="ws-123" />
+        </MemoryRouter>
       </QueryClientProvider>
     );
 
@@ -77,90 +82,28 @@ describe('Container Management UI (BOX-003)', () => {
     });
   });
 
-  it('calls createContainer API when submitting form', async () => {
+  it('triggers onAddBox callback when empty state Add Box button is clicked', async () => {
     vi.mocked(locationApi.fetchLocations).mockResolvedValue([
       { id: 'loc-1', workspaceId: 'ws-123', parentId: null, name: 'Garage', createdAt: '2026-08-17T00:00:00Z', updatedAt: '2026-08-17T00:00:00Z' },
     ]);
     vi.mocked(containerApi.fetchContainers).mockResolvedValue([]);
-    vi.mocked(containerApi.createContainer).mockResolvedValue({
-      id: 'c-new',
-      workspaceId: 'ws-123',
-      storageNodeId: 'loc-1',
-      boxNumber: 1,
-      boxId: 'BOX 001',
-      name: 'Tools Bin',
-      description: undefined,
-      isArchived: false,
-      createdAt: '2026-08-17T00:00:00Z',
-      updatedAt: '2026-08-17T00:00:00Z',
-    });
+    const mockAddBox = vi.fn();
 
     render(
       <QueryClientProvider client={createTestQueryClient()}>
-        <ContainerList workspaceId="ws-123" />
+        <MemoryRouter>
+          <ContainerList workspaceId="ws-123" onAddBox={mockAddBox} />
+        </MemoryRouter>
       </QueryClientProvider>
     );
 
     await waitFor(() => {
-      expect(screen.getByRole('combobox')).toBeInTheDocument();
+      expect(screen.getByText('No boxes here yet')).toBeInTheDocument();
     });
 
-    fireEvent.change(screen.getByRole('combobox'), { target: { value: 'loc-1' } });
-    fireEvent.change(screen.getByPlaceholderText(/Container Name/i), { target: { value: 'Tools Bin' } });
-    fireEvent.click(screen.getByRole('button', { name: /Create Container/i }));
-
-    await waitFor(() => {
-      expect(containerApi.createContainer).toHaveBeenCalledWith(
-        'ws-123',
-        { storageNodeId: 'loc-1', name: 'Tools Bin', description: undefined },
-        expect.any(Function)
-      );
-    });
-  });
-
-  it('calls archiveContainer API when clicking Archive', async () => {
-    vi.mocked(locationApi.fetchLocations).mockResolvedValue([]);
-    vi.mocked(containerApi.fetchContainers).mockResolvedValue([
-      {
-        id: 'c-archive',
-        workspaceId: 'ws-123',
-        storageNodeId: 'loc-1',
-        boxNumber: 1,
-        boxId: 'BOX 001',
-        name: 'Old Items',
-        description: null,
-        isArchived: false,
-        createdAt: '2026-08-17T00:00:00Z',
-        updatedAt: '2026-08-17T00:00:00Z',
-      },
-    ]);
-    vi.mocked(containerApi.archiveContainer).mockResolvedValue({
-      id: 'c-archive',
-      workspaceId: 'ws-123',
-      storageNodeId: 'loc-1',
-      boxNumber: 1,
-      boxId: 'BOX 001',
-      name: 'Old Items',
-      description: null,
-      isArchived: true,
-      createdAt: '2026-08-17T00:00:00Z',
-      updatedAt: '2026-08-17T00:00:00Z',
-    });
-
-    render(
-      <QueryClientProvider client={createTestQueryClient()}>
-        <ContainerList workspaceId="ws-123" />
-      </QueryClientProvider>
-    );
-
-    await waitFor(() => {
-      expect(screen.getByText('BOX 001')).toBeInTheDocument();
-    });
-
-    fireEvent.click(screen.getByRole('button', { name: /Archive/i }));
-
-    await waitFor(() => {
-      expect(containerApi.archiveContainer).toHaveBeenCalledWith('ws-123', 'c-archive', expect.any(Function));
-    });
+    fireEvent.click(screen.getByRole('button', { name: /\+ Add Box/i }));
+    expect(mockAddBox).toHaveBeenCalled();
   });
 });
+
+

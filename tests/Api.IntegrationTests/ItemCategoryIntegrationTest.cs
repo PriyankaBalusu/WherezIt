@@ -75,6 +75,6 @@ public class ItemCategoryIntegrationTest : IClassFixture<PostgresTestFixture>
 
         // 7. Tenant isolation: cross-workspace itemId access returns KeyNotFound
         await Assert.ThrowsAsync<KeyNotFoundException>(async () =>
-            await itemService.UpdateItemAsync(userA, wsB.Id, itemWithCat.Id, new UpdateItemRequestDto(null, null, "CrossWS")));
+            await itemService.UpdateItemAsync(userB, wsB.Id, itemWithCat.Id, new UpdateItemRequestDto(null, null, "CrossWS")));
     }
 }
