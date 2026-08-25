@@ -15,6 +15,7 @@ export const QuickPackScreen: React.FC = () => {
   const [storageNodeId, setStorageNodeId] = useState<string>('');
   const [destinationStorageNodeId, setDestinationStorageNodeId] = useState<string>('');
   const [name, setName] = useState<string>('');
+  const [physicalLabel, setPhysicalLabel] = useState<string>('');
   const [description, setDescription] = useState<string>('');
   const [isPacked, setIsPacked] = useState<boolean>(false);
   const [movingPriority, setMovingPriority] = useState<string>('');
@@ -54,12 +55,13 @@ export const QuickPackScreen: React.FC = () => {
       setIsSubmitting(true);
       setError(null);
 
-      // Create Container with moving metadata
+      // Create Container with moving metadata and optional physical label
       const container = await createContainer(
         workspaceId,
         {
           storageNodeId,
           name: name.trim(),
+          physicalLabel: physicalLabel.trim() || undefined,
           description: description.trim() || undefined,
           destinationStorageNodeId: destinationStorageNodeId || undefined,
           isPacked,
@@ -116,13 +118,13 @@ export const QuickPackScreen: React.FC = () => {
     <div style={{ maxWidth: '680px', margin: '2rem auto', padding: '1rem' }}>
       <div style={{ marginBottom: '1.5rem' }}>
         <span style={{ fontSize: '0.75rem', fontWeight: 700, color: '#0284c7', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-          GUIDED WORKFLOW
+          MOVING WORKFLOW
         </span>
         <h2 style={{ fontSize: '1.875rem', fontWeight: 800, margin: '0.25rem 0', color: '#0f172a' }}>
-          Quick Pack Container
+          Moving Assistant
         </h2>
         <p style={{ color: '#64748b', fontSize: '0.95rem' }}>
-          Pack a box, assign location metadata, and scan/photo contents for AI recognition.
+          Pack a box for moving, assign destination room metadata, and scan/photo contents for AI recognition.
         </p>
       </div>
 
@@ -194,6 +196,20 @@ export const QuickPackScreen: React.FC = () => {
           </div>
 
           <div className="form-group">
+            <label htmlFor="quickpack-physical-label">Physical Label (Optional)</label>
+            <input
+              id="quickpack-physical-label"
+              type="text"
+              placeholder="e.g. Christmas Box, Blue Tote, Kitchen #2"
+              value={physicalLabel}
+              onChange={(e) => setPhysicalLabel(e.target.value)}
+            />
+            <span style={{ fontSize: '0.75rem', color: '#64748b', marginTop: '0.25rem', display: 'block' }}>
+              Use this if something is already written on the physical box.
+            </span>
+          </div>
+
+          <div className="form-group">
             <label htmlFor="quickpack-container-desc">Description (Optional)</label>
             <input
               id="quickpack-container-desc"
@@ -247,7 +263,7 @@ export const QuickPackScreen: React.FC = () => {
           <input
             id="quickpack-photo"
             type="file"
-            accept="image/jpeg,image/png,image/webp"
+            accept="image/jpeg,image/png,image/webp,image/heic,image/heif,.heic,.heif"
             capture="environment"
             onChange={handleFileChange}
             style={{ width: '100%', marginBottom: '0.5rem' }}

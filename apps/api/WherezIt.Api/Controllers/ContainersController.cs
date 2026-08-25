@@ -203,6 +203,34 @@ public class ContainersController : ControllerBase
         }
     }
 
+    [HttpDelete("{containerId}")]
+    public async Task<IActionResult> DeleteContainer(
+        [FromRoute] Guid workspaceId,
+        [FromRoute] Guid containerId,
+        CancellationToken cancellationToken = default)
+    {
+        var identity = GetAuthenticatedIdentity();
+        if (identity == null) return Unauthorized();
+
+        try
+        {
+            await _containerService.DeleteContainerAsync(identity, workspaceId, containerId, cancellationToken);
+            return NoContent();
+        }
+        catch (InvalidOperationException ex)
+        {
+            return Conflict(new { error = ex.Message });
+        }
+        catch (KeyNotFoundException ex)
+        {
+            return NotFound(new { error = ex.Message });
+        }
+        catch (UnauthorizedAccessException)
+        {
+            return Forbid();
+        }
+    }
+
     private AuthenticatedIdentity? GetAuthenticatedIdentity()
     {
         var uid = User.FindFirst(ClaimTypes.NameIdentifier)?.Value

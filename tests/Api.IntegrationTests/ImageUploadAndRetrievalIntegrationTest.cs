@@ -156,4 +156,70 @@ public class ImageUploadAndRetrievalIntegrationTest : IClassFixture<PostgresTest
         // Assert: Non-READY asset returns null
         Assert.Null(result);
     }
+
+    [Fact]
+    public async Task ReferencePhotoListingAndDelete_ExcludesAiCaptures_And_EnforcesTenancy()
+    {
+        using var scope = _fixture.Services.CreateScope();
+        var workspaceService = scope.ServiceProvider.GetRequiredService<IWorkspaceService>();
+        var locationService = scope.ServiceProvider.GetRequiredService<IStorageLocationService>();
+        var containerService = scope.ServiceProvider.GetRequiredService<IContainerService>();
+        var imageService = scope.ServiceProvider.GetRequiredService<IImageManagementService>();
+        var db = scope.ServiceProvider.GetRequiredService<WherezItDbContext>();
+
+        var userA = new AuthenticatedIdentity($"b3_user_a_{Guid.NewGuid():N}", "usera@b3.test", true);
+        var userB = new AuthenticatedIdentity($"b3_user_b_{Guid.NewGuid():N}", "userb@b3.test", true);
+
+        var wsA = await workspaceService.CreateWorkspaceAsync(userA, new CreateWorkspaceRequestDto("B3 WS A"));
+        var wsB = await workspaceService.CreateWorkspaceAsync(userB, new CreateWorkspaceRequestDto("B3 WS B"));
+
+        var locA = await locationService.CreateLocationAsync(userA, wsA.Id, new CreateStorageLocationRequestDto("Loc A", null));
+        var containerA = await containerService.CreateContainerAsync(userA, wsA.Id, new CreateContainerRequestDto(locA.Id, "Box A", "Desc A"));
+
+        var sampleBytes = new byte[] { 0xFF, 0xD8, 0xFF, 0xE0, 0x00, 0x10, 0x4A, 0x46, 0x49, 0x46, 0x00, 0x01 };
+
+        // 1. Upload reference photo
+        using var stream1 = new MemoryStream(sampleBytes);
+        var refPhoto1 = await imageService.UploadContainerImageAsync(userA, wsA.Id, containerA.Id, stream1, "image/jpeg", sampleBytes.Length);
+
+        // 2. Upload photo intended for AI capture
+        using var stream2 = new MemoryStream(sampleBytes);
+        var aiPhoto = await imageService.UploadContainerImageAsync(userA, wsA.Id, containerA.Id, stream2, "image/jpeg", sampleBytes.Length);
+
+        // Link aiPhoto to an InventoryCapture
+        var capture = new InventoryCapture
+        {
+            Id = Guid.NewGuid(),
+            WorkspaceId = wsA.Id,
+            ContainerId = containerA.Id,
+            ImageAssetId = aiPhoto.Id,
+            Status = "UPLOADED",
+            CreatedAt = DateTimeOffset.UtcNow,
+            UpdatedAt = DateTimeOffset.UtcNow
+        };
+        db.InventoryCaptures.Add(capture);
+        await db.SaveChangesAsync();
+
+        // 3. List reference photos -> includes refPhoto1, EXCLUDES aiPhoto
+        var refPhotos = await imageService.GetContainerReferenceImagesAsync(userA, wsA.Id, containerA.Id);
+        Assert.Single(refPhotos);
+        Assert.Equal(refPhoto1.Id, refPhotos[0].Id);
+
+        // 4. Attempt to delete AI capture photo via reference delete endpoint -> InvalidOperationException
+        await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            imageService.DeleteContainerReferenceImageAsync(userA, wsA.Id, containerA.Id, aiPhoto.Id));
+
+        // 5. User B (unauthorized) attempt to list or delete reference photo -> UnauthorizedAccessException
+        await Assert.ThrowsAsync<UnauthorizedAccessException>(() =>
+            imageService.GetContainerReferenceImagesAsync(userB, wsA.Id, containerA.Id));
+        await Assert.ThrowsAsync<UnauthorizedAccessException>(() =>
+            imageService.DeleteContainerReferenceImageAsync(userB, wsA.Id, containerA.Id, refPhoto1.Id));
+
+        // 6. Delete reference photo -> succeeds
+        await imageService.DeleteContainerReferenceImageAsync(userA, wsA.Id, containerA.Id, refPhoto1.Id);
+
+        // 7. Reference photo list is now empty
+        var refPhotosAfterDelete = await imageService.GetContainerReferenceImagesAsync(userA, wsA.Id, containerA.Id);
+        Assert.Empty(refPhotosAfterDelete);
+    }
 }

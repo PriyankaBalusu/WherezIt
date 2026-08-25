@@ -42,17 +42,6 @@ export const ContainerList: React.FC<ContainerListProps> = ({
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
-      <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center' }}>
-        <label style={{ fontSize: '0.85rem', color: '#64748b', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.375rem' }}>
-          <input
-            type="checkbox"
-            checked={includeArchived}
-            onChange={(e) => setIncludeArchived(e.target.checked)}
-          />
-          Include Archived Containers
-        </label>
-      </div>
-
       {/* Container List Grid */}
       {containers.length === 0 ? (
         <div style={{ textAlign: 'center', padding: '3rem 1.5rem', color: '#64748b', backgroundColor: '#f8fafc', borderRadius: '0.5rem', border: '1px dashed #cbd5e1' }}>
@@ -130,6 +119,18 @@ export const ContainerList: React.FC<ContainerListProps> = ({
           ))}
         </div>
       )}
+
+      {/* Show Archived Boxes Toggle Below Grid */}
+      <div style={{ paddingTop: '0.75rem', borderTop: '1px solid #f1f5f9' }}>
+        <label style={{ fontSize: '0.85rem', color: '#64748b', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '0.375rem' }}>
+          <input
+            type="checkbox"
+            checked={includeArchived}
+            onChange={(e) => setIncludeArchived(e.target.checked)}
+          />
+          Show Archived Boxes
+        </label>
+      </div>
     </div>
   );
 };

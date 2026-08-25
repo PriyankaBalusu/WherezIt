@@ -49,7 +49,7 @@ describe('Workspace Multi-Workspace Selection & Onboarding (WS-UI-002)', () => {
 
 
     expect(screen.getByText('WherezIt')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /Sign Out/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /^Account$/i })).toBeInTheDocument();
     expect(screen.getByText(/Loading your workspaces/i)).toBeInTheDocument();
   });
 
@@ -68,7 +68,7 @@ describe('Workspace Multi-Workspace Selection & Onboarding (WS-UI-002)', () => {
 
     await waitFor(() => {
       expect(screen.getByText('WherezIt')).toBeInTheDocument();
-      expect(screen.getByRole('button', { name: /Sign Out/i })).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: /^Account$/i })).toBeInTheDocument();
       expect(screen.getByText(/Unable to Load Workspaces/i)).toBeInTheDocument();
       expect(screen.getByText(/Network error/i)).toBeInTheDocument();
     });
@@ -89,7 +89,7 @@ describe('Workspace Multi-Workspace Selection & Onboarding (WS-UI-002)', () => {
 
     await waitFor(() => {
       expect(screen.getByText('WherezIt')).toBeInTheDocument();
-      expect(screen.getByRole('button', { name: /Sign Out/i })).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: /^Account$/i })).toBeInTheDocument();
       expect(screen.getByText(/Welcome to WherezIt/i)).toBeInTheDocument();
       expect(screen.getByText(/Create Your First Workspace/i)).toBeInTheDocument();
       expect(screen.getByRole('button', { name: /Create Workspace/i })).toBeInTheDocument();
@@ -112,7 +112,7 @@ describe('Workspace Multi-Workspace Selection & Onboarding (WS-UI-002)', () => {
     );
 
     await waitFor(() => {
-      expect(screen.getByRole('button', { name: /Select active workspace/i })).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: /Select active storage space/i })).toBeInTheDocument();
       expect(screen.getByText('Sole Workspace')).toBeInTheDocument();
       expect(screen.getByText('Sole Workspace Content')).toBeInTheDocument();
     });
@@ -138,7 +138,7 @@ describe('Workspace Multi-Workspace Selection & Onboarding (WS-UI-002)', () => {
       expect(screen.getByText('Home Workspace')).toBeInTheDocument();
     });
 
-    const selectorBtn = screen.getByRole('button', { name: /Select active workspace/i });
+    const selectorBtn = screen.getByRole('button', { name: /Select active storage space/i });
     fireEvent.click(selectorBtn);
 
     expect(screen.getByRole('menu')).toBeInTheDocument();
@@ -176,8 +176,8 @@ describe('Workspace Multi-Workspace Selection & Onboarding (WS-UI-002)', () => {
       expect(screen.getByText('Home Workspace')).toBeInTheDocument();
     });
 
-    fireEvent.click(screen.getByRole('button', { name: /Select active workspace/i }));
-    fireEvent.click(screen.getByRole('menuitem', { name: /\+ Create Workspace/i }));
+    fireEvent.click(screen.getByRole('button', { name: /Select active storage space/i }));
+    fireEvent.click(screen.getByRole('menuitem', { name: /\+ Create Storage Space/i }));
 
     expect(screen.getByRole('dialog')).toBeInTheDocument();
     expect(screen.getByLabelText(/Workspace Name/i)).toBeInTheDocument();
@@ -193,7 +193,7 @@ describe('Workspace Multi-Workspace Selection & Onboarding (WS-UI-002)', () => {
     });
   });
 
-  it('invokes signOut when Sign Out button is clicked', async () => {
+  it('invokes signOut when Sign Out button is clicked inside Account menu', async () => {
     vi.mocked(workspaceApi.fetchWorkspaces).mockResolvedValue([]);
 
     render(
@@ -207,10 +207,11 @@ describe('Workspace Multi-Workspace Selection & Onboarding (WS-UI-002)', () => {
     );
 
     await waitFor(() => {
-      expect(screen.getByRole('button', { name: /Sign Out/i })).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: /^Account$/i })).toBeInTheDocument();
     });
 
-    fireEvent.click(screen.getByRole('button', { name: /Sign Out/i }));
+    fireEvent.click(screen.getByRole('button', { name: /^Account$/i }));
+    fireEvent.click(screen.getByRole('menuitem', { name: /Sign Out/i }));
 
     expect(mockSignOut).toHaveBeenCalled();
   });

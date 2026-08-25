@@ -6,6 +6,7 @@ import {
   updateItem,
   archiveItem,
   restoreItem,
+  deleteItem,
 } from '../api/itemApi';
 import { CreateItemPayload, UpdateItemPayload } from '../types/item';
 
@@ -80,6 +81,22 @@ export function useRestoreItem(workspaceId: string, containerId: string) {
       const token = await getIdToken();
       if (!token) throw new Error('Unauthenticated');
       return restoreItem(workspaceId, itemId, token);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['items', workspaceId, containerId] });
+    },
+  });
+}
+
+export function useDeleteItem(workspaceId: string, containerId: string) {
+  const { getIdToken } = useAuth();
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (itemId: string) => {
+      const token = await getIdToken();
+      if (!token) throw new Error('Unauthenticated');
+      return deleteItem(workspaceId, itemId, token);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['items', workspaceId, containerId] });

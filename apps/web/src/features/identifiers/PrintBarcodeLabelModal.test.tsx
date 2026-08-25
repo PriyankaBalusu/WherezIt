@@ -28,8 +28,8 @@ describe('PrintBarcodeLabelModal (ID-003)', () => {
       />
     );
 
-    // Initial state: Show "No Barcode" message and "Generate Barcode" button
-    expect(screen.getByText('No Barcode has been created for this box.')).toBeInTheDocument();
+    // Initial state: Show "No barcode" message and "Generate Barcode" button
+    expect(screen.getByText(/No barcode has been created for this box\./i)).toBeInTheDocument();
     const generateBtn = screen.getByRole('button', { name: 'Generate Barcode' });
     expect(generateBtn).toBeInTheDocument();
 

@@ -26,6 +26,9 @@ public class ImageAssetConfiguration : IEntityTypeConfiguration<ImageAsset>
         builder.Property(x => x.ContainerId)
             .HasColumnName("container_id");
 
+        builder.Property(x => x.ItemId)
+            .HasColumnName("item_id");
+
         builder.Property(x => x.ObjectPath)
             .HasColumnName("object_path")
             .HasMaxLength(500)
@@ -61,6 +64,13 @@ public class ImageAssetConfiguration : IEntityTypeConfiguration<ImageAsset>
             .HasPrincipalKey(c => new { c.WorkspaceId, c.Id })
             .HasForeignKey(x => new { x.WorkspaceId, x.ContainerId })
             .OnDelete(DeleteBehavior.Restrict)
+            .IsRequired(false);
+
+        builder.HasOne(x => x.Item)
+            .WithMany()
+            .HasPrincipalKey(i => new { i.WorkspaceId, i.Id })
+            .HasForeignKey(x => new { x.WorkspaceId, x.ItemId })
+            .OnDelete(DeleteBehavior.Cascade)
             .IsRequired(false);
     }
 }

@@ -10,6 +10,7 @@ public record ContainerResponseDto(
     string BoxId,
     string? Name,
     string? Description,
+    string? PhysicalLabel,
     bool IsArchived,
     Guid? DestinationStorageNodeId,
     bool IsPacked,

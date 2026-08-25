@@ -9,6 +9,7 @@ import { WorkspaceProvider } from './features/workspaces/context/WorkspaceContex
 
 import { ScanResolverScreen } from './features/identifiers/components/ScanResolverScreen';
 import { ContainerDetailScreen } from './features/containers/components/ContainerDetailScreen';
+import { ContainerErrorBoundary } from './features/containers/components/ContainerErrorBoundary';
 import { WorkspaceSearch } from './features/search/components/WorkspaceSearch';
 import { CaptureReviewScreen } from './features/ai-review/components/CaptureReviewScreen';
 
@@ -52,11 +53,47 @@ export const App: React.FC = () => {
             <Route path="/signup" element={<SignupForm />} />
             <Route path="/scan/:tokenValue" element={<ScanResolverScreen />} />
             <Route
+              path="/scan"
+              element={
+                <ProtectedRoute>
+                  <WorkspaceProvider>
+                    <React.Suspense fallback={<div>Loading Scan...</div>}>
+                      {React.createElement(React.lazy(() => import('./features/identifiers/components/GlobalScanScreen').then(m => ({ default: m.GlobalScanScreen }))))}
+                    </React.Suspense>
+                  </WorkspaceProvider>
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/workspaces/:workspaceId/locations/:locationId"
+              element={
+                <ProtectedRoute>
+                  <WorkspaceProvider>
+                    <React.Suspense fallback={<div>Loading Location...</div>}>
+                      {React.createElement(React.lazy(() => import('./features/locations/components/LocationDetailScreen').then(m => ({ default: m.LocationDetailScreen }))))}
+                    </React.Suspense>
+                  </WorkspaceProvider>
+                </ProtectedRoute>
+              }
+            />
+            <Route
               path="/workspaces/:workspaceId/quick-pack"
               element={
                 <ProtectedRoute>
                   <WorkspaceProvider>
-                    <React.Suspense fallback={<div>Loading Quick Pack...</div>}>
+                    <React.Suspense fallback={<div>Loading Moving Assistant...</div>}>
+                      {React.createElement(React.lazy(() => import('./features/containers/QuickPackScreen').then(m => ({ default: m.QuickPackScreen }))))}
+                    </React.Suspense>
+                  </WorkspaceProvider>
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/workspaces/:workspaceId/moving-assistant"
+              element={
+                <ProtectedRoute>
+                  <WorkspaceProvider>
+                    <React.Suspense fallback={<div>Loading Moving Assistant...</div>}>
                       {React.createElement(React.lazy(() => import('./features/containers/QuickPackScreen').then(m => ({ default: m.QuickPackScreen }))))}
                     </React.Suspense>
                   </WorkspaceProvider>
@@ -68,7 +105,9 @@ export const App: React.FC = () => {
               element={
                 <ProtectedRoute>
                   <WorkspaceProvider>
-                    <ContainerDetailScreen />
+                    <ContainerErrorBoundary>
+                      <ContainerDetailScreen />
+                    </ContainerErrorBoundary>
                   </WorkspaceProvider>
                 </ProtectedRoute>
               }

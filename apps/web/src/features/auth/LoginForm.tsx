@@ -82,12 +82,12 @@ export const LoginForm: React.FC = () => {
             <span style={{ fontSize: '1.75rem', fontWeight: 800, letterSpacing: '-0.025em', color: '#ffffff' }}>WherezIt</span>
           </div>
 
-          <h1 style={{ fontSize: '2.5rem', fontWeight: 800, lineHeight: 1.2, marginBottom: '1rem', color: '#ffffff', maxWidth: '480px' }}>
-            Find what you own. Remember where you put it.
+          <h1 style={{ fontSize: 'clamp(1.5rem, 3vw, 2.375rem)', fontWeight: 800, lineHeight: 1.2, marginBottom: '0.75rem', color: '#ffffff', maxWidth: '600px', whiteSpace: 'nowrap' }} className="login-hero-headline">
+            Your Things. Always Findable.
           </h1>
 
-          <p style={{ fontSize: '1.125rem', color: '#94a3b8', marginBottom: '3rem', maxWidth: '460px', lineHeight: 1.6 }}>
-            A smarter, AI-assisted way to organize containers, track stored inventory, and locate your belongings instantly.
+          <p style={{ fontSize: '1.125rem', color: '#94a3b8', marginBottom: '2.5rem', maxWidth: '520px', lineHeight: 1.5 }}>
+            App that remembers for you.
           </p>
 
           {/* Product Value Story Card */}
@@ -110,15 +110,20 @@ export const LoginForm: React.FC = () => {
               <span>Where are my Christmas lights?</span>
             </div>
 
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', backgroundColor: '#0f172a', padding: '1rem', borderRadius: '0.5rem', border: '1px solid #334155' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <span style={{ fontWeight: 700, fontSize: '1rem', color: '#ffffff' }}>Christmas Lights</span>
-                <span style={{ fontFamily: 'monospace', fontSize: '0.75rem', backgroundColor: 'rgba(56, 189, 248, 0.15)', color: '#38bdf8', padding: '0.2rem 0.5rem', borderRadius: '4px', fontWeight: 700 }}>
-                  BOX 001
-                </span>
+            <div style={{ display: 'flex', gap: '0.875rem', backgroundColor: '#0f172a', padding: '1rem', borderRadius: '0.5rem', border: '1px solid #334155', alignItems: 'center' }}>
+              <div style={{ width: '48px', height: '48px', borderRadius: '0.375rem', backgroundColor: '#1e293b', border: '1px solid #38bdf8', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.5rem', flexShrink: 0 }}>
+                🎄
               </div>
-              <span style={{ fontSize: '0.875rem', color: '#94a3b8' }}>Container: Holiday Decorations</span>
-              <span style={{ fontSize: '0.875rem', color: '#f59e0b', fontWeight: 600 }}>📍 Garage › Rack A › Shelf 1</span>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem', flex: 1, minWidth: 0 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '0.5rem' }}>
+                  <span style={{ fontWeight: 700, fontSize: '0.95rem', color: '#ffffff', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>Christmas Lights</span>
+                  <span style={{ fontFamily: 'monospace', fontSize: '0.7rem', backgroundColor: 'rgba(56, 189, 248, 0.15)', color: '#38bdf8', padding: '0.15rem 0.4rem', borderRadius: '4px', fontWeight: 700, flexShrink: 0 }}>
+                    BOX 001
+                  </span>
+                </div>
+                <span style={{ fontSize: '0.8rem', color: '#94a3b8', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>BOX 001 — Holiday Decorations</span>
+                <span style={{ fontSize: '0.8rem', color: '#f59e0b', fontWeight: 600 }}>Garage → Rack A → Shelf 1</span>
+              </div>
             </div>
           </div>
         </div>
@@ -157,8 +162,7 @@ export const LoginForm: React.FC = () => {
                   id="email"
                   type="email"
                   placeholder="name@example.com"
-                  {...register('email')}
-                  onChange={() => clearError()}
+                  {...register('email', { onChange: () => clearError() })}
                   disabled={submitting}
                 />
                 {errors.email && <span className="field-error">{errors.email.message}</span>}
@@ -170,8 +174,7 @@ export const LoginForm: React.FC = () => {
                   id="password"
                   type="password"
                   placeholder="••••••••"
-                  {...register('password')}
-                  onChange={() => clearError()}
+                  {...register('password', { onChange: () => clearError() })}
                   disabled={submitting}
                 />
                 {errors.password && <span className="field-error">{errors.password.message}</span>}

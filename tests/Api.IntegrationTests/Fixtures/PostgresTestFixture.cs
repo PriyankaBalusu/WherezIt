@@ -52,13 +52,15 @@ public class PostgresTestFixture : WebApplicationFactory<Program>, IAsyncLifetim
             catch
             {
                 // Fall back to local PostgreSQL on 5432 if Docker daemon is offline
-                ConnectionString = "Host=localhost;Port=5432;Database=wherezit_test;Username=wherezit;Password=wherezit_dev_password";
+                ConnectionString = Environment.GetEnvironmentVariable("ConnectionStrings__PostgreSQL_Test")
+                    ?? "Host=localhost;Port=5432;Database=wherezit_test;Username=wherezit_test;Password=wherezit_test_password";
                 IsDockerContainerUsed = false;
             }
         }
         else
         {
-            ConnectionString = "Host=localhost;Port=5432;Database=wherezit_test;Username=wherezit;Password=wherezit_dev_password";
+            ConnectionString = Environment.GetEnvironmentVariable("ConnectionStrings__PostgreSQL_Test")
+                ?? "Host=localhost;Port=5432;Database=wherezit_test;Username=wherezit_test;Password=wherezit_test_password";
             IsDockerContainerUsed = false;
         }
 

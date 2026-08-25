@@ -113,3 +113,72 @@ export async function revokeIdentifier(
   return response.json();
 }
 
+export interface ContainerIdentifierItem {
+  id: string;
+  workspaceId: string;
+  containerId: string;
+  type: 'QR' | 'BARCODE';
+  value: string;
+  createdAt: string;
+}
+
+export async function fetchContainerIdentifiers(
+  workspaceId: string,
+  containerId: string
+): Promise<ContainerIdentifierItem[]> {
+  const currentUser = auth.currentUser;
+  if (!currentUser) {
+    throw new Error('User must be authenticated to fetch container identifiers.');
+  }
+
+  const token = await getIdToken(currentUser);
+  const response = await fetch(
+    `${API_BASE_URL}/workspaces/${encodeURIComponent(workspaceId)}/containers/${encodeURIComponent(containerId)}/identifiers`,
+    {
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    }
+  );
+
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(errorData.error || `Failed to fetch container identifiers.`);
+  }
+
+  return response.json();
+}
+
+export async function attachContainerIdentifier(
+  workspaceId: string,
+  containerId: string,
+  type: 'QR' | 'BARCODE',
+  value: string
+): Promise<ContainerIdentifierItem> {
+  const currentUser = auth.currentUser;
+  if (!currentUser) {
+    throw new Error('User must be authenticated to attach identifier.');
+  }
+
+  const token = await getIdToken(currentUser);
+  const response = await fetch(
+    `${API_BASE_URL}/workspaces/${encodeURIComponent(workspaceId)}/containers/${encodeURIComponent(containerId)}/identifiers/attach`,
+    {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ type, value }),
+    }
+  );
+
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(errorData.error || `Failed to attach identifier.`);
+  }
+
+  return response.json();
+}
+
+

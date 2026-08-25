@@ -45,7 +45,7 @@ describe('CameraCaptureModal (PWA-002 & IMG-003)', () => {
 
     const input = screen.getByLabelText(/Select or capture image/i) as HTMLInputElement;
     expect(input).toBeInTheDocument();
-    expect(input.getAttribute('accept')).toBe('image/jpeg,image/png,image/webp');
+    expect(input.getAttribute('accept')).toBe('image/jpeg,image/png,image/webp,image/heic,image/heif,.heic,.heif');
     expect(input.getAttribute('capture')).toBe('environment');
   });
 

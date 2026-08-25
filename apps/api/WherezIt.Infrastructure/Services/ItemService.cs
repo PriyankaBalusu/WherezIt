@@ -1,7 +1,9 @@
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 using WherezIt.Application.Authentication;
 using WherezIt.Application.Items.Dtos;
 using WherezIt.Application.Items.Services;
+using WherezIt.Application.Storage.Services;
 using WherezIt.Application.Workspaces.Services;
 using WherezIt.Domain.Entities;
 using WherezIt.Infrastructure.Persistence;
@@ -12,11 +14,19 @@ public class ItemService : IItemService
 {
     private readonly WherezItDbContext _dbContext;
     private readonly IWorkspaceAuthorizationService _authorizationService;
+    private readonly IImageObjectStorage? _storage;
+    private readonly ILogger<ItemService>? _logger;
 
-    public ItemService(WherezItDbContext dbContext, IWorkspaceAuthorizationService authorizationService)
+    public ItemService(
+        WherezItDbContext dbContext,
+        IWorkspaceAuthorizationService authorizationService,
+        IImageObjectStorage? storage = null,
+        ILogger<ItemService>? logger = null)
     {
         _dbContext = dbContext;
         _authorizationService = authorizationService;
+        _storage = storage;
+        _logger = logger;
     }
 
     public async Task<IReadOnlyList<ItemResponseDto>> GetItemsByContainerAsync(
@@ -209,6 +219,64 @@ public class ItemService : IItemService
         await _dbContext.SaveChangesAsync(cancellationToken);
 
         return MapToDto(item);
+    }
+
+    public async Task DeleteItemAsync(
+        AuthenticatedIdentity identity,
+        Guid workspaceId,
+        Guid itemId,
+        CancellationToken cancellationToken = default)
+    {
+        await _authorizationService.RequireWorkspaceMembershipAsync(identity, workspaceId, cancellationToken);
+
+        var item = await _dbContext.Items
+            .FirstOrDefaultAsync(i => i.WorkspaceId == workspaceId && i.Id == itemId, cancellationToken);
+
+        if (item == null)
+        {
+            throw new KeyNotFoundException($"Item '{itemId}' was not found in workspace '{workspaceId}'.");
+        }
+
+        if (!item.IsArchived)
+        {
+            throw new InvalidOperationException("Only archived items can be permanently deleted.");
+        }
+
+        // 1. Capture item ImageAsset object paths BEFORE deleting DB rows
+        var itemImageAssets = await _dbContext.ImageAssets
+            .Where(img => img.WorkspaceId == workspaceId && img.ItemId == itemId)
+            .ToListAsync(cancellationToken);
+
+        var objectPathsToDelete = itemImageAssets
+            .Select(img => img.ObjectPath)
+            .Where(path => !string.IsNullOrWhiteSpace(path))
+            .Distinct()
+            .ToList();
+
+        // 2. Perform DB deletion in ONE EF Core transaction
+        using var transaction = await _dbContext.Database.BeginTransactionAsync(cancellationToken);
+
+        _dbContext.ImageAssets.RemoveRange(itemImageAssets);
+        _dbContext.Items.Remove(item);
+
+        await _dbContext.SaveChangesAsync(cancellationToken);
+        await transaction.CommitAsync(cancellationToken);
+
+        // 3. Physical object cleanup AFTER successful DB commit
+        if (_storage != null && objectPathsToDelete.Count > 0)
+        {
+            foreach (var objectPath in objectPathsToDelete)
+            {
+                try
+                {
+                    await _storage.DeleteObjectAsync(objectPath, cancellationToken);
+                }
+                catch (Exception ex)
+                {
+                    _logger?.LogError(ex, "Failed to delete storage object file at path '{ObjectPath}' after item '{ItemId}' permanent deletion.", objectPath, itemId);
+                }
+            }
+        }
     }
 
     private static string? NormalizeCategory(string? category)

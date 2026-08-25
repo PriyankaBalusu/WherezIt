@@ -52,7 +52,7 @@ describe('QuickPackScreen (MOV-002)', () => {
       </MemoryRouter>
     );
 
-    expect(screen.getByText('Quick Pack Container')).toBeInTheDocument();
+    expect(screen.getByText('Moving Assistant')).toBeInTheDocument();
     expect(screen.getByLabelText(/Current Storage Location/i)).toBeInTheDocument();
     expect(screen.getByLabelText(/Intended Destination Room/i)).toBeInTheDocument();
 

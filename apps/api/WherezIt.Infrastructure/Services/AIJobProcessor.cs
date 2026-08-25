@@ -34,9 +34,8 @@ public class AIJobProcessor : IAIJobProcessor
     public async Task ProcessJobAsync(Guid jobId, CancellationToken cancellationToken = default)
     {
         // 1. Atomic QUEUED -> RUNNING status acquisition
-        var affectedRows = await _dbContext.Database.ExecuteSqlRawAsync(
-            "UPDATE ai_processing_jobs SET status = 'RUNNING', updated_at = NOW() WHERE id = {0} AND status = 'QUEUED'",
-            new object[] { jobId },
+        var affectedRows = await _dbContext.Database.ExecuteSqlInterpolatedAsync(
+            $"UPDATE ai_processing_jobs SET status = 'RUNNING', updated_at = NOW() WHERE id = {jobId} AND status = 'QUEUED'",
             cancellationToken);
 
         if (affectedRows == 0)
@@ -63,6 +62,7 @@ public class AIJobProcessor : IAIJobProcessor
         {
             throw new KeyNotFoundException($"AI Processing Job {jobId} not found.");
         }
+        job.Status = "RUNNING";
 
         var capture = await _dbContext.InventoryCaptures
             .Include(c => c.ImageAsset)

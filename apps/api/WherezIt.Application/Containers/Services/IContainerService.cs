@@ -42,4 +42,10 @@ public interface IContainerService
         Guid workspaceId,
         Guid containerId,
         CancellationToken cancellationToken = default);
+
+    Task DeleteContainerAsync(
+        AuthenticatedIdentity identity,
+        Guid workspaceId,
+        Guid containerId,
+        CancellationToken cancellationToken = default);
 }

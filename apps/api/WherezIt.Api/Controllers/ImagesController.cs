@@ -98,6 +98,155 @@ public class ImagesController : ControllerBase
         }
     }
 
+    [HttpGet("api/v1/workspaces/{workspaceId}/containers/{containerId}/images")]
+    public async Task<IActionResult> GetContainerImages(
+        [FromRoute] Guid workspaceId,
+        [FromRoute] Guid containerId,
+        CancellationToken cancellationToken = default)
+    {
+        var identity = GetAuthenticatedIdentity();
+        if (identity == null) return Unauthorized();
+
+        try
+        {
+            var images = await _imageService.GetContainerReferenceImagesAsync(identity, workspaceId, containerId, cancellationToken);
+            return Ok(images);
+        }
+        catch (KeyNotFoundException ex)
+        {
+            return NotFound(new { error = ex.Message });
+        }
+        catch (UnauthorizedAccessException)
+        {
+            return Forbid();
+        }
+    }
+
+    [HttpDelete("api/v1/workspaces/{workspaceId}/containers/{containerId}/images/{imageId}")]
+    public async Task<IActionResult> DeleteContainerImage(
+        [FromRoute] Guid workspaceId,
+        [FromRoute] Guid containerId,
+        [FromRoute] Guid imageId,
+        CancellationToken cancellationToken = default)
+    {
+        var identity = GetAuthenticatedIdentity();
+        if (identity == null) return Unauthorized();
+
+        try
+        {
+            await _imageService.DeleteContainerReferenceImageAsync(identity, workspaceId, containerId, imageId, cancellationToken);
+            return NoContent();
+        }
+        catch (KeyNotFoundException ex)
+        {
+            return NotFound(new { error = ex.Message });
+        }
+        catch (InvalidOperationException ex)
+        {
+            return Conflict(new { error = ex.Message });
+        }
+        catch (UnauthorizedAccessException)
+        {
+            return Forbid();
+        }
+    }
+
+    [HttpPost("api/v1/workspaces/{workspaceId}/items/{itemId}/images")]
+    [Consumes("multipart/form-data")]
+    public async Task<IActionResult> UploadItemImage(
+        [FromRoute] Guid workspaceId,
+        [FromRoute] Guid itemId,
+        IFormFile file,
+        CancellationToken cancellationToken = default)
+    {
+        var identity = GetAuthenticatedIdentity();
+        if (identity == null) return Unauthorized();
+
+        if (file == null || file.Length == 0)
+        {
+            return BadRequest(new { error = "An image file is required." });
+        }
+
+        try
+        {
+            using var stream = file.OpenReadStream();
+            var response = await _imageService.UploadItemImageAsync(
+                identity,
+                workspaceId,
+                itemId,
+                stream,
+                file.ContentType,
+                file.Length,
+                cancellationToken);
+
+            return CreatedAtAction(
+                nameof(GetImage),
+                new { workspaceId = response.WorkspaceId, imageId = response.Id },
+                response);
+        }
+        catch (ArgumentException ex)
+        {
+            return BadRequest(new { error = ex.Message });
+        }
+        catch (KeyNotFoundException ex)
+        {
+            return NotFound(new { error = ex.Message });
+        }
+        catch (UnauthorizedAccessException)
+        {
+            return Forbid();
+        }
+    }
+
+    [HttpGet("api/v1/workspaces/{workspaceId}/items/{itemId}/images")]
+    public async Task<IActionResult> GetItemImages(
+        [FromRoute] Guid workspaceId,
+        [FromRoute] Guid itemId,
+        CancellationToken cancellationToken = default)
+    {
+        var identity = GetAuthenticatedIdentity();
+        if (identity == null) return Unauthorized();
+
+        try
+        {
+            var images = await _imageService.GetItemImagesAsync(identity, workspaceId, itemId, cancellationToken);
+            return Ok(images);
+        }
+        catch (KeyNotFoundException ex)
+        {
+            return NotFound(new { error = ex.Message });
+        }
+        catch (UnauthorizedAccessException)
+        {
+            return Forbid();
+        }
+    }
+
+    [HttpDelete("api/v1/workspaces/{workspaceId}/items/{itemId}/images/{imageId}")]
+    public async Task<IActionResult> DeleteItemImage(
+        [FromRoute] Guid workspaceId,
+        [FromRoute] Guid itemId,
+        [FromRoute] Guid imageId,
+        CancellationToken cancellationToken = default)
+    {
+        var identity = GetAuthenticatedIdentity();
+        if (identity == null) return Unauthorized();
+
+        try
+        {
+            await _imageService.DeleteItemImageAsync(identity, workspaceId, itemId, imageId, cancellationToken);
+            return NoContent();
+        }
+        catch (KeyNotFoundException ex)
+        {
+            return NotFound(new { error = ex.Message });
+        }
+        catch (UnauthorizedAccessException)
+        {
+            return Forbid();
+        }
+    }
+
     private AuthenticatedIdentity? GetAuthenticatedIdentity()
     {
         var uid = User.FindFirst(ClaimTypes.NameIdentifier)?.Value

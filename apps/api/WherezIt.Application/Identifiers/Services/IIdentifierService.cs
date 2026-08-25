@@ -53,4 +53,18 @@ public interface IIdentifierService
         Guid workspaceId,
         Guid identifierId,
         CancellationToken cancellationToken = default);
+
+    Task<IdentifierDto> AttachCustomIdentifierAsync(
+        AuthenticatedIdentity identity,
+        Guid workspaceId,
+        Guid containerId,
+        string type,
+        string value,
+        CancellationToken cancellationToken = default);
+
+    Task<System.Collections.Generic.List<IdentifierDto>> GetContainerIdentifiersAsync(
+        AuthenticatedIdentity identity,
+        Guid workspaceId,
+        Guid containerId,
+        CancellationToken cancellationToken = default);
 }

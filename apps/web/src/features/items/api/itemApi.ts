@@ -89,3 +89,18 @@ export async function restoreItem(
   }
   return res.json();
 }
+
+export async function deleteItem(
+  workspaceId: string,
+  itemId: string,
+  token: string
+): Promise<void> {
+  const res = await fetch(`${API_BASE_URL}/workspaces/${workspaceId}/items/${itemId}`, {
+    method: 'DELETE',
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.error || `Failed to delete item: ${res.statusText}`);
+  }
+}

@@ -132,6 +132,7 @@ public class ContainerMoveService : IContainerMoveService
             BoxIdFormatter.Format(c.BoxNumber),
             c.Name,
             c.Description,
+            c.PhysicalLabel,
             c.IsArchived,
             c.DestinationStorageNodeId,
             c.IsPacked,

@@ -213,11 +213,6 @@ public class IdentifierService : IIdentifierService
             throw new KeyNotFoundException("Container not found or unavailable.");
         }
 
-        if (!trimmed.StartsWith("wzi_qr_") && !trimmed.StartsWith("wzi_bar_"))
-        {
-            throw new KeyNotFoundException("Container not found or unavailable.");
-        }
-
         var identifier = await _dbContext.Identifiers
             .AsNoTracking()
             .FirstOrDefaultAsync(i => i.Value == trimmed && !i.IsRevoked, cancellationToken);
@@ -356,5 +351,122 @@ public class IdentifierService : IIdentifierService
             .Replace('/', '_')
             .TrimEnd('=');
         return prefix + base64;
+    }
+
+    public async Task<IdentifierDto> AttachCustomIdentifierAsync(
+        AuthenticatedIdentity identity,
+        Guid workspaceId,
+        Guid containerId,
+        string type,
+        string value,
+        CancellationToken cancellationToken = default)
+    {
+        var normalizedType = type?.Trim().ToUpperInvariant();
+        if (normalizedType != "QR" && normalizedType != "BARCODE")
+        {
+            throw new ArgumentException("Identifier type must be either 'QR' or 'BARCODE'.");
+        }
+
+        var trimmedValue = value?.Trim();
+        if (string.IsNullOrWhiteSpace(trimmedValue) || trimmedValue.Length > 200)
+        {
+            throw new ArgumentException("Identifier value must not be empty or exceed 200 characters.");
+        }
+
+        await _authorizationService.RequireWorkspaceMembershipAsync(identity, workspaceId, cancellationToken);
+
+        var container = await _dbContext.Containers
+            .AsNoTracking()
+            .FirstOrDefaultAsync(c => c.WorkspaceId == workspaceId && c.Id == containerId, cancellationToken);
+
+        if (container == null)
+        {
+            throw new KeyNotFoundException($"Container '{containerId}' was not found in workspace '{workspaceId}'.");
+        }
+
+        if (container.IsArchived)
+        {
+            throw new InvalidOperationException("Cannot attach identifier to an archived container.");
+        }
+
+        // Conflict check
+        var existing = await _dbContext.Identifiers
+            .AsNoTracking()
+            .FirstOrDefaultAsync(i => i.Value == trimmedValue && !i.IsRevoked, cancellationToken);
+
+        if (existing != null)
+        {
+            if (existing.WorkspaceId == workspaceId && existing.ContainerId == containerId)
+            {
+                var displayBox = $"BOX {container.BoxNumber:D3}";
+                throw new InvalidOperationException($"This identifier is already attached to {displayBox}.");
+            }
+            else
+            {
+                // Cross-workspace or different container -> non-disclosure
+                throw new InvalidOperationException("This identifier is already in use.");
+            }
+        }
+
+        var identifier = new Identifier
+        {
+            Id = Guid.NewGuid(),
+            WorkspaceId = workspaceId,
+            ContainerId = containerId,
+            Type = normalizedType,
+            Value = trimmedValue,
+            IsRevoked = false,
+            RevokedAt = null,
+            CreatedAt = DateTimeOffset.UtcNow,
+            UpdatedAt = DateTimeOffset.UtcNow,
+        };
+
+        _dbContext.Identifiers.Add(identifier);
+        await _dbContext.SaveChangesAsync(cancellationToken);
+
+        return new IdentifierDto
+        {
+            Id = identifier.Id,
+            WorkspaceId = identifier.WorkspaceId,
+            ContainerId = identifier.ContainerId,
+            Type = identifier.Type,
+            Value = identifier.Value,
+            CreatedAt = identifier.CreatedAt
+        };
+    }
+
+    public async Task<System.Collections.Generic.List<IdentifierDto>> GetContainerIdentifiersAsync(
+        AuthenticatedIdentity identity,
+        Guid workspaceId,
+        Guid containerId,
+        CancellationToken cancellationToken = default)
+    {
+        await _authorizationService.RequireWorkspaceMembershipAsync(identity, workspaceId, cancellationToken);
+
+        var containerExists = await _dbContext.Containers
+            .AsNoTracking()
+            .AnyAsync(c => c.WorkspaceId == workspaceId && c.Id == containerId, cancellationToken);
+
+        if (!containerExists)
+        {
+            throw new KeyNotFoundException($"Container '{containerId}' was not found in workspace '{workspaceId}'.");
+        }
+
+        var list = await _dbContext.Identifiers
+            .AsNoTracking()
+            .Where(i => i.WorkspaceId == workspaceId && i.ContainerId == containerId && !i.IsRevoked)
+            .OrderBy(i => i.CreatedAt)
+            .Select(i => new IdentifierDto
+            {
+                Id = i.Id,
+                WorkspaceId = i.WorkspaceId,
+                ContainerId = i.ContainerId,
+                Type = i.Type,
+                Value = i.Value,
+                CreatedAt = i.CreatedAt
+            })
+            .ToListAsync(cancellationToken);
+
+        return list;
     }
 }

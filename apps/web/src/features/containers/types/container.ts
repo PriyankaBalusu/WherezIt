@@ -6,6 +6,7 @@ export interface Container {
   boxId: string;
   name?: string | null;
   description?: string | null;
+  physicalLabel?: string | null;
   isArchived: boolean;
   destinationStorageNodeId?: string | null;
   isPacked?: boolean;
@@ -18,6 +19,7 @@ export interface CreateContainerRequest {
   storageNodeId: string;
   name?: string;
   description?: string;
+  physicalLabel?: string;
   destinationStorageNodeId?: string;
   isPacked?: boolean;
   movingPriority?: string;
@@ -26,6 +28,7 @@ export interface CreateContainerRequest {
 export interface UpdateContainerRequest {
   name?: string;
   description?: string;
+  physicalLabel?: string | null;
   destinationStorageNodeId?: string | null;
   isPacked?: boolean;
   movingPriority?: string | null;

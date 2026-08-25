@@ -168,6 +168,73 @@ public class IdentifiersController : ControllerBase
         }
     }
 
+    [HttpGet("api/v1/workspaces/{workspaceId}/containers/{containerId}/identifiers")]
+    [EnableRateLimiting("GeneralApiPolicy")]
+    public async Task<IActionResult> GetContainerIdentifiers(
+        [FromRoute] Guid workspaceId,
+        [FromRoute] Guid containerId,
+        CancellationToken cancellationToken = default)
+    {
+        var identity = GetAuthenticatedIdentity();
+        if (identity == null) return Unauthorized();
+
+        try
+        {
+            var list = await _identifierService.GetContainerIdentifiersAsync(identity, workspaceId, containerId, cancellationToken);
+            return Ok(list);
+        }
+        catch (KeyNotFoundException ex)
+        {
+            return NotFound(new { error = ex.Message });
+        }
+        catch (UnauthorizedAccessException)
+        {
+            return Forbid();
+        }
+    }
+
+    public record AttachIdentifierRequestDto(string Type, string Value);
+
+    [HttpPost("api/v1/workspaces/{workspaceId}/containers/{containerId}/identifiers/attach")]
+    [EnableRateLimiting("GeneralApiPolicy")]
+    public async Task<IActionResult> AttachIdentifier(
+        [FromRoute] Guid workspaceId,
+        [FromRoute] Guid containerId,
+        [FromBody] AttachIdentifierRequestDto request,
+        CancellationToken cancellationToken = default)
+    {
+        var identity = GetAuthenticatedIdentity();
+        if (identity == null) return Unauthorized();
+
+        try
+        {
+            var identifier = await _identifierService.AttachCustomIdentifierAsync(identity, workspaceId, containerId, request.Type, request.Value, cancellationToken);
+            return Ok(new
+            {
+                identifierId = identifier.Id,
+                type = identifier.Type,
+                value = identifier.Value,
+                createdAt = identifier.CreatedAt
+            });
+        }
+        catch (KeyNotFoundException ex)
+        {
+            return NotFound(new { error = ex.Message });
+        }
+        catch (UnauthorizedAccessException)
+        {
+            return Forbid();
+        }
+        catch (InvalidOperationException ex)
+        {
+            return Conflict(new { error = ex.Message });
+        }
+        catch (ArgumentException ex)
+        {
+            return BadRequest(new { error = ex.Message });
+        }
+    }
+
     private AuthenticatedIdentity? GetAuthenticatedIdentity()
     {
         var uid = User.FindFirst(ClaimTypes.NameIdentifier)?.Value

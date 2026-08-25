@@ -5,6 +5,11 @@ import { CaptureReviewScreen } from './components/CaptureReviewScreen';
 import * as captureReviewApi from './api/captureReviewApi';
 
 vi.mock('./api/captureReviewApi');
+vi.mock('../auth/useAuth', () => ({
+  useAuth: () => ({
+    getIdToken: vi.fn().mockResolvedValue('mock-token'),
+  }),
+}));
 
 describe('CaptureReviewScreen (AI-004 & AI-005)', () => {
   let queryClient: QueryClient;

@@ -173,6 +173,34 @@ public class ItemsController : ControllerBase
         }
     }
 
+    [HttpDelete("api/v1/workspaces/{workspaceId}/items/{itemId}")]
+    public async Task<IActionResult> DeleteItem(
+        [FromRoute] Guid workspaceId,
+        [FromRoute] Guid itemId,
+        CancellationToken cancellationToken = default)
+    {
+        var identity = GetAuthenticatedIdentity();
+        if (identity == null) return Unauthorized();
+
+        try
+        {
+            await _itemService.DeleteItemAsync(identity, workspaceId, itemId, cancellationToken);
+            return NoContent();
+        }
+        catch (KeyNotFoundException ex)
+        {
+            return NotFound(new { error = ex.Message });
+        }
+        catch (InvalidOperationException ex)
+        {
+            return Conflict(new { error = ex.Message });
+        }
+        catch (UnauthorizedAccessException)
+        {
+            return Forbid();
+        }
+    }
+
     private AuthenticatedIdentity? GetAuthenticatedIdentity()
     {
         var uid = User.FindFirst(ClaimTypes.NameIdentifier)?.Value

@@ -8,7 +8,7 @@ import { ZeroWorkspaceState } from '../components/ZeroWorkspaceState';
 import { WorkspaceSelector } from '../components/WorkspaceSelector';
 import { CreateWorkspaceModal } from '../components/CreateWorkspaceModal';
 import { WorkspaceHome } from '../components/WorkspaceHome';
-import { useAuth } from '../../auth/useAuth';
+import { AccountMenu } from '../../auth/components/AccountMenu';
 
 interface WorkspaceContextType {
   workspaces: Workspace[];
@@ -31,7 +31,6 @@ export const WorkspaceProvider: React.FC<{ children?: React.ReactNode }> = ({ ch
   const { data: workspaces = [], isLoading, isError, error, refetch } = useWorkspaces();
   const [activeWorkspaceId, setActiveWorkspaceId] = useState<string>('');
   const [isCreateModalOpen, setIsCreateModalOpen] = useState<boolean>(false);
-  const { signOut } = useAuth();
 
   useEffect(() => {
     if (workspaces.length > 0) {
@@ -53,15 +52,6 @@ export const WorkspaceProvider: React.FC<{ children?: React.ReactNode }> = ({ ch
         window.location.href = '/';
       }
     }
-  };
-
-  const handleSignOut = async () => {
-    try {
-      await signOut();
-    } catch {
-      // Ignore
-    }
-    window.location.href = '/login';
   };
 
   return (
@@ -88,23 +78,12 @@ export const WorkspaceProvider: React.FC<{ children?: React.ReactNode }> = ({ ch
             gap: '1rem',
           }}
         >
-          <div className="nav-left" style={{ display: 'flex', alignItems: 'center', gap: '1.5rem' }}>
+          <div className="nav-left" style={{ display: 'flex', alignItems: 'center', gap: '1.25rem', flexWrap: 'wrap' }}>
             <Link to="/" style={{ display: 'flex', alignItems: 'center', gap: '0.625rem', textDecoration: 'none', color: '#ffffff' }}>
               <img src="/icons/icon-192.svg" alt="WherezIt Logo" style={{ width: '32px', height: '32px', borderRadius: '8px' }} />
               <span style={{ fontWeight: 800, fontSize: '1.25rem', letterSpacing: '-0.025em' }}>WherezIt</span>
             </Link>
 
-            {activeWorkspace && (
-              <nav style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-                <Link to={`/workspaces/${activeWorkspace.id}/quick-pack`} style={{ color: '#38bdf8', textDecoration: 'none', fontSize: '0.875rem', fontWeight: 700 }}>
-                  + Quick Pack
-                </Link>
-              </nav>
-            )}
-
-          </div>
-
-          <div className="nav-right" style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
             {workspaces.length > 0 && activeWorkspace && (
               <WorkspaceSelector
                 workspaces={workspaces}
@@ -113,21 +92,27 @@ export const WorkspaceProvider: React.FC<{ children?: React.ReactNode }> = ({ ch
                 onCreateWorkspace={() => setIsCreateModalOpen(true)}
               />
             )}
-            <button
-              onClick={handleSignOut}
-              style={{
-                backgroundColor: 'transparent',
-                border: '1px solid #334155',
-                color: '#94a3b8',
-                padding: '0.375rem 0.75rem',
-                borderRadius: '0.375rem',
-                fontSize: '0.75rem',
-                fontWeight: 600,
-                cursor: 'pointer',
-              }}
-            >
-              Sign Out
-            </button>
+
+            {activeWorkspace && (
+              <nav style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                <Link
+                  to={`/workspaces/${activeWorkspace.id}/quick-pack`}
+                  style={{ color: '#38bdf8', textDecoration: 'none', fontSize: '0.875rem', fontWeight: 700 }}
+                >
+                  Moving Assistant
+                </Link>
+                <Link
+                  to="/scan"
+                  style={{ color: '#f8fafc', textDecoration: 'none', fontSize: '0.875rem', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '0.25rem' }}
+                >
+                  📷 Scan
+                </Link>
+              </nav>
+            )}
+          </div>
+
+          <div className="nav-right" style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+            <AccountMenu />
           </div>
         </header>
 

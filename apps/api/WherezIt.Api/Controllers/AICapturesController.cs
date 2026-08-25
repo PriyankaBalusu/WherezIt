@@ -17,13 +17,115 @@ public class AICapturesController : ControllerBase
 {
     private readonly IAICaptureReviewService _reviewService;
     private readonly IAICaptureConfirmationService _confirmationService;
+    private readonly WherezIt.Application.Images.Services.IImageManagementService _imageService;
+    private readonly WherezIt.Application.AI.Services.IAIJobProcessor _jobProcessor;
+    private readonly WherezIt.Application.Workspaces.Services.IWorkspaceAuthorizationService _authService;
+    private readonly WherezIt.Infrastructure.Persistence.WherezItDbContext _dbContext;
 
     public AICapturesController(
         IAICaptureReviewService reviewService,
-        IAICaptureConfirmationService confirmationService)
+        IAICaptureConfirmationService confirmationService,
+        WherezIt.Application.Images.Services.IImageManagementService imageService,
+        WherezIt.Application.AI.Services.IAIJobProcessor jobProcessor,
+        WherezIt.Application.Workspaces.Services.IWorkspaceAuthorizationService authService,
+        WherezIt.Infrastructure.Persistence.WherezItDbContext dbContext)
     {
         _reviewService = reviewService;
         _confirmationService = confirmationService;
+        _imageService = imageService;
+        _jobProcessor = jobProcessor;
+        _authService = authService;
+        _dbContext = dbContext;
+    }
+
+    [HttpPost("/api/v1/workspaces/{workspaceId}/containers/{containerId}/captures")]
+    [Consumes("multipart/form-data")]
+    public async Task<IActionResult> CreateCapture(
+        [FromRoute] Guid workspaceId,
+        [FromRoute] Guid containerId,
+        IFormFile file,
+        CancellationToken cancellationToken = default)
+    {
+        var identity = GetAuthenticatedIdentity();
+        if (identity == null)
+        {
+            return Unauthorized(new { error = "Firebase UID claim not found in authenticated principal." });
+        }
+
+        if (file == null || file.Length == 0)
+        {
+            return BadRequest(new { error = "An image file is required." });
+        }
+
+        try
+        {
+            await _authService.RequireWorkspaceMembershipAsync(identity, workspaceId, cancellationToken);
+
+            var container = await Microsoft.EntityFrameworkCore.EntityFrameworkQueryableExtensions.FirstOrDefaultAsync(
+                _dbContext.Containers, c => c.Id == containerId && c.WorkspaceId == workspaceId, cancellationToken);
+
+            if (container == null)
+            {
+                return NotFound(new { error = "Container not found in this workspace." });
+            }
+
+            using var stream = file.OpenReadStream();
+            var imageResponse = await _imageService.UploadContainerImageAsync(
+                identity, workspaceId, containerId, stream, file.ContentType, file.Length, cancellationToken);
+
+            var captureId = Guid.NewGuid();
+            var now = DateTimeOffset.UtcNow;
+
+            var capture = new WherezIt.Domain.Entities.InventoryCapture
+            {
+                Id = captureId,
+                WorkspaceId = workspaceId,
+                ContainerId = containerId,
+                ImageAssetId = imageResponse.Id,
+                Status = "PROCESSING",
+                CreatedAt = now,
+                UpdatedAt = now,
+            };
+
+            var jobId = Guid.NewGuid();
+            var job = new WherezIt.Domain.Entities.AIProcessingJob
+            {
+                Id = jobId,
+                WorkspaceId = workspaceId,
+                CaptureId = captureId,
+                Status = "QUEUED",
+                AttemptCount = 0,
+                CreatedAt = now,
+                UpdatedAt = now,
+            };
+
+            _dbContext.InventoryCaptures.Add(capture);
+            _dbContext.AIProcessingJobs.Add(job);
+            await _dbContext.SaveChangesAsync(cancellationToken);
+
+            // Execute local AI job processing inline
+            await _jobProcessor.ProcessJobAsync(jobId, cancellationToken);
+
+            return Created($"/api/v1/workspaces/{workspaceId}/captures/{captureId}/review", new
+            {
+                captureId = captureId,
+                workspaceId = workspaceId,
+                containerId = containerId,
+                status = "REVIEW_REQUIRED",
+            });
+        }
+        catch (ArgumentException ex)
+        {
+            return BadRequest(new { error = ex.Message });
+        }
+        catch (UnauthorizedAccessException)
+        {
+            return Forbid();
+        }
+        catch (Exception ex)
+        {
+            return StatusCode(StatusCodes.Status500InternalServerError, new { error = "AI capture failed: " + ex.Message });
+        }
     }
 
     [HttpGet("{captureId}/review")]

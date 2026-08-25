@@ -41,7 +41,7 @@ describe('ItemList UI (ITEM-001)', () => {
     expect(screen.getByText(/Loading items.../i)).toBeInTheDocument();
   });
 
-  it('renders item list when loaded', async () => {
+  it('renders item list when loaded without verified badge', async () => {
     vi.spyOn(itemApi, 'getItemsByContainer').mockResolvedValue([
       {
         id: 'item-1',
@@ -66,11 +66,11 @@ describe('ItemList UI (ITEM-001)', () => {
     await waitFor(() => {
       expect(screen.getByText('Christmas Lights')).toBeInTheDocument();
       expect(screen.getByText('Qty: 2')).toBeInTheDocument();
-      expect(screen.getByText('✓ Verified')).toBeInTheDocument();
+      expect(screen.queryByText('✓ Verified')).not.toBeInTheDocument();
     });
   });
 
-  it('calls createItem API when submitting form', async () => {
+  it('calls createItem API when submitting modal form', async () => {
     vi.spyOn(itemApi, 'getItemsByContainer').mockResolvedValue([]);
     const createSpy = vi.spyOn(itemApi, 'createItem').mockResolvedValue({
       id: 'item-new',
@@ -92,19 +92,33 @@ describe('ItemList UI (ITEM-001)', () => {
     );
 
     await waitFor(() => {
-      expect(screen.getByPlaceholderText(/Item name/i)).toBeInTheDocument();
+      expect(screen.getByText('+ Add Item')).toBeInTheDocument();
     });
 
-    fireEvent.change(screen.getByPlaceholderText(/Item name/i), {
+    // Open Chooser Modal
+    fireEvent.click(screen.getByText('+ Add Item'));
+
+    await waitFor(() => {
+      expect(screen.getByText('Add Manually')).toBeInTheDocument();
+    });
+
+    // Click Add Manually to open AddItemModal
+    fireEvent.click(screen.getByText('Add Manually'));
+
+    await waitFor(() => {
+      expect(screen.getByPlaceholderText(/e\.g\. Christmas Lights/i)).toBeInTheDocument();
+    });
+
+    fireEvent.change(screen.getByPlaceholderText(/e\.g\. Christmas Lights/i), {
       target: { value: 'Tape Measure' },
     });
-    fireEvent.submit(screen.getByText('Add Item').closest('form')!);
+    fireEvent.submit(screen.getByPlaceholderText(/e\.g\. Christmas Lights/i).closest('form')!);
 
     await waitFor(() => {
       expect(createSpy).toHaveBeenCalledWith(
         workspaceId,
         containerId,
-        { name: 'Tape Measure', quantity: 1 },
+        { name: 'Tape Measure', quantity: 1, category: undefined },
         'fake_id_token'
       );
     });
@@ -120,10 +134,22 @@ describe('ItemList UI (ITEM-001)', () => {
     );
 
     await waitFor(() => {
-      expect(screen.getByPlaceholderText(/Item name/i)).toBeInTheDocument();
+      expect(screen.getByText('+ Add Item')).toBeInTheDocument();
     });
 
-    const nameInput = screen.getByPlaceholderText(/Item name/i);
+    fireEvent.click(screen.getByText('+ Add Item'));
+
+    await waitFor(() => {
+      expect(screen.getByText('Add Manually')).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByText('Add Manually'));
+
+    await waitFor(() => {
+      expect(screen.getByPlaceholderText(/e\.g\. Christmas Lights/i)).toBeInTheDocument();
+    });
+
+    const nameInput = screen.getByPlaceholderText(/e\.g\. Christmas Lights/i);
     const qtyInput = screen.getByDisplayValue('1');
     const submitBtn = screen.getByText('Add Item');
 
@@ -133,6 +159,40 @@ describe('ItemList UI (ITEM-001)', () => {
 
     await waitFor(() => {
       expect(screen.getByRole('alert')).toHaveTextContent('Quantity must be 1 or greater.');
+    });
+  });
+
+  it('handles item soft archive and restore toggle', async () => {
+    vi.spyOn(itemApi, 'getItemsByContainer').mockResolvedValue([
+      {
+        id: 'item-archived-1',
+        workspaceId,
+        containerId,
+        name: 'Old Blanket',
+        quantity: 1,
+        source: 'MANUAL',
+        isVerified: true,
+        isArchived: true,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      },
+    ]);
+
+    render(
+      <QueryClientProvider client={queryClient}>
+        <ItemList workspaceId={workspaceId} containerId={containerId} />
+      </QueryClientProvider>
+    );
+
+    await waitFor(() => {
+      expect(screen.getByLabelText(/Show Archived Items/i)).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByLabelText(/Show Archived Items/i));
+
+    await waitFor(() => {
+      expect(screen.getByText('Old Blanket')).toBeInTheDocument();
+      expect(screen.getByText('Restore')).toBeInTheDocument();
     });
   });
 });

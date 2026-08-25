@@ -77,4 +77,48 @@ public class ItemCategoryIntegrationTest : IClassFixture<PostgresTestFixture>
         await Assert.ThrowsAsync<KeyNotFoundException>(async () =>
             await itemService.UpdateItemAsync(userB, wsB.Id, itemWithCat.Id, new UpdateItemRequestDto(null, null, "CrossWS")));
     }
+
+    [Fact]
+    public async Task Item_PermanentDelete_ArchivedOnly_Enforced_And_Tenancy()
+    {
+        using var scope = _fixture.Services.CreateScope();
+        var workspaceService = scope.ServiceProvider.GetRequiredService<IWorkspaceService>();
+        var locationService = scope.ServiceProvider.GetRequiredService<IStorageLocationService>();
+        var containerService = scope.ServiceProvider.GetRequiredService<IContainerService>();
+        var itemService = scope.ServiceProvider.GetRequiredService<IItemService>();
+
+        var userA = new AuthenticatedIdentity($"b2_user_a_{Guid.NewGuid():N}", "usera@b2.test", true);
+        var userB = new AuthenticatedIdentity($"b2_user_b_{Guid.NewGuid():N}", "userb@b2.test", true);
+
+        var wsA = await workspaceService.CreateWorkspaceAsync(userA, new CreateWorkspaceRequestDto("B2 WS A"));
+        var wsB = await workspaceService.CreateWorkspaceAsync(userB, new CreateWorkspaceRequestDto("B2 WS B"));
+
+        var locA = await locationService.CreateLocationAsync(userA, wsA.Id, new CreateStorageLocationRequestDto("Loc A", null));
+        var containerA = await containerService.CreateContainerAsync(userA, wsA.Id, new CreateContainerRequestDto(locA.Id, "Box A", "Desc A"));
+
+        var activeItem = await itemService.CreateItemAsync(userA, wsA.Id, containerA.Id, new CreateItemRequestDto("Active Tool", 1));
+
+        // 1. Attempting to permanently delete an ACTIVE item must be rejected (InvalidOperationException)
+        await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            itemService.DeleteItemAsync(userA, wsA.Id, activeItem.Id));
+
+        // 2. Archive the item
+        var archivedItem = await itemService.ArchiveItemAsync(userA, wsA.Id, activeItem.Id);
+        Assert.True(archivedItem.IsArchived);
+
+        // 3. User B (unauthorized) attempting to delete Item in WS A -> UnauthorizedAccessException
+        await Assert.ThrowsAsync<UnauthorizedAccessException>(() =>
+            itemService.DeleteItemAsync(userB, wsA.Id, activeItem.Id));
+
+        // 4. User B using WS B id to delete Item in WS A -> KeyNotFoundException
+        await Assert.ThrowsAsync<KeyNotFoundException>(() =>
+            itemService.DeleteItemAsync(userB, wsB.Id, activeItem.Id));
+
+        // 5. Permanently delete archived item -> succeeds
+        await itemService.DeleteItemAsync(userA, wsA.Id, activeItem.Id);
+
+        // 6. Item no longer exists
+        await Assert.ThrowsAsync<KeyNotFoundException>(() =>
+            itemService.GetItemAsync(userA, wsA.Id, activeItem.Id));
+    }
 }

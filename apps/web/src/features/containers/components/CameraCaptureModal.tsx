@@ -151,7 +151,7 @@ export const CameraCaptureModal: React.FC<CameraCaptureModalProps> = ({
           <input
             type="file"
             ref={fileInputRef}
-            accept="image/jpeg,image/png,image/webp"
+            accept="image/jpeg,image/png,image/webp,image/heic,image/heif,.heic,.heif"
             capture="environment"
             onChange={handleFileChange}
             style={{ display: 'block', width: '100%', marginBottom: '0.5rem' }}

@@ -49,4 +49,24 @@ public class WorkspaceAuthorizationService : IWorkspaceAuthorizationService
         var user = await _userService.SyncCurrentUserAsync(identity, cancellationToken);
         await RequireWorkspaceMembershipAsync(user.Id, workspaceId, cancellationToken);
     }
+
+    public async Task<Domain.Enums.WorkspaceRole?> GetWorkspaceRoleAsync(Guid userId, Guid workspaceId, CancellationToken cancellationToken = default)
+    {
+        if (userId == Guid.Empty || workspaceId == Guid.Empty)
+        {
+            return null;
+        }
+
+        var member = await _dbContext.WorkspaceMembers
+            .AsNoTracking()
+            .FirstOrDefaultAsync(m => m.WorkspaceId == workspaceId && m.UserId == userId, cancellationToken);
+
+        return member?.Role;
+    }
+
+    public async Task<Domain.Enums.WorkspaceRole?> GetWorkspaceRoleAsync(AuthenticatedIdentity identity, Guid workspaceId, CancellationToken cancellationToken = default)
+    {
+        var user = await _userService.SyncCurrentUserAsync(identity, cancellationToken);
+        return await GetWorkspaceRoleAsync(user.Id, workspaceId, cancellationToken);
+    }
 }

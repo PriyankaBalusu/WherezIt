@@ -4,6 +4,7 @@ using System.Threading.RateLimiting;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.RateLimiting;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
@@ -82,6 +83,9 @@ builder.Services.AddCors(options =>
 });
 
 var app = builder.Build();
+
+var useMockVision = builder.Configuration.GetValue<bool>("Gemini:UseMockVision", false) || builder.Configuration.GetValue<bool>("AI:UseMockVision", false);
+app.Logger.LogInformation("IInventoryVisionProvider registered as: {Provider}", useMockVision ? "MockInventoryVisionProvider" : "VertexAiGeminiVisionProvider");
 
 if (app.Environment.IsDevelopment())
 {

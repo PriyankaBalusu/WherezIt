@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useCaptureReview } from '../hooks/useCaptureReview';
 import { confirmCaptureReview, ConfirmItemPayload } from '../api/captureReviewApi';
+import { useAuth } from '../../auth/useAuth';
 
 export interface DraftItem {
   id: string; // suggestion ID or client temp ID
@@ -22,6 +23,7 @@ export const CaptureReviewScreen: React.FC<CaptureReviewScreenProps> = ({
   onNavigateToManualEntry,
   onConfirmSuccess,
 }) => {
+  const { getIdToken } = useAuth();
   const { data: reviewData, isLoading, isError, error, refetch } = useCaptureReview(workspaceId, captureId);
 
   const [draftItems, setDraftItems] = useState<DraftItem[]>([]);
@@ -30,6 +32,9 @@ export const CaptureReviewScreen: React.FC<CaptureReviewScreenProps> = ({
   const [isSubmittingConfirm, setIsSubmittingConfirm] = useState(false);
   const [confirmError, setConfirmError] = useState<string | null>(null);
   const [confirmedSuccess, setConfirmedSuccess] = useState(false);
+
+  const [imageBlobUrl, setImageBlobUrl] = useState<string | null>(null);
+  const [isImageLoading, setIsImageLoading] = useState<boolean>(false);
 
   // Initialize draft items from server suggestions when review data loads
   useEffect(() => {
@@ -43,6 +48,44 @@ export const CaptureReviewScreen: React.FC<CaptureReviewScreenProps> = ({
       );
     }
   }, [reviewData]);
+
+  // Fetch authorized image blob safely
+  useEffect(() => {
+    const imageId = reviewData?.imageId;
+    if (!workspaceId || !imageId) return;
+    let active = true;
+    let createdUrl: string | null = null;
+
+    async function loadImage() {
+      try {
+        setIsImageLoading(true);
+        const token = await getIdToken();
+        const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || import.meta.env.VITE_API_URL || '/api/v1';
+        const res = await fetch(`${API_BASE_URL}/workspaces/${encodeURIComponent(workspaceId)}/images/${encodeURIComponent(imageId!)}`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+
+        if (res.ok && active) {
+          const blob = await res.blob();
+          createdUrl = URL.createObjectURL(blob);
+          setImageBlobUrl(createdUrl);
+        }
+      } catch (err) {
+        // Fallback
+      } finally {
+        if (active) setIsImageLoading(false);
+      }
+    }
+
+    loadImage();
+
+    return () => {
+      active = false;
+      if (createdUrl) {
+        URL.revokeObjectURL(createdUrl);
+      }
+    };
+  }, [workspaceId, reviewData?.imageId]);
 
   if (isLoading) {
     return (
@@ -94,7 +137,6 @@ export const CaptureReviewScreen: React.FC<CaptureReviewScreenProps> = ({
   }
 
   const isReadOnly = reviewData.status === 'CONFIRMED' || confirmedSuccess;
-  const imageUrl = `/api/v1/workspaces/${encodeURIComponent(workspaceId)}/images/${encodeURIComponent(reviewData.imageId)}`;
 
   const handleNameChange = (id: string, newName: string) => {
     if (isReadOnly) return;
@@ -195,17 +237,29 @@ export const CaptureReviewScreen: React.FC<CaptureReviewScreenProps> = ({
       {/* Flagship Two-Column Review Composition */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(340px, 1fr))', gap: '1.5rem' }}>
         {/* Left Column: Authorized Image Preview */}
-        <div className="card" style={{ padding: '1rem', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-          <img
-            src={imageUrl}
-            alt={`Container ${reviewData.boxDisplayId}`}
-            style={{
-              maxWidth: '100%',
-              maxHeight: '380px',
-              borderRadius: '0.5rem',
-              objectFit: 'cover',
-            }}
-          />
+        <div className="card" style={{ padding: '1rem', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '260px' }}>
+          {isImageLoading ? (
+            <div style={{ color: '#64748b', textAlign: 'center', padding: '2rem' }}>
+              <div className="spinner" style={{ width: '24px', height: '24px', border: '3px solid #cbd5e1', borderTopColor: '#0284c7', borderRadius: '50%', animation: 'spin 1s linear infinite', margin: '0 auto 0.75rem auto' }} />
+              📷 Loading photo preview...
+            </div>
+          ) : imageBlobUrl ? (
+            <img
+              src={imageBlobUrl}
+              alt={`Container ${reviewData.boxDisplayId}`}
+              style={{
+                maxWidth: '100%',
+                maxHeight: '380px',
+                borderRadius: '0.5rem',
+                objectFit: 'cover',
+              }}
+            />
+          ) : (
+            <div style={{ color: '#94a3b8', textAlign: 'center', padding: '2rem' }}>
+              <div style={{ fontSize: '2.5rem', marginBottom: '0.5rem' }}>🖼️</div>
+              <div style={{ fontSize: '0.875rem' }}>Photo preview unavailable</div>
+            </div>
+          )}
           <span style={{ fontSize: '0.75rem', color: '#64748b', marginTop: '0.75rem' }}>
             Uploaded Container Photo
           </span>

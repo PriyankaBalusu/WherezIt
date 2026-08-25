@@ -8,4 +8,6 @@ public interface IWorkspaceAuthorizationService
     Task RequireWorkspaceMembershipAsync(Guid userId, Guid workspaceId, CancellationToken cancellationToken = default);
     Task<bool> IsWorkspaceMemberAsync(AuthenticatedIdentity identity, Guid workspaceId, CancellationToken cancellationToken = default);
     Task RequireWorkspaceMembershipAsync(AuthenticatedIdentity identity, Guid workspaceId, CancellationToken cancellationToken = default);
+    Task<Domain.Enums.WorkspaceRole?> GetWorkspaceRoleAsync(Guid userId, Guid workspaceId, CancellationToken cancellationToken = default);
+    Task<Domain.Enums.WorkspaceRole?> GetWorkspaceRoleAsync(AuthenticatedIdentity identity, Guid workspaceId, CancellationToken cancellationToken = default);
 }

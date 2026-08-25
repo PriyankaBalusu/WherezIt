@@ -151,3 +151,25 @@ export async function fetchContainer(
   return response.json();
 }
 
+export async function deleteContainer(
+  workspaceId: string,
+  containerId: string,
+  getIdToken: () => Promise<string | null>
+): Promise<void> {
+  const token = await getIdToken();
+  if (!token) throw new Error('User is not authenticated.');
+
+  const response = await fetch(`${API_BASE_URL}/workspaces/${workspaceId}/containers/${containerId}`, {
+    method: 'DELETE',
+    headers: {
+      'Authorization': `Bearer ${token}`,
+    },
+  });
+
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(errorData.error || `Failed to delete container: ${response.statusText}`);
+  }
+}
+
+

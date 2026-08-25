@@ -6,6 +6,7 @@ import {
   updateContainer,
   archiveContainer,
   restoreContainer,
+  deleteContainer,
   fetchContainer,
 } from '../api/containerApi';
 import { CreateContainerRequest, UpdateContainerRequest } from '../types/container';
@@ -79,3 +80,17 @@ export function useRestoreContainer(workspaceId: string) {
     },
   });
 }
+
+export function useDeleteContainer(workspaceId: string) {
+  const { getIdToken } = useAuth();
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (containerId: string) => deleteContainer(workspaceId, containerId, getIdToken),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['containers', workspaceId] });
+      queryClient.invalidateQueries({ queryKey: ['items', workspaceId] });
+    },
+  });
+}
+

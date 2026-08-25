@@ -39,6 +39,10 @@ public class ContainerConfiguration : IEntityTypeConfiguration<Container>
             .HasColumnName("description")
             .HasMaxLength(500);
 
+        builder.Property(c => c.PhysicalLabel)
+            .HasColumnName("physical_label")
+            .HasMaxLength(100);
+
         builder.Property(c => c.DestinationStorageNodeId)
             .HasColumnName("destination_storage_node_id");
 

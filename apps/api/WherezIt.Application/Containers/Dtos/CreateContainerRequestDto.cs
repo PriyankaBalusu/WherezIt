@@ -8,5 +8,6 @@ public record CreateContainerRequestDto(
     string? Description,
     Guid? DestinationStorageNodeId = null,
     bool? IsPacked = null,
-    string? MovingPriority = null
+    string? MovingPriority = null,
+    string? PhysicalLabel = null
 );

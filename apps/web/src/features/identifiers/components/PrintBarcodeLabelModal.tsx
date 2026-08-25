@@ -35,7 +35,6 @@ export const PrintBarcodeLabelModal: React.FC<PrintBarcodeLabelModalProps> = ({
     }
   };
 
-
   useEffect(() => {
     if (identifier && svgRef.current) {
       try {
@@ -81,79 +80,185 @@ export const PrintBarcodeLabelModal: React.FC<PrintBarcodeLabelModalProps> = ({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 p-4"
+      style={{
+        position: 'fixed',
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        backgroundColor: 'rgba(0, 0, 0, 0.5)',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        zIndex: 1000,
+        padding: '1rem',
+      }}
+      className="barcode-modal-backdrop"
       role="dialog"
       aria-modal="true"
       aria-labelledby="barcode-modal-title"
     >
-      <div className="bg-white rounded-lg p-6 max-w-md w-full shadow-xl">
-        <div className="flex justify-between items-center mb-4 print:hidden">
-          <h2 id="barcode-modal-title" className="text-xl font-bold">Print Barcode Label</h2>
+      <style>{`
+        @media print {
+          body * {
+            visibility: hidden;
+          }
+          .barcode-label-printable, .barcode-label-printable * {
+            visibility: visible;
+          }
+          .barcode-label-printable {
+            position: absolute;
+            left: 0;
+            top: 0;
+            width: 100%;
+            display: flex !important;
+            justify-content: center;
+            align-items: center;
+            box-shadow: none !important;
+            border: 2px solid #000 !important;
+          }
+          .barcode-modal-backdrop {
+            background: transparent !important;
+          }
+          .no-print {
+            display: none !important;
+          }
+        }
+      `}</style>
+
+      <div
+        style={{
+          backgroundColor: '#fff',
+          borderRadius: '0.5rem',
+          padding: '1.5rem',
+          maxWidth: '420px',
+          width: '100%',
+          boxShadow: '0 10px 25px rgba(0,0,0,0.2)',
+        }}
+      >
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }} className="no-print">
+          <h3 id="barcode-modal-title" style={{ margin: 0, fontSize: '1.25rem', color: '#0f172a', fontWeight: 700 }}>
+            Barcode Label
+          </h3>
           <button
+            type="button"
             onClick={onClose}
-            className="text-gray-500 hover:text-gray-700 font-bold text-lg"
+            style={{ border: 'none', background: 'none', fontSize: '1.5rem', cursor: 'pointer', color: '#94a3b8' }}
             aria-label="Close modal"
           >
-            ✕
+            &times;
           </button>
         </div>
 
-        {isLoading && <p className="text-gray-600 my-4">Generating barcode label...</p>}
-        {error && <p className="text-red-600 my-4">{error}</p>}
+        {isLoading && (
+          <div style={{ textAlign: 'center', padding: '2rem', color: '#64748b' }}>
+            Generating barcode label...
+          </div>
+        )}
+
+        {error && (
+          <div role="alert" style={{ backgroundColor: '#fef2f2', border: '1px solid #fca5a5', color: '#dc2626', padding: '0.75rem 1rem', borderRadius: '0.375rem', marginBottom: '1rem', fontSize: '0.875rem' }}>
+            {error}
+          </div>
+        )}
 
         {!identifier && !isLoading && (
-          <div className="text-center my-6">
-            <p className="text-gray-600 mb-4 text-sm">
-              No Barcode has been created for this box.
+          <div style={{ textAlign: 'center', padding: '1.5rem 0' }}>
+            <p style={{ color: '#475569', marginBottom: '1.5rem', fontSize: '0.95rem' }}>
+              No barcode has been created for this box.
             </p>
-            <button
-              onClick={handleGenerate}
-              className="px-4 py-2 text-sm font-semibold text-white bg-blue-600 rounded-md hover:bg-blue-700"
-            >
-              Generate Barcode
-            </button>
+            <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'center' }}>
+              <button
+                type="button"
+                className="btn-secondary"
+                onClick={onClose}
+                style={{ padding: '0.5rem 1rem', fontSize: '0.875rem' }}
+              >
+                Close
+              </button>
+              <button
+                type="button"
+                className="btn-primary"
+                onClick={handleGenerate}
+                style={{ padding: '0.5rem 1.25rem', fontSize: '0.875rem' }}
+              >
+                Generate Barcode
+              </button>
+            </div>
           </div>
         )}
 
         {identifier && (
-          <div className="flex flex-col items-center border border-dashed border-gray-400 p-6 rounded bg-white my-4 print:border-none print:shadow-none">
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.375rem', marginBottom: '0.25rem' }}>
-              <img src="/icons/icon-192.svg" alt="WherezIt Logo" style={{ width: '20px', height: '20px', borderRadius: '4px' }} />
-              <span className="text-xs uppercase tracking-widest font-semibold text-gray-500 mb-1">
-                WHEREZIT
-              </span>
-            </div>
-            <span className="text-2xl font-black text-gray-900 mb-3">{boxDisplayId}</span>
-            
-            <svg ref={svgRef} className="max-w-full h-auto" />
+          <div style={{ textAlign: 'center' }}>
+            {/* Printable Barcode Card */}
+            <div
+              className="barcode-label-printable"
+              style={{
+                border: '2px solid #2d3748',
+                borderRadius: '0.5rem',
+                padding: '1.25rem 1rem',
+                backgroundColor: '#fff',
+                margin: '0 auto 1.5rem auto',
+                maxWidth: '300px',
+                width: '100%',
+                boxSizing: 'border-box',
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                overflow: 'hidden',
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.375rem', marginBottom: '0.25rem' }}>
+                <img src="/icons/icon-192.svg" alt="WherezIt Logo" style={{ width: '18px', height: '18px', borderRadius: '4px' }} />
+                <span style={{ fontSize: '0.7rem', fontWeight: 800, letterSpacing: '0.1em', color: '#64748b', textTransform: 'uppercase' }}>
+                  WHEREZIT
+                </span>
+              </div>
+              <div style={{ fontSize: '1.625rem', fontWeight: 800, color: '#0f172a', marginBottom: '0.5rem', maxWidth: '100%', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                {boxDisplayId}
+              </div>
 
-            <span className="font-mono text-xs text-gray-600 mt-2">{identifier.value}</span>
-            <span className="text-xs text-gray-400 mt-1">Scan to find this box</span>
+              <div style={{ width: '100%', display: 'flex', justifyContent: 'center', overflow: 'hidden', marginBottom: '0.25rem' }}>
+                <svg ref={svgRef} style={{ maxWidth: '100%', height: 'auto', display: 'block' }} />
+              </div>
+
+              <div style={{ fontFamily: 'monospace', fontSize: '0.7rem', color: '#475569', marginTop: '0.25rem', maxWidth: '100%', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                {identifier.value}
+              </div>
+              <div style={{ fontSize: '0.7rem', color: '#94a3b8', marginTop: '0.25rem' }}>
+                Scan to find this box
+              </div>
+            </div>
+
+            <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'flex-end' }} className="no-print">
+              <button
+                type="button"
+                className="btn-secondary"
+                onClick={onClose}
+                style={{ padding: '0.5rem 1rem', fontSize: '0.875rem' }}
+              >
+                Close
+              </button>
+              <button
+                type="button"
+                onClick={handleRevoke}
+                disabled={!identifier}
+                style={{ padding: '0.5rem 1rem', border: '1px solid #dc2626', color: '#dc2626', borderRadius: '0.25rem', backgroundColor: '#fff', cursor: 'pointer', fontWeight: 500, fontSize: '0.875rem' }}
+              >
+                Revoke Label
+              </button>
+              <button
+                type="button"
+                className="btn-primary"
+                onClick={() => window.print()}
+                disabled={!identifier}
+                style={{ padding: '0.5rem 1.25rem', fontSize: '0.875rem' }}
+              >
+                Print Label
+              </button>
+            </div>
           </div>
         )}
-
-        <div className="flex justify-end gap-3 mt-6 print:hidden">
-          <button
-            onClick={onClose}
-            className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-md hover:bg-gray-200"
-          >
-            Close
-          </button>
-          <button
-            onClick={handleRevoke}
-            disabled={!identifier}
-            className="px-4 py-2 text-sm font-medium text-red-600 border border-red-600 bg-white rounded-md hover:bg-red-50 disabled:opacity-50"
-          >
-            Revoke Label
-          </button>
-          <button
-            onClick={() => window.print()}
-            disabled={!identifier}
-            className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700 disabled:opacity-50"
-          >
-            Print Label
-          </button>
-        </div>
       </div>
     </div>
   );

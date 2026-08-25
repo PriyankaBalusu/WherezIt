@@ -8,6 +8,7 @@ public class Container
     public int BoxNumber { get; set; }
     public string? Name { get; set; }
     public string? Description { get; set; }
+    public string? PhysicalLabel { get; set; }
     public Guid? DestinationStorageNodeId { get; set; }
     public bool IsPacked { get; set; }
     public string? MovingPriority { get; set; }

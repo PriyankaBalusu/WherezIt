@@ -41,8 +41,19 @@ public static class DependencyInjection
         services.AddSingleton<WherezIt.Application.Storage.Services.IImageObjectStorage, Services.LocalDevImageObjectStorage>();
         services.AddScoped<WherezIt.Application.Search.Services.ISearchService, Services.SearchService>();
         services.AddScoped<WherezIt.Application.Search.Services.IWorkspaceSearchService, Services.WorkspaceSearchService>();
-        services.AddSingleton<WherezIt.Application.AI.Services.IAIProcessingQueue, Services.LocalDevProcessingQueue>();
-        services.AddScoped<WherezIt.Application.AI.Services.IInventoryVisionProvider, Services.MockInventoryVisionProvider>();
+        services.Configure<Services.GeminiOptions>(configuration.GetSection("Gemini"));
+        services.AddHttpClient<Services.VertexAiGeminiVisionProvider>();
+
+        var useMockVision = configuration.GetValue<bool>("Gemini:UseMockVision", false) || configuration.GetValue<bool>("AI:UseMockVision", false);
+        if (useMockVision)
+        {
+            services.AddScoped<WherezIt.Application.AI.Services.IInventoryVisionProvider, Services.MockInventoryVisionProvider>();
+        }
+        else
+        {
+            services.AddScoped<WherezIt.Application.AI.Services.IInventoryVisionProvider, Services.VertexAiGeminiVisionProvider>();
+        }
+
         services.AddScoped<WherezIt.Application.AI.Services.IAIJobProcessor, Services.AIJobProcessor>();
         services.AddScoped<WherezIt.Application.AI.Services.IAICaptureReviewService, Services.AICaptureReviewService>();
         services.AddScoped<WherezIt.Application.AI.Services.IAICaptureConfirmationService, Services.AICaptureConfirmationService>();

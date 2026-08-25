@@ -1,14 +1,13 @@
 /**
- * IMG-003: Client-side image compression and resizing utility.
+ * IMG-003 & HEIC: Client-side image compression, HEIC conversion, and resizing utility.
  * Contract:
  * - Target: <= 4 MiB (4,194,304 bytes)
  * - Max long edge: 2048 px
  * - Pass-through allowed ONLY when BOTH size <= 4 MiB AND long edge <= 2048 px
  * - Initial quality: 0.85, min quality: 0.50, step: 0.05 (max 7 attempts)
  * - Dimension reduction factor: 0.8 (max 2 iterations if quality reduction is insufficient)
- * - Fail preparation if still > 4 MiB
- * - Lossy PNG -> JPEG conversion (flattened white background) if PNG remains > 4 MiB after resize
- * - Browser-decoded orientation via createImageBitmap / Image decoding
+ * - HEIC/HEIF photos: converted client-side to JPEG via dynamic import of heic2any
+ * - Normalized MIME: image/jpeg for converted HEIC/HEIF and JPG aliases
  */
 
 const MAX_TARGET_BYTES = 4 * 1024 * 1024; // 4 MiB
@@ -104,20 +103,59 @@ function canvasToBlob(canvas: HTMLCanvasElement, mimeType: string, quality?: num
 export async function compressImage(file: File): Promise<CompressionResult> {
   const originalSize = file.size;
 
-  // Validate format
+  // Validate and normalize format
+  let rawType = (file.type || '').toLowerCase();
+  const ext = (file.name || '').split('.').pop()?.toLowerCase() || '';
+
+  if (rawType === 'image/jpg' || rawType === 'image/pjpeg') {
+    rawType = 'image/jpeg';
+  }
+
+  let fileToProcess = file;
+
+  // HEIC/HEIF Client-Side Conversion Seam (Dynamic import to avoid blocking test runtime)
+  if (rawType === 'image/heic' || rawType === 'image/heif' || ext === 'heic' || ext === 'heif') {
+    try {
+      const heicModule = await import('heic2any');
+      const heic2any = heicModule.default || heicModule;
+
+      const convertedResult = await heic2any({
+        blob: file,
+        toType: 'image/jpeg',
+        quality: 0.85,
+      });
+
+      const convertedBlob = Array.isArray(convertedResult) ? convertedResult[0] : convertedResult;
+      const baseName = file.name.replace(/\.(heic|heif)$/i, '');
+      const newJpgName = `${baseName || 'photo'}.jpg`;
+
+      fileToProcess = new File([convertedBlob], newJpgName, {
+        type: 'image/jpeg',
+        lastModified: Date.now(),
+      });
+      rawType = 'image/jpeg';
+    } catch (err: any) {
+      console.error('[HEIC Conversion Failed]', err);
+      throw new Error("We couldn't prepare this HEIC photo. Try another photo or choose a JPG, PNG, or WebP image.");
+    }
+  }
+
   const supportedTypes = ['image/jpeg', 'image/png', 'image/webp'];
-  if (!supportedTypes.includes(file.type)) {
+  if (!supportedTypes.includes(rawType)) {
     throw new Error('Unsupported image format. Only JPG, PNG, and WebP are allowed.');
   }
 
+  // Create file with normalized type if needed
+  const normalizedFile = rawType === fileToProcess.type ? fileToProcess : new File([fileToProcess], fileToProcess.name, { type: rawType, lastModified: fileToProcess.lastModified });
+
   // Check dimensions
-  const { width, height, imageSource } = await getImageDimensions(file);
+  const { width, height, imageSource } = await getImageDimensions(normalizedFile);
   const longEdge = Math.max(width, height);
 
-  // Pass-through check: size <= 4 MiB AND long edge <= 2048 px
-  if (originalSize <= MAX_TARGET_BYTES && longEdge <= MAX_LONG_EDGE) {
+  // Pass-through check: size <= 4 MiB AND long edge <= 2048 px AND type untouched
+  if (originalSize <= MAX_TARGET_BYTES && longEdge <= MAX_LONG_EDGE && rawType === file.type) {
     return {
-      file,
+      file: normalizedFile,
       compressed: false,
       originalSize,
       compressedSize: originalSize,
@@ -144,16 +182,16 @@ export async function compressImage(file: File): Promise<CompressionResult> {
     }
 
     // Determine encoding strategy
-    let mimeType = file.type;
+    let mimeType = normalizedFile.type;
     let flattenWhite = false;
 
     // For PNG: attempt PNG export first; if PNG resize is still > 4 MiB, convert to JPEG with white background
     const canvas = drawToCanvas(imageSource, currentWidth, currentHeight, false);
 
-    if (file.type === 'image/png') {
+    if (normalizedFile.type === 'image/png') {
       const pngBlob = await canvasToBlob(canvas, 'image/png');
       if (pngBlob.size <= MAX_TARGET_BYTES) {
-        const compressedFile = new File([pngBlob], file.name, { type: 'image/png', lastModified: Date.now() });
+        const compressedFile = new File([pngBlob], normalizedFile.name, { type: 'image/png', lastModified: Date.now() });
         return {
           file: compressedFile,
           compressed: true,
@@ -165,7 +203,7 @@ export async function compressImage(file: File): Promise<CompressionResult> {
       // Resized PNG remains > 4 MiB; switch to JPEG conversion (flattened white background)
       mimeType = 'image/jpeg';
       flattenWhite = true;
-    } else if (file.type === 'image/webp') {
+    } else if (normalizedFile.type === 'image/webp') {
       mimeType = 'image/webp';
     } else {
       mimeType = 'image/jpeg';
@@ -181,7 +219,7 @@ export async function compressImage(file: File): Promise<CompressionResult> {
       const blob = await canvasToBlob(exportCanvas, mimeType, currentQuality);
       if (blob.size <= MAX_TARGET_BYTES) {
         const outputExt = mimeType === 'image/jpeg' ? '.jpg' : mimeType === 'image/webp' ? '.webp' : '.png';
-        let outputName = file.name;
+        let outputName = normalizedFile.name;
         if (flattenWhite && !outputName.toLowerCase().endsWith('.jpg') && !outputName.toLowerCase().endsWith('.jpeg')) {
           outputName = outputName.replace(/\.[^/.]+$/, '') + outputExt;
         }

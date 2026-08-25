@@ -96,6 +96,42 @@ public class WorkspaceSearchService : IWorkspaceSearchService
             };
         }
 
+        // Check if query matches PhysicalLabel or Name of a container directly
+        var matchingContainers = await _dbContext.Containers
+            .AsNoTracking()
+            .Include(c => c.StorageNode)
+            .Where(c => c.WorkspaceId == workspaceId && !c.IsArchived &&
+                        ((c.PhysicalLabel != null && EF.Functions.ILike(c.PhysicalLabel, $"%{trimmedQuery}%")) ||
+                         (c.Name != null && EF.Functions.ILike(c.Name, $"%{trimmedQuery}%"))))
+            .ToListAsync(cancellationToken);
+
+        if (matchingContainers.Count > 0)
+        {
+            var containerResults = new List<SearchResultDto>();
+            foreach (var container in matchingContainers)
+            {
+                var (locationId, locationName, breadcrumbSegments, breadcrumbDisplay) = await ResolveLocationBreadcrumbAsync(identity, workspaceId, container.StorageNodeId, container.StorageNode?.Name, cancellationToken);
+
+                var boxDisplayId = container.BoxNumber < 1000 ? $"BOX {container.BoxNumber:D3}" : $"BOX {container.BoxNumber}";
+
+                containerResults.Add(new SearchResultDto
+                {
+                    ResultType = "CONTAINER",
+                    ItemId = null,
+                    ItemName = null,
+                    Quantity = null,
+                    ContainerId = container.Id,
+                    BoxNumber = container.BoxNumber,
+                    BoxDisplayId = boxDisplayId,
+                    LocationId = locationId,
+                    LocationName = locationName,
+                    Breadcrumb = breadcrumbSegments,
+                    BreadcrumbDisplay = breadcrumbDisplay
+                });
+            }
+            return containerResults;
+        }
+
         // Ordinary Item Name FTS query
         var matchedItems = await _itemSearchService.SearchItemsAsync(identity, workspaceId, trimmedQuery, includeArchived: false, cancellationToken);
 

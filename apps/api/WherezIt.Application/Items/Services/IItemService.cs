@@ -43,4 +43,10 @@ public interface IItemService
         Guid workspaceId,
         Guid itemId,
         CancellationToken cancellationToken = default);
+
+    Task DeleteItemAsync(
+        AuthenticatedIdentity identity,
+        Guid workspaceId,
+        Guid itemId,
+        CancellationToken cancellationToken = default);
 }

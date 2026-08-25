@@ -123,8 +123,7 @@ export const SignupForm: React.FC = () => {
                   id="email"
                   type="email"
                   placeholder="name@example.com"
-                  {...register('email')}
-                  onChange={() => clearError()}
+                  {...register('email', { onChange: () => clearError() })}
                   disabled={submitting}
                 />
                 {errors.email && <span className="field-error">{errors.email.message}</span>}
@@ -136,8 +135,7 @@ export const SignupForm: React.FC = () => {
                   id="password"
                   type="password"
                   placeholder="••••••••"
-                  {...register('password')}
-                  onChange={() => clearError()}
+                  {...register('password', { onChange: () => clearError() })}
                   disabled={submitting}
                 />
                 {errors.password && <span className="field-error">{errors.password.message}</span>}
@@ -149,8 +147,7 @@ export const SignupForm: React.FC = () => {
                   id="confirmPassword"
                   type="password"
                   placeholder="••••••••"
-                  {...register('confirmPassword')}
-                  onChange={() => clearError()}
+                  {...register('confirmPassword', { onChange: () => clearError() })}
                   disabled={submitting}
                 />
                 {errors.confirmPassword && <span className="field-error">{errors.confirmPassword.message}</span>}

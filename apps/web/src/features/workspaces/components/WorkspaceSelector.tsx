@@ -49,7 +49,7 @@ export const WorkspaceSelector: React.FC<WorkspaceSelectorProps> = ({
         onClick={() => setIsOpen(!isOpen)}
         aria-expanded={isOpen}
         aria-haspopup="true"
-        aria-label="Select active workspace"
+        aria-label="Select active storage space"
         style={{
           display: 'flex',
           alignItems: 'center',
@@ -66,9 +66,9 @@ export const WorkspaceSelector: React.FC<WorkspaceSelectorProps> = ({
           boxShadow: '0 1px 2px rgba(0, 0, 0, 0.05)',
         }}
       >
-        <span style={{ fontSize: '1rem' }}>🏢</span>
+        <span style={{ fontSize: '1rem' }}>🏠</span>
         <span style={{ maxWidth: '160px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-          {activeWorkspace ? activeWorkspace.name : 'Select Workspace'}
+          {activeWorkspace ? activeWorkspace.name : 'Select Storage Space'}
         </span>
         <span style={{ fontSize: '0.75rem', opacity: 0.7, marginLeft: '0.25rem' }}>▼</span>
       </button>
@@ -79,7 +79,7 @@ export const WorkspaceSelector: React.FC<WorkspaceSelectorProps> = ({
           style={{
             position: 'absolute',
             top: 'calc(100% + 0.375rem)',
-            right: 0,
+            left: 0,
             width: '240px',
             backgroundColor: '#ffffff',
             borderRadius: '0.75rem',
@@ -91,7 +91,7 @@ export const WorkspaceSelector: React.FC<WorkspaceSelectorProps> = ({
           }}
         >
           <div style={{ padding: '0.5rem 0.75rem', fontSize: '0.75rem', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-            Workspaces
+            Storage Spaces
           </div>
 
           <div style={{ maxHeight: '220px', overflowY: 'auto' }}>
@@ -153,7 +153,7 @@ export const WorkspaceSelector: React.FC<WorkspaceSelectorProps> = ({
                 gap: '0.5rem',
               }}
             >
-              <span style={{ fontSize: '1rem', fontWeight: 800 }}>+</span> Create Workspace
+              <span style={{ fontSize: '1rem', fontWeight: 800 }}>+</span> Create Storage Space
             </button>
           </div>
         </div>

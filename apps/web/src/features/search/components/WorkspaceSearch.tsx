@@ -34,13 +34,48 @@ export const WorkspaceSearch: React.FC<WorkspaceSearchProps> = ({ workspaceId, i
     setSubmitted(true);
   };
 
+  const [isListening, setIsListening] = useState(false);
+
+  const handleVoiceSearch = () => {
+    const SpeechRecognition =
+      (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+
+    if (!SpeechRecognition) {
+      alert('Speech recognition is not supported in this browser.');
+      return;
+    }
+
+    try {
+      const recognition = new SpeechRecognition();
+      recognition.lang = 'en-US';
+      recognition.interimResults = false;
+
+      recognition.onstart = () => setIsListening(true);
+      recognition.onend = () => setIsListening(false);
+      recognition.onerror = () => setIsListening(false);
+
+      recognition.onresult = (event: any) => {
+        const transcript = event.results[0][0].transcript;
+        if (transcript) {
+          setInputQuery(transcript);
+          setActiveQuery(transcript.trim());
+          setSubmitted(true);
+        }
+      };
+
+      recognition.start();
+    } catch {
+      setIsListening(false);
+    }
+  };
+
   return (
     <div style={{ maxWidth: '850px', margin: '0 auto', padding: '1rem' }}>
       <h2 style={{ marginBottom: '1rem', color: '#0f172a', fontSize: '1.75rem', fontWeight: 800 }}>
-        Workspace Inventory Search
+        Storage Space Search
       </h2>
 
-      <form onSubmit={handleSearchSubmit} style={{ display: 'flex', gap: '0.75rem', marginBottom: '1.75rem' }}>
+      <form onSubmit={handleSearchSubmit} style={{ display: 'flex', gap: '0.5rem', marginBottom: '1.75rem' }}>
         <input
           type="text"
           value={inputQuery}
@@ -58,6 +93,23 @@ export const WorkspaceSearch: React.FC<WorkspaceSearchProps> = ({ workspaceId, i
             color: '#0f172a',
           }}
         />
+        <button
+          type="button"
+          onClick={handleVoiceSearch}
+          style={{
+            backgroundColor: isListening ? '#ef4444' : '#ffffff',
+            color: isListening ? '#ffffff' : '#475569',
+            border: '1px solid #cbd5e1',
+            borderRadius: '0.5rem',
+            padding: '0 1rem',
+            fontSize: '1.125rem',
+            cursor: 'pointer',
+            transition: 'all 150ms ease',
+          }}
+          title={isListening ? 'Listening...' : 'Voice Search'}
+        >
+          🎙️
+        </button>
         <button
           type="submit"
           className="btn-primary"

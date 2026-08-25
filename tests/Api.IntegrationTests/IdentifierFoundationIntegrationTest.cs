@@ -84,4 +84,55 @@ public class IdentifierFoundationIntegrationTest : IClassFixture<PostgresTestFix
         db.Identifiers.Add(invalidIdentifier);
         await Assert.ThrowsAsync<DbUpdateException>(() => db.SaveChangesAsync());
     }
+
+    [Fact]
+    public async Task AttachCustomIdentifier_ConflictHandling_And_Resolution()
+    {
+        using var scope = _fixture.Services.CreateScope();
+        var workspaceService = scope.ServiceProvider.GetRequiredService<IWorkspaceService>();
+        var locationService = scope.ServiceProvider.GetRequiredService<IStorageLocationService>();
+        var containerService = scope.ServiceProvider.GetRequiredService<IContainerService>();
+        var identifierService = scope.ServiceProvider.GetRequiredService<IIdentifierService>();
+
+        var identity1 = new AuthenticatedIdentity($"id002_user_1_{Guid.NewGuid():N}", "id002_1@example.com", true);
+        var identity2 = new AuthenticatedIdentity($"id002_user_2_{Guid.NewGuid():N}", "id002_2@example.com", true);
+
+        var ws1 = await workspaceService.CreateWorkspaceAsync(identity1, new CreateWorkspaceRequestDto("Attach WS 1"));
+        var ws2 = await workspaceService.CreateWorkspaceAsync(identity2, new CreateWorkspaceRequestDto("Attach WS 2"));
+
+        var loc1 = await locationService.CreateLocationAsync(identity1, ws1.Id, new CreateStorageLocationRequestDto("Shelf B", null));
+        var container1 = await containerService.CreateContainerAsync(identity1, ws1.Id, new CreateContainerRequestDto(loc1.Id, "Box B1", null));
+        var container2 = await containerService.CreateContainerAsync(identity1, ws1.Id, new CreateContainerRequestDto(loc1.Id, "Box B2", null));
+
+        var loc2 = await locationService.CreateLocationAsync(identity2, ws2.Id, new CreateStorageLocationRequestDto("Shelf C", null));
+        var containerWs2 = await containerService.CreateContainerAsync(identity2, ws2.Id, new CreateContainerRequestDto(loc2.Id, "Box C1", null));
+
+        // 1. Attach custom barcode to container1
+        var attached = await identifierService.AttachCustomIdentifierAsync(identity1, ws1.Id, container1.Id, "BARCODE", "UPC-998877");
+        Assert.Equal("BARCODE", attached.Type);
+        Assert.Equal("UPC-998877", attached.Value);
+
+        // 2. Fetch container identifiers
+        var list = await identifierService.GetContainerIdentifiersAsync(identity1, ws1.Id, container1.Id);
+        Assert.Contains(list, i => i.Value == "UPC-998877");
+
+        // 3. Resolve custom identifier
+        var resolved = await identifierService.ResolveAuthorizedContainerAsync(identity1, "UPC-998877");
+        Assert.Equal(container1.Id, resolved.ContainerId);
+
+        // 4. Attach same code to same box -> throws friendly conflict "already attached"
+        var exSame = await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            identifierService.AttachCustomIdentifierAsync(identity1, ws1.Id, container1.Id, "BARCODE", "UPC-998877"));
+        Assert.Contains("already attached to", exSame.Message);
+
+        // 5. Attach same code to different box in same workspace -> throws "already in use"
+        var exDiff = await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            identifierService.AttachCustomIdentifierAsync(identity1, ws1.Id, container2.Id, "BARCODE", "UPC-998877"));
+        Assert.Equal("This identifier is already in use.", exDiff.Message);
+
+        // 6. Attach same code in different workspace -> throws "already in use" without leaking cross-workspace info
+        var exCross = await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            identifierService.AttachCustomIdentifierAsync(identity2, ws2.Id, containerWs2.Id, "BARCODE", "UPC-998877"));
+        Assert.Equal("This identifier is already in use.", exCross.Message);
+    }
 }

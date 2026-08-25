@@ -15,7 +15,7 @@ export interface CaptureReviewResponse {
   boxNumber: number;
   boxDisplayId: string;
   imageId: string;
-  status: 'PROCESSING' | 'FAILED' | 'REVIEW_REQUIRED' | 'CONFIRMED';
+  status: 'QUEUED' | 'PROCESSING' | 'FAILED' | 'REVIEW_REQUIRED' | 'CONFIRMED';
   breadcrumbDisplay: string;
   failureReason?: string | null;
   suggestions: DetectionSuggestion[];

@@ -73,6 +73,9 @@ public class ItemConfiguration : IEntityTypeConfiguration<Item>
             .HasForeignKey(i => i.WorkspaceId)
             .OnDelete(DeleteBehavior.Cascade);
 
+        builder.HasAlternateKey(i => new { i.WorkspaceId, i.Id })
+            .HasName("ix_items_workspace_id_id");
+
         // Composite Foreign Key to Container enforcing same workspace
         builder.HasOne(i => i.Container)
             .WithMany()

@@ -20,6 +20,17 @@ public class ImageManagementService : IImageManagementService
     private const long MaxFileSizeBytes = 10 * 1024 * 1024; // 10 MiB
     private static readonly string[] AllowedMimeTypes = { "image/jpeg", "image/png", "image/webp" };
 
+    private static string NormalizeContentType(string? contentType)
+    {
+        if (string.IsNullOrWhiteSpace(contentType)) return string.Empty;
+        var trimmed = contentType.Split(';')[0].Trim().ToLowerInvariant();
+        if (trimmed == "image/jpg" || trimmed == "image/pjpeg")
+        {
+            return "image/jpeg";
+        }
+        return trimmed;
+    }
+
     private readonly WherezItDbContext _dbContext;
     private readonly IWorkspaceAuthorizationService _authService;
     private readonly IImageObjectStorage _storage;
@@ -64,7 +75,7 @@ public class ImageManagementService : IImageManagementService
             throw new ArgumentException($"File size must be greater than 0 and less than or equal to {MaxFileSizeBytes} bytes.");
         }
 
-        var normalizedContentType = contentType?.ToLowerInvariant().Trim();
+        var normalizedContentType = NormalizeContentType(contentType);
         if (string.IsNullOrEmpty(normalizedContentType) || !AllowedMimeTypes.Contains(normalizedContentType))
         {
             throw new ArgumentException("Invalid content type. Only image/jpeg, image/png, and image/webp are allowed.");
@@ -203,6 +214,268 @@ public class ImageManagementService : IImageManagementService
         // 4. Retrieve stream
         var stream = await _storage.OpenReadObjectAsync(asset.ObjectPath, cancellationToken);
         return (stream, asset.ContentType);
+    }
+
+    public async Task<System.Collections.Generic.IReadOnlyList<ContainerImageResponseDto>> GetContainerReferenceImagesAsync(
+        AuthenticatedIdentity identity,
+        Guid workspaceId,
+        Guid containerId,
+        CancellationToken cancellationToken = default)
+    {
+        await _authService.RequireWorkspaceMembershipAsync(identity, workspaceId, cancellationToken);
+
+        var container = await _dbContext.Containers
+            .AsNoTracking()
+            .FirstOrDefaultAsync(c => c.Id == containerId && c.WorkspaceId == workspaceId, cancellationToken);
+
+        if (container == null)
+        {
+            throw new KeyNotFoundException($"Container '{containerId}' was not found in workspace '{workspaceId}'.");
+        }
+
+        var captureImageIds = await _dbContext.InventoryCaptures
+            .AsNoTracking()
+            .Where(ic => ic.WorkspaceId == workspaceId && ic.ContainerId == containerId)
+            .Select(ic => ic.ImageAssetId)
+            .ToListAsync(cancellationToken);
+
+        var referenceImages = await _dbContext.ImageAssets
+            .AsNoTracking()
+            .Where(img => img.WorkspaceId == workspaceId &&
+                          img.ContainerId == containerId &&
+                          img.Status == "READY" &&
+                          !captureImageIds.Contains(img.Id))
+            .OrderByDescending(img => img.CreatedAt)
+            .ToListAsync(cancellationToken);
+
+        return referenceImages.Select(img => new ContainerImageResponseDto(
+            img.Id,
+            img.WorkspaceId,
+            img.ContainerId!.Value,
+            img.ContentType,
+            img.SizeBytes,
+            img.CreatedAt,
+            $"/api/v1/workspaces/{workspaceId}/images/{img.Id}"
+        )).ToList();
+    }
+
+    public async Task DeleteContainerReferenceImageAsync(
+        AuthenticatedIdentity identity,
+        Guid workspaceId,
+        Guid containerId,
+        Guid imageId,
+        CancellationToken cancellationToken = default)
+    {
+        await _authService.RequireWorkspaceMembershipAsync(identity, workspaceId, cancellationToken);
+
+        var asset = await _dbContext.ImageAssets
+            .FirstOrDefaultAsync(img => img.Id == imageId && img.WorkspaceId == workspaceId && img.ContainerId == containerId, cancellationToken);
+
+        if (asset == null)
+        {
+            throw new KeyNotFoundException($"Image '{imageId}' was not found for container '{containerId}' in workspace '{workspaceId}'.");
+        }
+
+        var isAiCaptureImage = await _dbContext.InventoryCaptures
+            .AnyAsync(ic => ic.ImageAssetId == imageId, cancellationToken);
+
+        if (isAiCaptureImage)
+        {
+            throw new InvalidOperationException("Cannot delete an AI capture image via reference photo endpoint.");
+        }
+
+        try
+        {
+            await _storage.DeleteObjectAsync(asset.ObjectPath, cancellationToken);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Failed to delete storage object at path {ObjectPath} during reference image deletion.", asset.ObjectPath);
+        }
+
+        _dbContext.ImageAssets.Remove(asset);
+        await _dbContext.SaveChangesAsync(cancellationToken);
+    }
+
+    public async Task<ImageUploadResponseDto> UploadItemImageAsync(
+        AuthenticatedIdentity identity,
+        Guid workspaceId,
+        Guid itemId,
+        Stream contentStream,
+        string contentType,
+        long length,
+        CancellationToken cancellationToken = default)
+    {
+        await _authService.RequireWorkspaceMembershipAsync(identity, workspaceId, cancellationToken);
+
+        var item = await _dbContext.Items
+            .FirstOrDefaultAsync(i => i.Id == itemId && i.WorkspaceId == workspaceId, cancellationToken);
+
+        if (item == null)
+        {
+            throw new KeyNotFoundException("Item not found in this workspace.");
+        }
+
+        if (length <= 0 || length > MaxFileSizeBytes)
+        {
+            throw new ArgumentException($"File size must be greater than 0 and less than or equal to {MaxFileSizeBytes} bytes.");
+        }
+
+        var normalizedContentType = NormalizeContentType(contentType);
+        if (string.IsNullOrEmpty(normalizedContentType) || !AllowedMimeTypes.Contains(normalizedContentType))
+        {
+            throw new ArgumentException("Invalid content type. Only image/jpeg, image/png, and image/webp are allowed.");
+        }
+
+        Stream uploadStream = contentStream;
+        MemoryStream? memoryStreamBuffer = null;
+
+        if (!contentStream.CanSeek)
+        {
+            memoryStreamBuffer = new MemoryStream();
+            await contentStream.CopyToAsync(memoryStreamBuffer, cancellationToken);
+            if (memoryStreamBuffer.Length > MaxFileSizeBytes)
+            {
+                memoryStreamBuffer.Dispose();
+                throw new ArgumentException($"File size exceeds maximum {MaxFileSizeBytes} bytes limit.");
+            }
+            memoryStreamBuffer.Position = 0;
+            uploadStream = memoryStreamBuffer;
+            length = memoryStreamBuffer.Length;
+        }
+
+        try
+        {
+            ValidateMagicBytes(uploadStream, normalizedContentType);
+        }
+        catch
+        {
+            memoryStreamBuffer?.Dispose();
+            throw;
+        }
+
+        string extension = normalizedContentType switch
+        {
+            "image/jpeg" => ".jpg",
+            "image/png" => ".png",
+            "image/webp" => ".webp",
+            _ => throw new ArgumentException("Unsupported image format.")
+        };
+
+        var imageId = Guid.NewGuid();
+        var objectPath = $"workspaces/{workspaceId}/items/{itemId}/{imageId}{extension}";
+        var now = DateTimeOffset.UtcNow;
+
+        var asset = new ImageAsset
+        {
+            Id = imageId,
+            WorkspaceId = workspaceId,
+            ItemId = itemId,
+            ObjectPath = objectPath,
+            ContentType = normalizedContentType,
+            SizeBytes = length,
+            Status = "PENDING",
+            CreatedAt = now,
+            UpdatedAt = now
+        };
+
+        _dbContext.ImageAssets.Add(asset);
+        await _dbContext.SaveChangesAsync(cancellationToken);
+
+        try
+        {
+            await _storage.UploadObjectAsync(objectPath, uploadStream, normalizedContentType, cancellationToken);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Object storage upload failed for Item ImageAsset {ImageId} at path {ObjectPath}.", imageId, objectPath);
+            _dbContext.ImageAssets.Remove(asset);
+            await _dbContext.SaveChangesAsync(cancellationToken);
+            memoryStreamBuffer?.Dispose();
+            throw new InvalidOperationException("Failed to upload image object to storage.", ex);
+        }
+        finally
+        {
+            memoryStreamBuffer?.Dispose();
+        }
+
+        asset.Status = "READY";
+        asset.UpdatedAt = DateTimeOffset.UtcNow;
+        await _dbContext.SaveChangesAsync(cancellationToken);
+
+        return new ImageUploadResponseDto
+        {
+            Id = asset.Id,
+            WorkspaceId = asset.WorkspaceId,
+            ContainerId = item.ContainerId,
+            ContentType = asset.ContentType,
+            SizeBytes = asset.SizeBytes,
+            CreatedAt = asset.CreatedAt
+        };
+    }
+
+    public async Task<System.Collections.Generic.IReadOnlyList<ContainerImageResponseDto>> GetItemImagesAsync(
+        AuthenticatedIdentity identity,
+        Guid workspaceId,
+        Guid itemId,
+        CancellationToken cancellationToken = default)
+    {
+        await _authService.RequireWorkspaceMembershipAsync(identity, workspaceId, cancellationToken);
+
+        var item = await _dbContext.Items
+            .AsNoTracking()
+            .FirstOrDefaultAsync(i => i.Id == itemId && i.WorkspaceId == workspaceId, cancellationToken);
+
+        if (item == null)
+        {
+            throw new KeyNotFoundException($"Item '{itemId}' was not found in workspace '{workspaceId}'.");
+        }
+
+        var itemImages = await _dbContext.ImageAssets
+            .AsNoTracking()
+            .Where(img => img.WorkspaceId == workspaceId && img.ItemId == itemId && img.Status == "READY")
+            .OrderByDescending(img => img.CreatedAt)
+            .ToListAsync(cancellationToken);
+
+        return itemImages.Select(img => new ContainerImageResponseDto(
+            img.Id,
+            img.WorkspaceId,
+            item.ContainerId,
+            img.ContentType,
+            img.SizeBytes,
+            img.CreatedAt,
+            $"/api/v1/workspaces/{workspaceId}/images/{img.Id}"
+        )).ToList();
+    }
+
+    public async Task DeleteItemImageAsync(
+        AuthenticatedIdentity identity,
+        Guid workspaceId,
+        Guid itemId,
+        Guid imageId,
+        CancellationToken cancellationToken = default)
+    {
+        await _authService.RequireWorkspaceMembershipAsync(identity, workspaceId, cancellationToken);
+
+        var asset = await _dbContext.ImageAssets
+            .FirstOrDefaultAsync(img => img.Id == imageId && img.WorkspaceId == workspaceId && img.ItemId == itemId, cancellationToken);
+
+        if (asset == null)
+        {
+            throw new KeyNotFoundException($"Image '{imageId}' was not found for item '{itemId}' in workspace '{workspaceId}'.");
+        }
+
+        try
+        {
+            await _storage.DeleteObjectAsync(asset.ObjectPath, cancellationToken);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Failed to delete storage object at path {ObjectPath} during item image deletion.", asset.ObjectPath);
+        }
+
+        _dbContext.ImageAssets.Remove(asset);
+        await _dbContext.SaveChangesAsync(cancellationToken);
     }
 
     private static void ValidateMagicBytes(Stream stream, string normalizedContentType)
