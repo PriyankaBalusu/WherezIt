@@ -151,6 +151,163 @@ public class ImagesController : ControllerBase
         }
     }
 
+    [HttpPost("api/v1/workspaces/{workspaceId}/containers/{containerId}/physical-label-image")]
+    [Consumes("multipart/form-data")]
+    public async Task<IActionResult> UploadContainerPhysicalLabelImage(
+        [FromRoute] Guid workspaceId,
+        [FromRoute] Guid containerId,
+        IFormFile file,
+        CancellationToken cancellationToken = default)
+    {
+        var identity = GetAuthenticatedIdentity();
+        if (identity == null) return Unauthorized();
+
+        if (file == null || file.Length == 0)
+        {
+            return BadRequest(new { error = "An image file is required." });
+        }
+
+        try
+        {
+            using var stream = file.OpenReadStream();
+            var response = await _imageService.UploadContainerPhysicalLabelImageAsync(
+                identity,
+                workspaceId,
+                containerId,
+                stream,
+                file.ContentType,
+                file.Length,
+                cancellationToken);
+
+            return CreatedAtAction(
+                nameof(GetImage),
+                new { workspaceId = response.WorkspaceId, imageId = response.Id },
+                response);
+        }
+        catch (ArgumentException ex)
+        {
+            return BadRequest(new { error = ex.Message });
+        }
+        catch (KeyNotFoundException ex)
+        {
+            return NotFound(new { error = ex.Message });
+        }
+        catch (UnauthorizedAccessException)
+        {
+            return Forbid();
+        }
+        catch (InvalidOperationException ex)
+        {
+            return StatusCode(StatusCodes.Status500InternalServerError, new { error = ex.Message });
+        }
+    }
+
+    [HttpGet("api/v1/workspaces/{workspaceId}/containers/{containerId}/physical-label-image")]
+    public async Task<IActionResult> GetContainerPhysicalLabelImage(
+        [FromRoute] Guid workspaceId,
+        [FromRoute] Guid containerId,
+        CancellationToken cancellationToken = default)
+    {
+        var identity = GetAuthenticatedIdentity();
+        if (identity == null) return Unauthorized();
+
+        try
+        {
+            var image = await _imageService.GetContainerPhysicalLabelImageAsync(identity, workspaceId, containerId, cancellationToken);
+            if (image == null) return NotFound(new { error = "No physical label image found for this container." });
+            return Ok(image);
+        }
+        catch (KeyNotFoundException ex)
+        {
+            return NotFound(new { error = ex.Message });
+        }
+        catch (UnauthorizedAccessException)
+        {
+            return Forbid();
+        }
+    }
+
+    [HttpDelete("api/v1/workspaces/{workspaceId}/containers/{containerId}/physical-label-image")]
+    public async Task<IActionResult> DeleteContainerPhysicalLabelImage(
+        [FromRoute] Guid workspaceId,
+        [FromRoute] Guid containerId,
+        CancellationToken cancellationToken = default)
+    {
+        var identity = GetAuthenticatedIdentity();
+        if (identity == null) return Unauthorized();
+
+        try
+        {
+            await _imageService.DeleteContainerPhysicalLabelImageAsync(identity, workspaceId, containerId, cancellationToken);
+            return NoContent();
+        }
+        catch (KeyNotFoundException ex)
+        {
+            return NotFound(new { error = ex.Message });
+        }
+        catch (UnauthorizedAccessException)
+        {
+            return Forbid();
+        }
+    }
+
+    [HttpDelete("api/v1/workspaces/{workspaceId}/containers/{containerId}/existing-label")]
+    public async Task<IActionResult> DeleteContainerExistingLabel(
+        [FromRoute] Guid workspaceId,
+        [FromRoute] Guid containerId,
+        CancellationToken cancellationToken = default)
+    {
+        var identity = GetAuthenticatedIdentity();
+        if (identity == null) return Unauthorized();
+
+        try
+        {
+            await _imageService.DeleteContainerExistingLabelAsync(identity, workspaceId, containerId, cancellationToken);
+            return NoContent();
+        }
+        catch (KeyNotFoundException ex)
+        {
+            return NotFound(new { error = ex.Message });
+        }
+        catch (UnauthorizedAccessException)
+        {
+            return Forbid();
+        }
+    }
+
+    [HttpPost("api/v1/workspaces/{workspaceId}/containers/{containerId}/physical-label-image/ocr")]
+    public async Task<IActionResult> ExtractContainerPhysicalLabelOcrText(
+        [FromRoute] Guid workspaceId,
+        [FromRoute] Guid containerId,
+        CancellationToken cancellationToken = default)
+    {
+        var identity = GetAuthenticatedIdentity();
+        if (identity == null) return Unauthorized();
+
+        try
+        {
+            var detectedText = await _imageService.ExtractContainerPhysicalLabelOcrTextAsync(
+                identity,
+                workspaceId,
+                containerId,
+                cancellationToken);
+
+            return Ok(new { detectedText });
+        }
+        catch (KeyNotFoundException ex)
+        {
+            return NotFound(new { error = ex.Message });
+        }
+        catch (UnauthorizedAccessException)
+        {
+            return Forbid();
+        }
+        catch (Exception)
+        {
+            return Ok(new { detectedText = (string?)null });
+        }
+    }
+
     [HttpPost("api/v1/workspaces/{workspaceId}/items/{itemId}/images")]
     [Consumes("multipart/form-data")]
     public async Task<IActionResult> UploadItemImage(
