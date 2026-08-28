@@ -34,17 +34,20 @@ public class ImageManagementService : IImageManagementService
     private readonly WherezItDbContext _dbContext;
     private readonly IWorkspaceAuthorizationService _authService;
     private readonly IImageObjectStorage _storage;
+    private readonly WherezIt.Application.AI.Services.IInventoryVisionProvider _visionProvider;
     private readonly ILogger<ImageManagementService> _logger;
 
     public ImageManagementService(
         WherezItDbContext dbContext,
         IWorkspaceAuthorizationService authService,
         IImageObjectStorage storage,
+        WherezIt.Application.AI.Services.IInventoryVisionProvider visionProvider,
         ILogger<ImageManagementService> logger)
     {
         _dbContext = dbContext;
         _authService = authService;
         _storage = storage;
+        _visionProvider = visionProvider;
         _logger = logger;
     }
 
@@ -132,6 +135,7 @@ public class ImageManagementService : IImageManagementService
             ContentType = normalizedContentType,
             SizeBytes = length,
             Status = "PENDING",
+            ImagePurpose = "REFERENCE",
             CreatedAt = now,
             UpdatedAt = now
         };
@@ -244,6 +248,7 @@ public class ImageManagementService : IImageManagementService
             .Where(img => img.WorkspaceId == workspaceId &&
                           img.ContainerId == containerId &&
                           img.Status == "READY" &&
+                          img.ImagePurpose == "REFERENCE" &&
                           !captureImageIds.Contains(img.Id))
             .OrderByDescending(img => img.CreatedAt)
             .ToListAsync(cancellationToken);
@@ -295,6 +300,287 @@ public class ImageManagementService : IImageManagementService
 
         _dbContext.ImageAssets.Remove(asset);
         await _dbContext.SaveChangesAsync(cancellationToken);
+    }
+
+    public async Task<ImageUploadResponseDto> UploadContainerPhysicalLabelImageAsync(
+        AuthenticatedIdentity identity,
+        Guid workspaceId,
+        Guid containerId,
+        Stream contentStream,
+        string contentType,
+        long length,
+        CancellationToken cancellationToken = default)
+    {
+        await _authService.RequireWorkspaceMembershipAsync(identity, workspaceId, cancellationToken);
+
+        var container = await _dbContext.Containers
+            .FirstOrDefaultAsync(c => c.Id == containerId && c.WorkspaceId == workspaceId, cancellationToken);
+
+        if (container == null)
+        {
+            throw new KeyNotFoundException("Container not found in this workspace.");
+        }
+
+        if (length <= 0 || length > MaxFileSizeBytes)
+        {
+            throw new ArgumentException($"File size must be greater than 0 and less than or equal to {MaxFileSizeBytes} bytes.");
+        }
+
+        var normalizedContentType = NormalizeContentType(contentType);
+        if (string.IsNullOrEmpty(normalizedContentType) || !AllowedMimeTypes.Contains(normalizedContentType))
+        {
+            throw new ArgumentException("Invalid content type. Only image/jpeg, image/png, and image/webp are allowed.");
+        }
+
+        // Find all existing physical label photos for this container if any exist (DO NOT delete yet)
+        var existingLabelAssets = await _dbContext.ImageAssets
+            .Where(img => img.WorkspaceId == workspaceId && img.ContainerId == containerId && img.ImagePurpose == "PHYSICAL_LABEL")
+            .ToListAsync(cancellationToken);
+
+        Stream uploadStream = contentStream;
+        MemoryStream? memoryStreamBuffer = null;
+
+        if (!contentStream.CanSeek)
+        {
+            memoryStreamBuffer = new MemoryStream();
+            await contentStream.CopyToAsync(memoryStreamBuffer, cancellationToken);
+            if (memoryStreamBuffer.Length > MaxFileSizeBytes)
+            {
+                memoryStreamBuffer.Dispose();
+                throw new ArgumentException($"File size exceeds maximum {MaxFileSizeBytes} bytes limit.");
+            }
+            memoryStreamBuffer.Position = 0;
+            uploadStream = memoryStreamBuffer;
+            length = memoryStreamBuffer.Length;
+        }
+
+        try
+        {
+            ValidateMagicBytes(uploadStream, normalizedContentType);
+        }
+        catch
+        {
+            memoryStreamBuffer?.Dispose();
+            throw;
+        }
+
+        string extension = normalizedContentType switch
+        {
+            "image/jpeg" => ".jpg",
+            "image/png" => ".png",
+            "image/webp" => ".webp",
+            _ => throw new ArgumentException("Unsupported image format.")
+        };
+
+        var imageId = Guid.NewGuid();
+        var objectPath = $"workspaces/{workspaceId}/containers/{containerId}/physical-label-{imageId}{extension}";
+        var now = DateTimeOffset.UtcNow;
+
+        var asset = new ImageAsset
+        {
+            Id = imageId,
+            WorkspaceId = workspaceId,
+            ContainerId = containerId,
+            ObjectPath = objectPath,
+            ContentType = normalizedContentType,
+            SizeBytes = length,
+            Status = "PENDING",
+            ImagePurpose = "PHYSICAL_LABEL",
+            CreatedAt = now,
+            UpdatedAt = now
+        };
+
+        _dbContext.ImageAssets.Add(asset);
+        await _dbContext.SaveChangesAsync(cancellationToken);
+
+        try
+        {
+            await _storage.UploadObjectAsync(objectPath, uploadStream, normalizedContentType, cancellationToken);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Object storage upload failed for Physical Label ImageAsset {ImageId} at path {ObjectPath}.", imageId, objectPath);
+            _dbContext.ImageAssets.Remove(asset);
+            await _dbContext.SaveChangesAsync(cancellationToken);
+            memoryStreamBuffer?.Dispose();
+            throw new InvalidOperationException("Failed to upload physical label image object to storage.", ex);
+        }
+        finally
+        {
+            memoryStreamBuffer?.Dispose();
+        }
+
+        asset.Status = "READY";
+        asset.UpdatedAt = DateTimeOffset.UtcNow;
+
+        // If replacing an existing photo, clear old text and remove all old DB records in ONE transaction commit
+        var oldObjectPathsToDelete = existingLabelAssets.Select(x => x.ObjectPath).ToList();
+        if (existingLabelAssets.Count > 0)
+        {
+            _dbContext.ImageAssets.RemoveRange(existingLabelAssets);
+            container.PhysicalLabel = null;
+            container.UpdatedAt = DateTimeOffset.UtcNow;
+        }
+
+        await _dbContext.SaveChangesAsync(cancellationToken);
+
+        // Delete old storage objects ONLY AFTER new asset is committed DB READY
+        foreach (var oldPath in oldObjectPathsToDelete)
+        {
+            try
+            {
+                await _storage.DeleteObjectAsync(oldPath, cancellationToken);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Failed to delete old physical label storage object at path {ObjectPath} post-commit.", oldPath);
+            }
+        }
+
+        return new ImageUploadResponseDto
+        {
+            Id = asset.Id,
+            WorkspaceId = asset.WorkspaceId,
+            ContainerId = containerId,
+            ContentType = asset.ContentType,
+            SizeBytes = asset.SizeBytes,
+            CreatedAt = asset.CreatedAt
+        };
+    }
+
+    public async Task<ContainerImageResponseDto?> GetContainerPhysicalLabelImageAsync(
+        AuthenticatedIdentity identity,
+        Guid workspaceId,
+        Guid containerId,
+        CancellationToken cancellationToken = default)
+    {
+        await _authService.RequireWorkspaceMembershipAsync(identity, workspaceId, cancellationToken);
+
+        var container = await _dbContext.Containers
+            .AsNoTracking()
+            .FirstOrDefaultAsync(c => c.Id == containerId && c.WorkspaceId == workspaceId, cancellationToken);
+
+        if (container == null)
+        {
+            throw new KeyNotFoundException($"Container '{containerId}' was not found in workspace '{workspaceId}'.");
+        }
+
+        var labelAsset = await _dbContext.ImageAssets
+            .AsNoTracking()
+            .Where(img => img.WorkspaceId == workspaceId &&
+                          img.ContainerId == containerId &&
+                          img.ImagePurpose == "PHYSICAL_LABEL" &&
+                          img.Status == "READY")
+            .OrderByDescending(img => img.CreatedAt)
+            .ThenByDescending(img => img.Id)
+            .FirstOrDefaultAsync(cancellationToken);
+
+        if (labelAsset == null) return null;
+
+        return new ContainerImageResponseDto(
+            labelAsset.Id,
+            labelAsset.WorkspaceId,
+            containerId,
+            labelAsset.ContentType,
+            labelAsset.SizeBytes,
+            labelAsset.CreatedAt,
+            $"/api/v1/workspaces/{workspaceId}/images/{labelAsset.Id}"
+        );
+    }
+
+    public async Task DeleteContainerPhysicalLabelImageAsync(
+        AuthenticatedIdentity identity,
+        Guid workspaceId,
+        Guid containerId,
+        CancellationToken cancellationToken = default)
+    {
+        await DeleteContainerExistingLabelAsync(identity, workspaceId, containerId, cancellationToken);
+    }
+
+    public async Task DeleteContainerExistingLabelAsync(
+        AuthenticatedIdentity identity,
+        Guid workspaceId,
+        Guid containerId,
+        CancellationToken cancellationToken = default)
+    {
+        await _authService.RequireWorkspaceMembershipAsync(identity, workspaceId, cancellationToken);
+
+        var container = await _dbContext.Containers
+            .FirstOrDefaultAsync(c => c.Id == containerId && c.WorkspaceId == workspaceId, cancellationToken);
+
+        if (container != null)
+        {
+            container.PhysicalLabel = null;
+            container.UpdatedAt = DateTimeOffset.UtcNow;
+        }
+
+        var labelAssets = await _dbContext.ImageAssets
+            .Where(img => img.WorkspaceId == workspaceId &&
+                          img.ContainerId == containerId &&
+                          img.ImagePurpose == "PHYSICAL_LABEL")
+            .ToListAsync(cancellationToken);
+
+        var oldObjectPathsToDelete = labelAssets.Select(x => x.ObjectPath).ToList();
+
+        if (labelAssets.Count > 0)
+        {
+            _dbContext.ImageAssets.RemoveRange(labelAssets);
+        }
+
+        await _dbContext.SaveChangesAsync(cancellationToken);
+
+        foreach (var oldPath in oldObjectPathsToDelete)
+        {
+            try
+            {
+                await _storage.DeleteObjectAsync(oldPath, cancellationToken);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Failed to delete storage object at path {ObjectPath} during physical label removal.", oldPath);
+            }
+        }
+    }
+
+    public async Task<string?> ExtractContainerPhysicalLabelOcrTextAsync(
+        AuthenticatedIdentity identity,
+        Guid workspaceId,
+        Guid containerId,
+        CancellationToken cancellationToken = default)
+    {
+        await _authService.RequireWorkspaceMembershipAsync(identity, workspaceId, cancellationToken);
+
+        var container = await _dbContext.Containers
+            .AsNoTracking()
+            .FirstOrDefaultAsync(c => c.Id == containerId && c.WorkspaceId == workspaceId, cancellationToken);
+
+        if (container == null)
+        {
+            throw new KeyNotFoundException($"Container '{containerId}' was not found in workspace '{workspaceId}'.");
+        }
+
+        var labelAsset = await _dbContext.ImageAssets
+            .AsNoTracking()
+            .Where(img => img.WorkspaceId == workspaceId &&
+                          img.ContainerId == containerId &&
+                          img.ImagePurpose == "PHYSICAL_LABEL" &&
+                          img.Status == "READY")
+            .OrderByDescending(img => img.CreatedAt)
+            .ThenByDescending(img => img.Id)
+            .FirstOrDefaultAsync(cancellationToken);
+
+        if (labelAsset == null)
+        {
+            throw new KeyNotFoundException("No physical label image found for this container.");
+        }
+
+        using var stream = await _storage.OpenReadObjectAsync(labelAsset.ObjectPath, cancellationToken);
+        if (stream == null)
+        {
+            return null;
+        }
+
+        return await _visionProvider.ExtractLabelTextAsync(stream, labelAsset.ContentType, cancellationToken);
     }
 
     public async Task<ImageUploadResponseDto> UploadItemImageAsync(
@@ -375,6 +661,7 @@ public class ImageManagementService : IImageManagementService
             ContentType = normalizedContentType,
             SizeBytes = length,
             Status = "PENDING",
+            ImagePurpose = "ITEM",
             CreatedAt = now,
             UpdatedAt = now
         };

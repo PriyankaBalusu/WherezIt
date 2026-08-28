@@ -5,8 +5,10 @@ export interface Workspace {
   name: string;
   role: WorkspaceRole;
   createdAt: string;
+  inventoryNamespaceId: string;
 }
 
 export interface CreateWorkspaceRequest {
   name: string;
+  inventoryNamespaceId?: string;
 }

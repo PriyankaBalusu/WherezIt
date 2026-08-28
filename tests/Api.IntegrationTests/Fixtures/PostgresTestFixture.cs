@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Testcontainers.PostgreSql;
 using WherezIt.Infrastructure.Persistence;
@@ -79,6 +80,15 @@ public class PostgresTestFixture : WebApplicationFactory<Program>, IAsyncLifetim
 
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
+        builder.ConfigureAppConfiguration((context, configBuilder) =>
+        {
+            configBuilder.AddInMemoryCollection(new System.Collections.Generic.Dictionary<string, string?>
+            {
+                { "Gemini:UseMockVision", "true" },
+                { "AI:UseMockVision", "true" }
+            });
+        });
+
         builder.ConfigureServices(services =>
         {
             var descriptor = services.SingleOrDefault(
@@ -93,6 +103,15 @@ public class PostgresTestFixture : WebApplicationFactory<Program>, IAsyncLifetim
             {
                 options.UseNpgsql(ConnectionString);
             });
+
+            // Force mock vision provider in integration tests
+            var visionDescriptor = services.SingleOrDefault(
+                d => d.ServiceType == typeof(WherezIt.Application.AI.Services.IInventoryVisionProvider));
+            if (visionDescriptor != null)
+            {
+                services.Remove(visionDescriptor);
+            }
+            services.AddScoped<WherezIt.Application.AI.Services.IInventoryVisionProvider, WherezIt.Infrastructure.Services.MockInventoryVisionProvider>();
         });
     }
 

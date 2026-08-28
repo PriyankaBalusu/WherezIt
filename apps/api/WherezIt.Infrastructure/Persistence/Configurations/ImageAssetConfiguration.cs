@@ -12,6 +12,7 @@ public class ImageAssetConfiguration : IEntityTypeConfiguration<ImageAsset>
         {
             t.HasCheckConstraint("CK_image_assets_status_valid", "status IN ('PENDING', 'READY', 'FAILED')");
             t.HasCheckConstraint("CK_image_assets_size_positive", "size_bytes > 0");
+            t.HasCheckConstraint("CK_image_assets_purpose_valid", "image_purpose IN ('REFERENCE', 'PHYSICAL_LABEL', 'ITEM')");
         });
 
         builder.HasKey(x => x.Id);
@@ -46,6 +47,12 @@ public class ImageAssetConfiguration : IEntityTypeConfiguration<ImageAsset>
         builder.Property(x => x.Status)
             .HasColumnName("status")
             .HasMaxLength(50)
+            .IsRequired();
+
+        builder.Property(x => x.ImagePurpose)
+            .HasColumnName("image_purpose")
+            .HasMaxLength(50)
+            .HasDefaultValue("REFERENCE")
             .IsRequired();
 
         builder.Property(x => x.CreatedAt)

@@ -1,6 +1,9 @@
 import React, { useState, useRef } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import { useUpdateContainer } from '../../containers/hooks/useContainers';
 import { compressImage } from '../../images/utils/compressImage';
+import { uploadPhysicalLabelImage, extractPhysicalLabelOcrText } from '../../containers/api/containerImageApi';
+import { useAuth } from '../../auth/useAuth';
 
 interface TakePhotoLabelModalProps {
   workspaceId: string;
@@ -20,8 +23,9 @@ export const TakePhotoLabelModal: React.FC<TakePhotoLabelModalProps> = ({
   onSwitchToManual,
 }) => {
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const queryClient = useQueryClient();
+  const { getIdToken } = useAuth();
 
-  const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [detectedText, setDetectedText] = useState<string | null>(null);
   const [ocrFailed, setOcrFailed] = useState<boolean>(false);
@@ -34,47 +38,49 @@ export const TakePhotoLabelModal: React.FC<TakePhotoLabelModalProps> = ({
 
   if (!isOpen) return null;
 
-  const handlePhotoSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handlePhotoSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    setSelectedFile(file);
     const url = URL.createObjectURL(file);
     setPreviewUrl(url);
     setErrorMessage(null);
     setOcrFailed(false);
     setIsProcessingOcr(true);
 
-    // Mock/deterministic local OCR candidate detection with fallback handling
-    setTimeout(() => {
-      setIsProcessingOcr(false);
-      const filenameLower = file.name.toLowerCase();
+    try {
+      const compressed = await compressImage(file);
+      const token = await getIdToken();
+      if (token) {
+        // 1. Persist PHYSICAL_LABEL image first
+        await uploadPhysicalLabelImage(workspaceId, containerId, compressed.file, token);
+        await queryClient.invalidateQueries({ queryKey: ['physicalLabelImage', workspaceId, containerId] });
+        await queryClient.invalidateQueries({ queryKey: ['container', workspaceId, containerId] });
 
-      // Simple local pattern/metadata analysis for label preview
-      if (filenameLower.includes('xmas') || filenameLower.includes('christmas')) {
-        setDetectedText('Christmas Box');
-        setCandidateText('Christmas Box');
-      } else if (filenameLower.includes('blue') || filenameLower.includes('tote')) {
-        setDetectedText('Blue Tote');
-        setCandidateText('Blue Tote');
-      } else if (filenameLower.includes('kitchen')) {
-        setDetectedText('Kitchen #2');
-        setCandidateText('Kitchen #2');
-      } else if (filenameLower.includes('unreadable') || filenameLower.includes('blank')) {
-        setDetectedText(null);
-        setOcrFailed(true);
-        setCandidateText('');
+        // 2. Request server-side OCR via Vertex AI Gemini provider
+        const ocrResult = await extractPhysicalLabelOcrText(workspaceId, containerId, token);
+        setIsProcessingOcr(false);
+
+        if (ocrResult && ocrResult.detectedText) {
+          setDetectedText(ocrResult.detectedText);
+          setCandidateText(ocrResult.detectedText);
+          setOcrFailed(false);
+        } else {
+          setDetectedText(null);
+          setCandidateText('');
+          setOcrFailed(true);
+        }
       } else {
-        // Default candidate from file label or detected text pattern
-        const sampleCandidate = 'Christmas Box';
-        setDetectedText(sampleCandidate);
-        setCandidateText(sampleCandidate);
+        setIsProcessingOcr(false);
+        setOcrFailed(true);
       }
-    }, 600);
+    } catch (err: any) {
+      setIsProcessingOcr(false);
+      setOcrFailed(true);
+    }
   };
 
   const handleResetPhoto = () => {
-    setSelectedFile(null);
     setPreviewUrl(null);
     setDetectedText(null);
     setOcrFailed(false);
@@ -88,36 +94,22 @@ export const TakePhotoLabelModal: React.FC<TakePhotoLabelModalProps> = ({
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
     const finalLabel = candidateText.trim();
-    if (!finalLabel) {
-      setErrorMessage('Please enter or confirm a physical label before saving.');
-      return;
-    }
 
     try {
       setIsSaving(true);
       setErrorMessage(null);
 
-      // 1. Persist PhysicalLabel on Container
-      await updateMutation.mutateAsync({
-        containerId,
-        data: { physicalLabel: finalLabel },
-      });
-
-      // 2. Attach label photo to container reference images
-      if (selectedFile) {
-        try {
-          const compressed = await compressImage(selectedFile);
-          const formData = new FormData();
-          formData.append('file', compressed.file);
-
-          await fetch(`/api/v1/workspaces/${encodeURIComponent(workspaceId)}/containers/${encodeURIComponent(containerId)}/images`, {
-            method: 'POST',
-            body: formData,
-          });
-        } catch {
-          // If reference photo upload fails, PhysicalLabel persistence still succeeded
-        }
+      // 1. If text was confirmed or provided, persist physicalLabel on Container
+      if (finalLabel) {
+        await updateMutation.mutateAsync({
+          containerId,
+          data: { physicalLabel: finalLabel },
+        });
       }
+
+      // 2. Ensure physical label image & container queries are invalidated
+      await queryClient.invalidateQueries({ queryKey: ['physicalLabelImage', workspaceId, containerId] });
+      await queryClient.invalidateQueries({ queryKey: ['container', workspaceId, containerId] });
 
       setIsSaving(false);
       onClose();
@@ -156,14 +148,15 @@ export const TakePhotoLabelModal: React.FC<TakePhotoLabelModalProps> = ({
           boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1)',
         }}
       >
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem' }}>
           <h2 id="photo-label-modal-title" style={{ margin: 0, fontSize: '1.25rem', fontWeight: 800, color: '#0f172a' }}>
-            Take Photo of Label
+            Take / Choose Label Photo
           </h2>
           <button
             type="button"
             onClick={onClose}
-            style={{ background: 'none', border: 'none', fontSize: '1.5rem', color: '#64748b', cursor: 'pointer' }}
+            style={{ background: 'none', border: 'none', fontSize: '1.5rem', color: '#64748b', cursor: 'pointer', lineHeight: 1 }}
+            aria-label="Close modal"
           >
             ×
           </button>
@@ -187,9 +180,9 @@ export const TakePhotoLabelModal: React.FC<TakePhotoLabelModalProps> = ({
         )}
 
         {!previewUrl ? (
-          <div style={{ textAlign: 'center', padding: '1.5rem 0' }}>
-            <p style={{ color: '#475569', fontSize: '0.9rem', marginBottom: '1.5rem' }}>
-              Take or upload a photo of handwritten text or a label on <strong>{boxDisplayId}</strong>.
+          <div style={{ textAlign: 'center', padding: '1rem 0' }}>
+            <p style={{ color: '#475569', fontSize: '0.9rem', marginBottom: '1.5rem', lineHeight: 1.5 }}>
+              Take or upload a photo of a label or handwritten notes on <strong>{boxDisplayId}</strong>.
             </p>
 
             <input
@@ -201,23 +194,23 @@ export const TakePhotoLabelModal: React.FC<TakePhotoLabelModalProps> = ({
               style={{ display: 'none' }}
             />
 
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.875rem' }}>
               <button
                 type="button"
-                className="btn-primary"
+                className="btn btn-primary btn--md"
                 onClick={() => fileInputRef.current?.click()}
-                style={{ padding: '0.75rem 1rem', fontSize: '0.95rem' }}
+                style={{ width: '100%' }}
               >
                 📷 Snap / Upload Photo
               </button>
 
               <button
                 type="button"
-                className="btn-secondary"
+                className="btn btn-secondary btn--md"
                 onClick={onSwitchToManual}
-                style={{ padding: '0.5rem 1rem', fontSize: '0.85rem' }}
+                style={{ width: '100%' }}
               >
-                Enter Label Manually Instead
+                Enter Label Text Manually Instead
               </button>
             </div>
           </div>
@@ -227,7 +220,7 @@ export const TakePhotoLabelModal: React.FC<TakePhotoLabelModalProps> = ({
               <img
                 src={previewUrl}
                 alt="Label preview"
-                style={{ maxHeight: '180px', borderRadius: '0.5rem', objectFit: 'cover', border: '1px solid #e2e8f0' }}
+                style={{ maxHeight: '180px', maxWidth: '100%', borderRadius: '0.5rem', objectFit: 'contain', border: '1px solid #e2e8f0' }}
               />
             </div>
 
@@ -236,29 +229,21 @@ export const TakePhotoLabelModal: React.FC<TakePhotoLabelModalProps> = ({
                 🔍 Reading visible text from label...
               </div>
             ) : ocrFailed ? (
-              <div style={{ backgroundColor: '#fffbebfb', border: '1px solid #fde68a', padding: '0.875rem', borderRadius: '0.5rem' }}>
+              <div style={{ backgroundColor: '#fffbebfb', border: '1px solid #fde68a', padding: '0.875rem 1rem', borderRadius: '0.5rem' }}>
                 <div style={{ color: '#b45309', fontWeight: 700, fontSize: '0.875rem', marginBottom: '0.25rem' }}>
-                  We couldn't confidently read the label.
+                  We couldn't read the label automatically.
                 </div>
                 <div style={{ color: '#78350f', fontSize: '0.8rem', marginBottom: '0.75rem' }}>
-                  You can enter the label text manually or retake the photo.
+                  Your photo will still be saved as an Existing Label. You can also type text manually.
                 </div>
                 <div style={{ display: 'flex', gap: '0.5rem' }}>
                   <button
                     type="button"
-                    className="btn-secondary"
+                    className="btn btn-secondary btn--md"
                     onClick={onSwitchToManual}
-                    style={{ flex: 1, padding: '0.375rem', fontSize: '0.75rem' }}
+                    style={{ flex: 1, fontSize: '0.8rem' }}
                   >
-                    Enter Label Manually
-                  </button>
-                  <button
-                    type="button"
-                    className="btn-secondary"
-                    onClick={handleResetPhoto}
-                    style={{ flex: 1, padding: '0.375rem', fontSize: '0.75rem' }}
-                  >
-                    Retake Photo
+                    Enter Label Text
                   </button>
                 </div>
               </div>
@@ -266,7 +251,7 @@ export const TakePhotoLabelModal: React.FC<TakePhotoLabelModalProps> = ({
               <div>
                 <div style={{ backgroundColor: '#f0f9ff', border: '1px solid #bae6fd', padding: '0.75rem 1rem', borderRadius: '0.5rem', marginBottom: '1rem' }}>
                   <span style={{ fontSize: '0.75rem', fontWeight: 700, color: '#0369a1', textTransform: 'uppercase' }}>
-                    Detected Text
+                    Detected Text Suggestion
                   </span>
                   <div style={{ fontSize: '1rem', fontWeight: 700, color: '#0c4a6e', marginTop: '0.125rem' }}>
                     {detectedText}
@@ -275,14 +260,13 @@ export const TakePhotoLabelModal: React.FC<TakePhotoLabelModalProps> = ({
 
                 <div className="form-group" style={{ marginBottom: 0 }}>
                   <label htmlFor="ocr-candidate-input" style={{ fontWeight: 700, fontSize: '0.875rem' }}>
-                    Physical Label (Human Confirmation)
+                    Confirm or Edit Label Text
                   </label>
                   <input
                     id="ocr-candidate-input"
                     type="text"
                     value={candidateText}
                     onChange={(e) => setCandidateText(e.target.value)}
-                    required
                     style={{ width: '100%', padding: '0.625rem', fontSize: '0.95rem' }}
                   />
                   <span style={{ fontSize: '0.75rem', color: '#64748b', marginTop: '0.25rem', display: 'block' }}>
@@ -292,22 +276,20 @@ export const TakePhotoLabelModal: React.FC<TakePhotoLabelModalProps> = ({
               </div>
             )}
 
-            <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'flex-end', marginTop: '0.5rem' }}>
+            <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'flex-end', marginTop: '0.5rem' }}>
               <button
                 type="button"
-                className="btn-secondary"
+                className="btn btn-secondary btn--md"
                 onClick={handleResetPhoto}
-                style={{ padding: '0.5rem 1rem', fontSize: '0.875rem' }}
               >
                 Retake Photo
               </button>
               <button
                 type="submit"
-                className="btn-primary"
-                disabled={isSaving || isProcessingOcr || !candidateText.trim()}
-                style={{ padding: '0.5rem 1.5rem', fontSize: '0.875rem' }}
+                className="btn btn-primary btn--md"
+                disabled={isSaving || isProcessingOcr}
               >
-                {isSaving ? 'Saving...' : 'Save Label'}
+                {isSaving ? 'Saving...' : 'Save Label Photo'}
               </button>
             </div>
           </form>

@@ -13,23 +13,23 @@ public class PostgreSqlBoxNumberAllocator : IBoxNumberAllocator
         _dbContext = dbContext;
     }
 
-    public async Task<int> AllocateNextAsync(Guid workspaceId, CancellationToken cancellationToken = default)
+    public async Task<int> AllocateNextAsync(Guid inventoryNamespaceId, CancellationToken cancellationToken = default)
     {
         // 1. Concurrency-safe lazy initialization (ON CONFLICT DO NOTHING)
         await _dbContext.Database.ExecuteSqlRawAsync(
-            @"INSERT INTO workspace_box_counters (workspace_id, next_box_number)
+            @"INSERT INTO inventory_namespace_box_counters (inventory_namespace_id, next_box_number)
               VALUES ({0}, 1)
-              ON CONFLICT (workspace_id) DO NOTHING;",
-            new object[] { workspaceId },
+              ON CONFLICT (inventory_namespace_id) DO NOTHING;",
+            new object[] { inventoryNamespaceId },
             cancellationToken);
 
         // 2. Atomic update returning current next_box_number then incrementing
         var result = await _dbContext.Database.SqlQueryRaw<int>(
-            @"UPDATE workspace_box_counters
+            @"UPDATE inventory_namespace_box_counters
               SET next_box_number = next_box_number + 1
-              WHERE workspace_id = {0}
+              WHERE inventory_namespace_id = {0}
               RETURNING next_box_number - 1;",
-            new object[] { workspaceId })
+            new object[] { inventoryNamespaceId })
             .ToListAsync(cancellationToken);
 
         return result.Single();

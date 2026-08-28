@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, NavLink } from 'react-router-dom';
 import { Workspace } from '../types/workspace';
 import { useWorkspaces } from '../hooks/useWorkspaces';
 import { WorkspaceLoadingState } from '../components/WorkspaceLoadingState';
@@ -31,6 +31,8 @@ export const WorkspaceProvider: React.FC<{ children?: React.ReactNode }> = ({ ch
   const { data: workspaces = [], isLoading, isError, error, refetch } = useWorkspaces();
   const [activeWorkspaceId, setActiveWorkspaceId] = useState<string>('');
   const [isCreateModalOpen, setIsCreateModalOpen] = useState<boolean>(false);
+  const [isNavMenuOpen, setIsNavMenuOpen] = useState<boolean>(false);
+  const navMenuRef = React.useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (workspaces.length > 0) {
@@ -42,12 +44,31 @@ export const WorkspaceProvider: React.FC<{ children?: React.ReactNode }> = ({ ch
     }
   }, [workspaces, activeWorkspaceId]);
 
+  useEffect(() => {
+    if (!isNavMenuOpen) return;
+    const handleClickOutside = (e: MouseEvent) => {
+      if (navMenuRef.current && !navMenuRef.current.contains(e.target as Node)) {
+        setIsNavMenuOpen(false);
+      }
+    };
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setIsNavMenuOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    document.addEventListener('keydown', handleKeyDown);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [isNavMenuOpen]);
+
   const activeWorkspace = workspaces.find((w) => w.id === activeWorkspaceId) || workspaces[0] || null;
 
   const handleSelectWorkspace = (newId: string) => {
     if (newId !== activeWorkspaceId) {
       setActiveWorkspaceId(newId);
-      // Safe navigation on workspace switch: if currently on detail route, reset to root
       if (window.location.pathname !== '/' && window.location.pathname !== '') {
         window.location.href = '/';
       }
@@ -64,55 +85,77 @@ export const WorkspaceProvider: React.FC<{ children?: React.ReactNode }> = ({ ch
       }}
     >
       <div className="workspace-layout" style={{ minHeight: '100vh', backgroundColor: '#f8fafc', display: 'flex', flexDirection: 'column' }}>
-        <header
-          className="workspace-nav"
-          style={{
-            backgroundColor: '#0f172a',
-            color: '#f8fafc',
-            borderBottom: '1px solid #1e293b',
-            padding: '0.75rem 1.5rem',
-            display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'center',
-            flexWrap: 'wrap',
-            gap: '1rem',
-          }}
-        >
-          <div className="nav-left" style={{ display: 'flex', alignItems: 'center', gap: '1.25rem', flexWrap: 'wrap' }}>
-            <Link to="/" style={{ display: 'flex', alignItems: 'center', gap: '0.625rem', textDecoration: 'none', color: '#ffffff' }}>
-              <img src="/icons/icon-192.svg" alt="WherezIt Logo" style={{ width: '32px', height: '32px', borderRadius: '8px' }} />
-              <span style={{ fontWeight: 800, fontSize: '1.25rem', letterSpacing: '-0.025em' }}>WherezIt</span>
-            </Link>
-
-            {workspaces.length > 0 && activeWorkspace && (
-              <WorkspaceSelector
-                workspaces={workspaces}
-                activeWorkspaceId={activeWorkspace.id}
-                onSelectWorkspace={handleSelectWorkspace}
-                onCreateWorkspace={() => setIsCreateModalOpen(true)}
-              />
-            )}
+        <header className="workspace-nav">
+          <div className="nav-container">
+            <div className="nav-brand">
+              <Link to="/" style={{ display: 'flex', alignItems: 'center', gap: '0.625rem', textDecoration: 'none', color: '#ffffff' }}>
+                <img src="/icons/icon-192.svg" alt="WherezIt Logo" style={{ width: '30px', height: '30px', borderRadius: '8px' }} />
+                <span style={{ fontWeight: 800, fontSize: '1.25rem', letterSpacing: '-0.025em' }}>WherezIt</span>
+              </Link>
+            </div>
 
             {activeWorkspace && (
-              <nav style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-                <Link
-                  to={`/workspaces/${activeWorkspace.id}/quick-pack`}
-                  style={{ color: '#38bdf8', textDecoration: 'none', fontSize: '0.875rem', fontWeight: 700 }}
-                >
-                  Moving Assistant
-                </Link>
-                <Link
-                  to="/scan"
-                  style={{ color: '#f8fafc', textDecoration: 'none', fontSize: '0.875rem', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '0.25rem' }}
-                >
-                  📷 Scan
-                </Link>
-              </nav>
-            )}
-          </div>
+              <div className="nav-center">
+                {workspaces.length > 0 && (
+                  <WorkspaceSelector
+                    workspaces={workspaces}
+                    activeWorkspaceId={activeWorkspace.id}
+                    onSelectWorkspace={handleSelectWorkspace}
+                    onCreateWorkspace={() => setIsCreateModalOpen(true)}
+                  />
+                )}
+                {/* Desktop Quick Links */}
+                <nav className="nav-quick-links nav-quick-links-desktop">
+                  <NavLink
+                    to={`/workspaces/${activeWorkspace.id}/moving-assistant`}
+                    className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`}
+                  >
+                    Moving Assistant
+                  </NavLink>
+                  <NavLink
+                    to="/scan"
+                    className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`}
+                    style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}
+                  >
+                    📷 Scan
+                  </NavLink>
+                </nav>
 
-          <div className="nav-right" style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-            <AccountMenu />
+                {/* Mobile Quick Links Dropdown Trigger */}
+                <div className="nav-quick-links-mobile" ref={navMenuRef}>
+                  <button
+                    type="button"
+                    aria-label="Navigation menu"
+                    onClick={() => setIsNavMenuOpen(!isNavMenuOpen)}
+                    className="nav-mobile-trigger"
+                  >
+                    ⋮
+                  </button>
+                  {isNavMenuOpen && (
+                    <div className="nav-mobile-dropdown">
+                      <Link
+                        to={`/workspaces/${activeWorkspace.id}/quick-pack`}
+                        onClick={() => setIsNavMenuOpen(false)}
+                        className="nav-mobile-dropdown-item"
+                      >
+                        🚚 Moving Assistant
+                      </Link>
+                      <Link
+                        to="/scan"
+                        onClick={() => setIsNavMenuOpen(false)}
+                        className="nav-mobile-dropdown-item"
+                      >
+                        📷 Scan
+                      </Link>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
+            <div className="nav-right">
+              <AccountMenu />
+            </div>
           </div>
         </header>
 

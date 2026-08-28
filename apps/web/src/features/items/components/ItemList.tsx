@@ -19,7 +19,38 @@ export const ItemList: React.FC<ItemListProps> = ({
   isContainerArchived = false,
   onAddFromPhoto,
 }) => {
+  const [isDesktop, setIsDesktop] = useState(() => typeof window !== 'undefined' && window.innerWidth >= 1024);
+  const [isContentsMenuOpen, setIsContentsMenuOpen] = useState(false);
+  const contentsMenuRef = React.useRef<HTMLDivElement>(null);
+
+  React.useEffect(() => {
+    const handleResize = () => setIsDesktop(window.innerWidth >= 1024);
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
+  React.useEffect(() => {
+    if (!isContentsMenuOpen) return;
+    const handleClickOutside = (e: MouseEvent) => {
+      if (contentsMenuRef.current && !contentsMenuRef.current.contains(e.target as Node)) {
+        setIsContentsMenuOpen(false);
+      }
+    };
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setIsContentsMenuOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    document.addEventListener('keydown', handleKeyDown);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [isContentsMenuOpen]);
+
   const [showArchived, setShowArchived] = useState(false);
+  const [isExpanded, setIsExpanded] = useState(false);
   const { data: items, isLoading, error } = useItems(workspaceId, containerId, showArchived);
 
   const createItemMutation = useCreateItem(workspaceId, containerId);
@@ -34,6 +65,8 @@ export const ItemList: React.FC<ItemListProps> = ({
   const [photosItem, setPhotosItem] = useState<Item | null>(null);
   const [itemToArchive, setItemToArchive] = useState<{ id: string; name: string } | null>(null);
   const [itemToDelete, setItemToDelete] = useState<{ id: string; name: string } | null>(null);
+
+  const defaultLimit = isDesktop ? 10 : 5;
 
   const handleCreate = async (data: { name: string; category?: string; quantity: number }) => {
     if (isContainerArchived) return;
@@ -78,225 +111,272 @@ export const ItemList: React.FC<ItemListProps> = ({
   return (
     <div className="card" style={{ padding: '1.5rem', marginBottom: '1.5rem' }}>
       {/* Header */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem' }}>
-        <h2 style={{ fontSize: '1.25rem', fontWeight: 800, margin: 0, color: '#0f172a' }}>
-          Contents
-        </h2>
-        {!isContainerArchived && (
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1.25rem' }}>
+        <div>
+          <h2 style={{ fontSize: '1.25rem', fontWeight: 800, margin: '0 0 0.25rem 0', color: '#0f172a' }}>
+            Contents
+          </h2>
+          <p style={{ margin: 0, fontSize: '0.85rem', color: '#64748b' }}>
+            Items stored in this box.
+          </p>
+        </div>
+        <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', position: 'relative' }} ref={contentsMenuRef}>
+          {!isContainerArchived && (
+            <button
+              type="button"
+              className="btn btn-primary btn--md"
+              onClick={() => setIsChooserOpen(true)}
+            >
+              + Add Item
+            </button>
+          )}
           <button
             type="button"
-            className="btn-primary"
-            onClick={() => setIsChooserOpen(true)}
-            style={{ padding: '0.4rem 0.875rem', fontSize: '0.85rem' }}
+            aria-label="Contents display options"
+            className="btn btn-secondary btn--icon-md"
+            onClick={() => setIsContentsMenuOpen(!isContentsMenuOpen)}
           >
-            + Add Item
+            ⋮
           </button>
-        )}
+          {isContentsMenuOpen && (
+            <div
+              style={{
+                position: 'absolute',
+                top: '100%',
+                right: 0,
+                marginTop: '0.375rem',
+                width: '180px',
+                backgroundColor: '#ffffff',
+                borderRadius: '0.5rem',
+                boxShadow: '0 10px 25px rgba(0,0,0,0.15)',
+                border: '1px solid #e2e8f0',
+                zIndex: 40,
+                overflow: 'hidden',
+                display: 'flex',
+                flexDirection: 'column',
+              }}
+            >
+              <button
+                type="button"
+                onClick={() => {
+                  setShowArchived(!showArchived);
+                  setIsContentsMenuOpen(false);
+                }}
+                style={{
+                  padding: '0.625rem 1rem',
+                  textAlign: 'left',
+                  background: 'none',
+                  border: 'none',
+                  fontSize: '0.85rem',
+                  fontWeight: 600,
+                  color: '#0f172a',
+                  cursor: 'pointer',
+                }}
+              >
+                {showArchived ? 'Hide archived items' : 'Show archived items'}
+              </button>
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Item List */}
       {items && items.length === 0 ? (
-        <div style={{ color: '#64748b', fontStyle: 'italic', padding: '1rem 0', textAlign: 'center' }}>
-          No items in this container.
+        <div style={{ color: '#64748b', fontStyle: 'italic', padding: '2rem 1rem', textAlign: 'center', backgroundColor: '#f8fafc', borderRadius: '0.5rem', border: '1px dashed #cbd5e1' }}>
+          No items in this box yet. Click "+ Add Item" to add items.
         </div>
       ) : (
-        <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
-          {activeItems.map((item) => (
-            <li
-              key={item.id}
-              style={{
-                display: 'flex',
-                justifyContent: 'space-between',
-                alignItems: 'center',
-                padding: '0.75rem 0',
-                borderBottom: '1px solid #f1f5f9',
-              }}
-            >
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.625rem' }}>
-                <span style={{ fontWeight: 600, color: '#0f172a', fontSize: '0.95rem' }}>{item.name}</span>
-                {item.category && (
-                  <span
-                    style={{
-                      backgroundColor: '#e0f2fe',
-                      color: '#0369a1',
-                      padding: '0.15rem 0.5rem',
-                      borderRadius: '0.25rem',
-                      fontSize: '0.75rem',
-                      fontWeight: 600,
-                    }}
-                  >
-                    {item.category}
-                  </span>
-                )}
-                <span
-                  style={{
-                    backgroundColor: '#f1f5f9',
-                    padding: '0.15rem 0.5rem',
-                    borderRadius: '0.25rem',
-                    fontSize: '0.75rem',
-                    color: '#475569',
-                    fontWeight: 500,
-                  }}
-                >
-                  Qty: {item.quantity}
-                </span>
-              </div>
+        <>
+          <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
+            {(isExpanded ? activeItems : activeItems.slice(0, defaultLimit)).map((item) => {
+              const nameLower = (item.name + ' ' + (item.category || '')).toLowerCase();
+              let icon = '📦';
+              let bg = '#f1f5f9';
+              let border = '#e2e8f0';
+              if (nameLower.includes('ornament')) { icon = '🔴'; bg = '#fef2f2'; border = '#fca5a5'; }
+              else if (nameLower.includes('light') || nameLower.includes('lamp')) { icon = '💡'; bg = '#fffbeb'; border = '#fde68a'; }
+              else if (nameLower.includes('cord') || nameLower.includes('cable') || nameLower.includes('plug')) { icon = '🔌'; bg = '#fff7ed'; border = '#ffedd5'; }
+              else if (nameLower.includes('star')) { icon = '⭐'; bg = '#fefce8'; border = '#fef08a'; }
+              else if (nameLower.includes('sandal') || nameLower.includes('shoe') || nameLower.includes('apparel')) { icon = '🩴'; bg = '#fdf4ff'; border = '#f5d0fe'; }
+              else if (nameLower.includes('book')) { icon = '📚'; bg = '#f0fdf4'; border = '#bbf7d0'; }
+              else if (nameLower.includes('kitchen') || nameLower.includes('dish')) { icon = '🍳'; bg = '#fff1f2'; border = '#fecdd3'; }
 
-              {!isContainerArchived && (
-                <div style={{ display: 'flex', gap: '0.375rem' }}>
-                  <button
-                    type="button"
-                    onClick={() => setPhotosItem(item)}
-                    style={{
-                      padding: '0.25rem 0.625rem',
-                      backgroundColor: '#ffffff',
-                      color: '#475569',
-                      borderRadius: '0.25rem',
-                      border: '1px solid #cbd5e1',
-                      fontSize: '0.75rem',
-                      fontWeight: 600,
-                      cursor: 'pointer',
-                    }}
-                  >
-                    🖼️ Photos
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setEditingItem(item)}
-                    style={{
-                      padding: '0.25rem 0.625rem',
-                      backgroundColor: '#ffffff',
-                      color: '#0284c7',
-                      borderRadius: '0.25rem',
-                      border: '1px solid #bae6fd',
-                      fontSize: '0.75rem',
-                      fontWeight: 600,
-                      cursor: 'pointer',
-                    }}
-                  >
-                    Edit
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setItemToArchive({ id: item.id, name: item.name })}
-                    disabled={archiveItemMutation.isPending}
-                    style={{
-                      padding: '0.25rem 0.625rem',
-                      backgroundColor: '#f1f5f9',
-                      color: '#475569',
-                      borderRadius: '0.25rem',
-                      border: '1px solid #cbd5e1',
-                      fontSize: '0.75rem',
-                      fontWeight: 600,
-                      cursor: 'pointer',
-                    }}
-                  >
-                    Archive
-                  </button>
-                </div>
-              )}
-            </li>
-          ))}
-
-          {/* Archived Items Section when toggle is on */}
-          {showArchived && archivedItems.length > 0 && (
-            <>
-              <li style={{ padding: '0.75rem 0 0.25rem 0', fontSize: '0.8rem', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                Archived Items
-              </li>
-              {archivedItems.map((item) => (
+              return (
                 <li
                   key={item.id}
                   style={{
                     display: 'flex',
                     justifyContent: 'space-between',
                     alignItems: 'center',
-                    padding: '0.625rem 0.5rem',
+                    flexWrap: 'wrap',
+                    gap: '0.5rem 0.875rem',
+                    padding: '0.875rem 0.5rem',
                     borderBottom: '1px solid #f1f5f9',
-                    backgroundColor: '#f8fafc',
-                    opacity: 0.8,
-                    borderRadius: '0.25rem',
-                    marginBottom: '0.25rem',
+                    borderRadius: '0.375rem',
+                    transition: 'background-color 150ms ease',
                   }}
                 >
-                  <div>
-                    <span style={{ fontWeight: 600, color: '#64748b', fontSize: '0.9rem', textDecoration: 'line-through' }}>{item.name}</span>
-                    {item.category && (
-                      <span
-                        style={{
-                          marginLeft: '0.5rem',
-                          backgroundColor: '#e2e8f0',
-                          color: '#64748b',
-                          padding: '0.1rem 0.4rem',
-                          borderRadius: '0.25rem',
-                          fontSize: '0.75rem',
-                        }}
-                      >
-                        {item.category}
-                      </span>
-                    )}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.875rem', flex: '1 1 180px', minWidth: 0 }}>
+                    <div
+                      style={{
+                        width: '38px',
+                        height: '38px',
+                        borderRadius: '0.5rem',
+                        backgroundColor: bg,
+                        border: `1px solid ${border}`,
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        fontSize: '1.2rem',
+                        flexShrink: 0,
+                      }}
+                    >
+                      {icon}
+                    </div>
+                    <div style={{ minWidth: 0 }}>
+                      <div style={{ fontWeight: 700, color: '#0f172a', fontSize: '0.95rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        {item.name}
+                      </div>
+                      {item.category && (
+                        <div style={{ fontSize: '0.75rem', color: '#64748b', fontWeight: 500 }}>
+                          {item.category}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap', marginLeft: 'auto' }}>
                     <span
                       style={{
-                        marginLeft: '0.5rem',
-                        fontSize: '0.75rem',
-                        color: '#94a3b8',
+                        height: '32px',
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        backgroundColor: '#f1f5f9',
+                        padding: '0 0.625rem',
+                        borderRadius: '0.375rem',
+                        fontSize: '0.8rem',
+                        color: '#334155',
+                        fontWeight: 700,
+                        whiteSpace: 'nowrap',
+                        boxSizing: 'border-box',
                       }}
                     >
                       Qty: {item.quantity}
                     </span>
+
+                    {!isContainerArchived && (
+                      <div style={{ display: 'flex', gap: '0.375rem', alignItems: 'center' }}>
+                        <button
+                          type="button"
+                          className="btn btn-secondary btn--icon-sm"
+                          onClick={() => setPhotosItem(item)}
+                          title="Item Photos"
+                        >
+                          📷
+                        </button>
+                        <button
+                          type="button"
+                          className="btn btn-secondary btn--icon-sm"
+                          onClick={() => setEditingItem(item)}
+                          title="Edit Item"
+                        >
+                          ✏️
+                        </button>
+                        <button
+                          type="button"
+                          className="btn btn-secondary btn--icon-sm"
+                          onClick={() => setItemToArchive({ id: item.id, name: item.name })}
+                          disabled={archiveItemMutation.isPending}
+                          title="Archive Item"
+                        >
+                          🗑️
+                        </button>
+                      </div>
+                    )}
                   </div>
-
-                  {!isContainerArchived && (
-                    <div style={{ display: 'flex', gap: '0.375rem' }}>
-                      <button
-                        type="button"
-                        onClick={() => handleRestore(item.id)}
-                        disabled={restoreItemMutation.isPending}
-                        className="btn-secondary"
-                        style={{
-                          padding: '0.25rem 0.625rem',
-                          fontSize: '0.75rem',
-                        }}
-                      >
-                        Restore
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setItemToDelete({ id: item.id, name: item.name })}
-                        disabled={deleteItemMutation.isPending}
-                        style={{
-                          padding: '0.25rem 0.625rem',
-                          backgroundColor: '#fff',
-                          color: '#dc2626',
-                          borderRadius: '0.25rem',
-                          border: '1px solid #fca5a5',
-                          fontSize: '0.75rem',
-                          fontWeight: 600,
-                          cursor: 'pointer',
-                        }}
-                      >
-                        Delete Permanently
-                      </button>
-                    </div>
-                  )}
                 </li>
-              ))}
-            </>
-          )}
-        </ul>
-      )}
+              );
+            })}
 
-      {/* Show Archived Toggle */}
-      <div style={{ marginTop: '1.25rem', paddingTop: '0.75rem', borderTop: '1px solid #f1f5f9' }}>
-        <label style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.85rem', color: '#64748b', cursor: 'pointer' }}>
-          <input
-            type="checkbox"
-            checked={showArchived}
-            onChange={(e) => setShowArchived(e.target.checked)}
-          />
-          Show Archived Items
-        </label>
-      </div>
+            {/* Archived Items Section when toggle is on */}
+            {showArchived && archivedItems.length > 0 && (
+              <>
+                <li style={{ padding: '0.75rem 0 0.25rem 0', fontSize: '0.8rem', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                  Archived Items
+                </li>
+                {archivedItems.map((item) => (
+                  <li
+                    key={item.id}
+                    style={{
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      alignItems: 'center',
+                      flexWrap: 'wrap',
+                      gap: '0.5rem 0.875rem',
+                      padding: '0.75rem 0.5rem',
+                      borderBottom: '1px solid #f1f5f9',
+                      opacity: 0.75,
+                    }}
+                  >
+                    <div>
+                      <div style={{ fontWeight: 600, color: '#64748b', textDecoration: 'line-through', fontSize: '0.9rem' }}>
+                        {item.name}
+                      </div>
+                      <div style={{ fontSize: '0.75rem', color: '#94a3b8' }}>
+                        Qty: {item.quantity} {item.category ? `• ${item.category}` : ''}
+                      </div>
+                    </div>
+
+                    {!isContainerArchived && (
+                      <div style={{ display: 'flex', gap: '0.375rem' }}>
+                        <button
+                          type="button"
+                          onClick={() => handleRestore(item.id)}
+                          disabled={restoreItemMutation.isPending}
+                          className="btn btn-secondary btn--sm"
+                        >
+                          Restore
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setItemToDelete({ id: item.id, name: item.name })}
+                          disabled={deleteItemMutation.isPending}
+                          className="btn btn-danger btn--sm"
+                        >
+                          Delete Permanently
+                        </button>
+                      </div>
+                    )}
+                  </li>
+                ))}
+              </>
+            )}
+          </ul>
+
+          {activeItems.length > defaultLimit && (
+            <div style={{ marginTop: '0.875rem', textAlign: 'center' }}>
+              <button
+                type="button"
+                onClick={() => setIsExpanded(!isExpanded)}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  color: '#0284c7',
+                  fontSize: '0.85rem',
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                  padding: '0.25rem 0.5rem',
+                }}
+              >
+                {isExpanded
+                  ? `Showing all ${activeItems.length} items · Show fewer`
+                  : `View all ${activeItems.length} items`}
+              </button>
+            </div>
+          )}
+        </>
+      )}
 
       {/* Chooser Modal */}
       <AddContentsChooserModal
@@ -382,18 +462,16 @@ export const ItemList: React.FC<ItemListProps> = ({
             <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'flex-end' }}>
               <button
                 type="button"
-                className="btn-secondary"
+                className="btn btn-secondary btn--md"
                 onClick={() => setItemToArchive(null)}
-                style={{ padding: '0.5rem 1rem', fontSize: '0.875rem' }}
               >
                 Cancel
               </button>
               <button
                 type="button"
-                className="btn-primary"
+                className="btn btn-primary btn--md"
                 onClick={handleConfirmArchive}
                 disabled={archiveItemMutation.isPending}
-                style={{ padding: '0.5rem 1.25rem', fontSize: '0.875rem' }}
               >
                 {archiveItemMutation.isPending ? 'Archiving...' : 'Archive Item'}
               </button>
@@ -441,18 +519,16 @@ export const ItemList: React.FC<ItemListProps> = ({
             <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'flex-end' }}>
               <button
                 type="button"
-                className="btn-secondary"
+                className="btn btn-secondary btn--md"
                 onClick={() => setItemToDelete(null)}
-                style={{ padding: '0.5rem 1rem', fontSize: '0.875rem' }}
               >
                 Cancel
               </button>
               <button
                 type="button"
-                className="btn-danger"
+                className="btn btn-danger btn--md"
                 onClick={handleConfirmDelete}
                 disabled={deleteItemMutation.isPending}
-                style={{ padding: '0.5rem 1.25rem', fontSize: '0.875rem' }}
               >
                 {deleteItemMutation.isPending ? 'Deleting...' : 'Delete Permanently'}
               </button>

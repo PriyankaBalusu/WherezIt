@@ -12,6 +12,7 @@ public class ImageAsset
     public string ContentType { get; set; } = string.Empty;
     public long SizeBytes { get; set; }
     public string Status { get; set; } = "PENDING"; // PENDING, READY, FAILED
+    public string ImagePurpose { get; set; } = "REFERENCE"; // REFERENCE, PHYSICAL_LABEL, ITEM
     public DateTimeOffset CreatedAt { get; set; }
     public DateTimeOffset UpdatedAt { get; set; }
 

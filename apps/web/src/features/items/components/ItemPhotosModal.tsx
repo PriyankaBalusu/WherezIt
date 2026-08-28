@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
+import { AuthenticatedImage } from '../../images/components/AuthenticatedImage';
 import { useAuth } from '../../auth/useAuth';
 import { compressImage } from '../../images/utils/compressImage';
 
@@ -215,7 +216,7 @@ export const ItemPhotosModal: React.FC<ItemPhotosModalProps> = ({
                     backgroundColor: '#0f172a',
                   }}
                 >
-                  <img
+                  <AuthenticatedImage
                     src={img.url}
                     alt={itemName}
                     onClick={() => setSelectedFullImage(img.url)}
@@ -253,24 +254,24 @@ export const ItemPhotosModal: React.FC<ItemPhotosModalProps> = ({
 
         {/* Action Buttons */}
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem', justifyContent: 'space-between', alignItems: 'center', borderTop: '1px solid #f1f5f9', paddingTop: '1.25rem' }}>
-          <div style={{ display: 'flex', gap: '0.5rem' }}>
+          <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
             <button
               type="button"
               className="btn-primary"
               disabled={isUploading}
-              onClick={() => cameraInputRef.current?.click()}
-              style={{ padding: '0.5rem 0.875rem', fontSize: '0.85rem' }}
-            >
-              📷 Take Photo
-            </button>
-            <button
-              type="button"
-              className="btn-secondary"
-              disabled={isUploading}
               onClick={() => libraryInputRef.current?.click()}
               style={{ padding: '0.5rem 0.875rem', fontSize: '0.85rem' }}
             >
-              📁 Choose File
+              + Add Photo
+            </button>
+            <button
+              type="button"
+              className="btn-secondary mobile-only-inline"
+              disabled={isUploading}
+              onClick={() => cameraInputRef.current?.click()}
+              style={{ padding: '0.5rem 0.875rem', fontSize: '0.85rem' }}
+            >
+              📷 Camera
             </button>
           </div>
 
@@ -303,7 +304,7 @@ export const ItemPhotosModal: React.FC<ItemPhotosModalProps> = ({
           }}
           onClick={() => setSelectedFullImage(null)}
         >
-          <img
+          <AuthenticatedImage
             src={selectedFullImage}
             alt={itemName}
             style={{ maxWidth: '90vw', maxHeight: '90vh', borderRadius: '0.5rem', objectFit: 'contain' }}

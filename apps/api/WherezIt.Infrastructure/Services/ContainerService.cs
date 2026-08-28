@@ -144,14 +144,23 @@ public class ContainerService : IContainerService
             }
         }
 
+        var workspace = await _dbContext.Workspaces
+            .AsNoTracking()
+            .FirstOrDefaultAsync(w => w.Id == workspaceId, cancellationToken);
+        if (workspace == null)
+        {
+            throw new KeyNotFoundException($"Workspace '{workspaceId}' not found.");
+        }
+
         // 3. Allocate next BOX number atomically
-        var boxNumber = await _allocator.AllocateNextAsync(workspaceId, cancellationToken);
+        var boxNumber = await _allocator.AllocateNextAsync(workspace.InventoryNamespaceId, cancellationToken);
 
         var now = DateTimeOffset.UtcNow;
         var container = new Container
         {
             Id = Guid.NewGuid(),
             WorkspaceId = workspaceId,
+            InventoryNamespaceId = workspace.InventoryNamespaceId,
             StorageNodeId = request.StorageNodeId,
             BoxNumber = boxNumber,
             Name = request.Name?.Trim(),
@@ -366,6 +375,41 @@ public class ContainerService : IContainerService
                 }
             }
         }
+    }
+
+    public async Task<ContainerResponseDto> UnpackContainerAsync(
+        AuthenticatedIdentity identity,
+        Guid workspaceId,
+        Guid containerId,
+        CancellationToken cancellationToken = default)
+    {
+        // 1. Verify workspace membership
+        await _authorizationService.RequireWorkspaceMembershipAsync(identity, workspaceId, cancellationToken);
+
+        // 2. Fetch Container in workspace
+        var container = await _dbContext.Containers
+            .FirstOrDefaultAsync(c => c.WorkspaceId == workspaceId && c.Id == containerId, cancellationToken);
+
+        if (container == null)
+        {
+            throw new KeyNotFoundException($"Container '{containerId}' was not found in workspace '{workspaceId}'.");
+        }
+
+        // 3. Idempotency Check: If already unpacked, return current state
+        if (!container.IsPacked && container.MovingPriority == null && container.DestinationStorageNodeId == null)
+        {
+            return MapToDto(container);
+        }
+
+        // 4. Perform moving lifecycle cleanup
+        container.IsPacked = false;
+        container.MovingPriority = null;
+        container.DestinationStorageNodeId = null;
+        container.UpdatedAt = DateTimeOffset.UtcNow;
+
+        await _dbContext.SaveChangesAsync(cancellationToken);
+
+        return MapToDto(container);
     }
 
     private static ContainerResponseDto MapToDto(Container c)

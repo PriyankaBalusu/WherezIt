@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { useContainer, useUpdateContainer, useArchiveContainer, useRestoreContainer, useDeleteContainer } from '../hooks/useContainers';
 import { useStorageLocations } from '../../locations/hooks/useStorageLocations';
@@ -14,8 +14,10 @@ import { RevokeIdentifierModal } from '../../identifiers/components/RevokeIdenti
 import { useContainerIdentifiers } from '../../identifiers/hooks/useIdentifiers';
 import { compressImage } from '../../images/utils/compressImage';
 import { useAuth } from '../../auth/useAuth';
-import { useContainerImages, useDeleteContainerImage, useUploadContainerImage } from '../hooks/useContainerImages';
+import { useContainerImages, useDeleteContainerImage, useUploadContainerImage, usePhysicalLabelImage, useDeleteExistingLabel } from '../hooks/useContainerImages';
 import { useWorkspaceContext } from '../../workspaces/context/WorkspaceContext';
+import { AuthenticatedImage } from '../../images/components/AuthenticatedImage';
+import './ContainerDetailScreen.css';
 
 export const ContainerDetailScreen: React.FC = () => {
   const { workspaceId, containerId } = useParams<{ workspaceId: string; containerId: string }>();
@@ -28,9 +30,11 @@ export const ContainerDetailScreen: React.FC = () => {
   const { data: container, isLoading: isContainerLoading, isError: isContainerError, error: containerError } = useContainer(workspaceId, containerId);
   const { data: locations = [] } = useStorageLocations(workspaceId || '');
   const { data: referenceImages = [] } = useContainerImages(workspaceId || '', containerId || '');
+  const { data: labelImage } = usePhysicalLabelImage(workspaceId, containerId);
   const { data: identifiers = [] } = useContainerIdentifiers(workspaceId, containerId);
   const deleteImageMutation = useDeleteContainerImage(workspaceId || '', containerId || '');
   const uploadReferenceImageMutation = useUploadContainerImage(workspaceId || '', containerId || '');
+  const deleteExistingLabelMutation = useDeleteExistingLabel(workspaceId || '', containerId || '');
 
   const updateMutation = useUpdateContainer(workspaceId || '');
   const archiveMutation = useArchiveContainer(workspaceId || '');
@@ -54,13 +58,41 @@ export const ContainerDetailScreen: React.FC = () => {
   const [isMoving, setIsMoving] = useState(false);
   const [isArchiveBoxConfirmOpen, setIsArchiveBoxConfirmOpen] = useState(false);
   const [isDeleteBoxConfirmOpen, setIsDeleteBoxConfirmOpen] = useState(false);
+  const [isRemoveExistingLabelConfirmOpen, setIsRemoveExistingLabelConfirmOpen] = useState(false);
   const [imageToDelete, setImageToDelete] = useState<{ id: string; url: string } | null>(null);
   const [previewImageUrl, setPreviewImageUrl] = useState<string | null>(null);
+  const [galleryIndex, setGalleryIndex] = useState<number | null>(null);
+
+  useEffect(() => {
+    if (galleryIndex === null || referenceImages.length === 0) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setGalleryIndex(null);
+      } else if (e.key === 'ArrowLeft') {
+        setGalleryIndex((prev) => (prev !== null && prev > 0 ? prev - 1 : referenceImages.length - 1));
+      } else if (e.key === 'ArrowRight') {
+        setGalleryIndex((prev) => (prev !== null && prev < referenceImages.length - 1 ? prev + 1 : 0));
+      }
+    };
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [galleryIndex, referenceImages.length]);
+
+
+
+  const handleConfirmRemoveExistingLabel = async () => {
+    if (!workspaceId || !containerId) return;
+    try {
+      await deleteExistingLabelMutation.mutateAsync();
+      setIsRemoveExistingLabelConfirmOpen(false);
+    } catch (err: any) {
+      alert(err.message || 'Failed to remove existing label.');
+    }
+  };
 
   // Form states
   const [editName, setEditName] = useState('');
   const [editDesc, setEditDesc] = useState('');
-  const [editPhysicalLabel, setEditPhysicalLabel] = useState('');
   const [editPriority, setEditPriority] = useState('');
   const [newLocationId, setNewLocationId] = useState('');
 
@@ -70,11 +102,33 @@ export const ContainerDetailScreen: React.FC = () => {
 
   const [isUploadingReference, setIsUploadingReference] = useState(false);
   const [referenceUploadError, setReferenceUploadError] = useState<string | null>(null);
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!isMenuOpen) return;
+    const handleClickOutside = (event: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
+        setIsMenuOpen(false);
+      }
+    };
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        setIsMenuOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    document.addEventListener('keydown', handleKeyDown);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [isMenuOpen]);
 
   if (isContainerLoading) {
     return (
-      <div style={{ padding: '3rem', textAlign: 'center', color: '#64748b' }}>
-        <div className="spinner" style={{ width: '24px', height: '24px', border: '3px solid #cbd5e1', borderTopColor: '#0284c7', borderRadius: '50%', animation: 'spin 1s linear infinite', margin: '0 auto 1rem auto' }} />
+      <div className="container-detail-loading">
+        <div className="spinner container-detail-loading__spinner" />
         Loading box details...
       </div>
     );
@@ -82,14 +136,14 @@ export const ContainerDetailScreen: React.FC = () => {
 
   if (isContainerError || !container) {
     return (
-      <div role="alert" style={{ maxWidth: '600px', margin: '3rem auto', padding: '1.5rem', backgroundColor: '#fef2f2', border: '1px solid #fca5a5', borderRadius: '0.5rem', textAlign: 'center' }}>
-        <h3 style={{ color: '#dc2626', marginTop: 0 }}>
+      <div role="alert" className="container-detail-error">
+        <h3 className="container-detail-error__title">
           {isContainerError ? "We couldn't load this box." : "Box not found."}
         </h3>
-        <p style={{ color: '#7f1d1d', marginBottom: '1.25rem' }}>
+        <p className="container-detail-error__msg">
           {(containerError as Error)?.message || 'The requested container could not be found or is unavailable.'}
         </p>
-        <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'center' }}>
+        <div className="container-detail-error__actions">
           <button type="button" className="btn-secondary" onClick={() => window.location.reload()}>
             Try Again
           </button>
@@ -127,7 +181,6 @@ export const ContainerDetailScreen: React.FC = () => {
         data: {
           name: editName.trim() || undefined,
           description: editDesc.trim() || undefined,
-          physicalLabel: editPhysicalLabel.trim() || undefined,
           movingPriority: editPriority || undefined,
         },
       });
@@ -148,7 +201,7 @@ export const ContainerDetailScreen: React.FC = () => {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ destinationStorageNodeId: newLocationId }),
+        body: JSON.stringify({ storageNodeId: newLocationId }),
       });
       if (!response.ok) {
         throw new Error('Failed to move box to location');
@@ -282,7 +335,7 @@ export const ContainerDetailScreen: React.FC = () => {
   };
 
   return (
-    <div style={{ maxWidth: '1000px', margin: '0 auto', padding: '1.5rem 1rem' }}>
+    <div className="container-detail-page">
       {/* Hidden file input for photo upload */}
       <input
         ref={fileInputRef}
@@ -290,23 +343,23 @@ export const ContainerDetailScreen: React.FC = () => {
         accept="image/jpeg,image/png,image/webp,image/heic,image/heif,.heic,.heif"
         onChange={handlePhotoUpload}
         disabled={isUploading || container.isArchived}
-        style={{ display: 'none' }}
+        className="hidden-file-input"
       />
 
       {/* AI Photo Upload Status / Progress Banner */}
       {isUploading && (
-        <div style={{ backgroundColor: '#e0f2fe', border: '1px solid #7dd3fc', color: '#0369a1', padding: '1rem 1.25rem', borderRadius: '0.5rem', marginBottom: '1.25rem', display: 'flex', alignItems: 'center', gap: '0.75rem', fontWeight: 600 }}>
-          <div className="spinner" style={{ width: '20px', height: '20px', border: '3px solid #7dd3fc', borderTopColor: '#0284c7', borderRadius: '50%', animation: 'spin 1s linear infinite' }} />
+        <div className="container-detail-ai-banner">
+          <div className="spinner container-detail-ai-banner__spinner" />
           <span>{uploadStep === 'analyzing' ? '✨ Analyzing photo with AI...' : '📷 Uploading photo...'}</span>
         </div>
       )}
 
       {/* AI Photo Upload Failure Card */}
       {uploadError && (
-        <div role="alert" style={{ backgroundColor: '#fef2f2', border: '1px solid #fca5a5', color: '#dc2626', padding: '1.25rem', borderRadius: '0.5rem', marginBottom: '1.25rem' }}>
+        <div role="alert" className="container-detail-error" style={{ marginBottom: '1.25rem' }}>
           <div style={{ fontWeight: 700, marginBottom: '0.5rem' }}>AI Photo Analysis Failed</div>
-          <p style={{ margin: '0 0 1rem 0', fontSize: '0.9rem', color: '#7f1d1d' }}>{uploadError}</p>
-          <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
+          <p className="container-detail-error__msg" style={{ margin: '0 0 1rem 0' }}>{uploadError}</p>
+          <div className="container-detail-error__actions" style={{ flexWrap: 'wrap' }}>
             <button
               type="button"
               className="btn-secondary"
@@ -334,388 +387,357 @@ export const ContainerDetailScreen: React.FC = () => {
       )}
 
       {/* 1. Breadcrumb Navigation */}
-      <nav aria-label="Breadcrumb" style={{ marginBottom: '1.25rem', fontSize: '0.875rem', color: '#64748b' }}>
-        <ol style={{ display: 'flex', flexWrap: 'wrap', listStyle: 'none', padding: 0, margin: 0, gap: '0.5rem', alignItems: 'center' }}>
+      <nav aria-label="Breadcrumb" className="container-detail-breadcrumbs">
+        <ol className="container-detail-breadcrumbs__list">
           <li>
-            <Link to="/" style={{ color: '#0284c7', textDecoration: 'none', fontWeight: 500 }}>Home</Link>
+            <Link to="/" className="container-detail-breadcrumbs__link">Home</Link>
           </li>
           {breadcrumbs.map((crumb) => (
             <React.Fragment key={crumb.id}>
-              <li style={{ color: '#cbd5e1' }}>/</li>
+              <li className="container-detail-breadcrumbs__sep">/</li>
               <li>
                 <Link
                   to={`/workspaces/${workspaceId}/locations/${crumb.id}`}
-                  style={{ color: '#0284c7', textDecoration: 'none', fontWeight: 600 }}
+                  className="container-detail-breadcrumbs__link"
+                  style={{ fontWeight: 600 }}
                 >
                   {crumb.name}
                 </Link>
               </li>
             </React.Fragment>
           ))}
-          <li style={{ color: '#cbd5e1' }}>/</li>
-          <li aria-current="page" style={{ fontWeight: 700, color: '#0f172a' }}>{container.boxId}</li>
+          <li className="container-detail-breadcrumbs__sep">/</li>
+          <li aria-current="page" className="container-detail-breadcrumbs__current">{container.boxId}</li>
         </ol>
       </nav>
 
-      {/* 2. Box Info Header Card */}
-      <section className="card" style={{ padding: '1.75rem', marginBottom: '1.75rem', borderLeft: '5px solid #0284c7' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '1rem' }}>
-          <div>
-            <span className="badge badge-boxid" style={{ fontSize: '0.875rem', padding: '0.375rem 0.75rem', marginBottom: '0.5rem' }}>
-              {container.boxId}
-            </span>
-            <h1 style={{ fontSize: '1.875rem', fontWeight: 800, margin: '0.25rem 0 0.5rem 0', color: '#0f172a' }}>
-              {container.name || 'Unnamed Box'}
-            </h1>
-            {container.physicalLabel && (
-              <div style={{ fontSize: '0.9rem', color: '#0284c7', fontWeight: 600, marginBottom: '0.5rem' }}>
-                🏷️ Physical Label: {container.physicalLabel}
-              </div>
-            )}
-            <div style={{ fontSize: '0.95rem', color: '#475569', display: 'flex', flexWrap: 'wrap', gap: '0.5rem 1rem', alignItems: 'center' }}>
-              <span>📍 <strong>{locationPathString}</strong></span>
-              {container.description && <span style={{ color: '#cbd5e1' }}>•</span>}
-              {container.description && <span style={{ color: '#64748b' }}>{container.description}</span>}
-            </div>
-          </div>
-        </div>
-      </section>
 
-      {/* 3. Main Contents Section */}
-      <ItemList
-        workspaceId={workspaceId!}
-        containerId={container.id}
-        isContainerArchived={container.isArchived}
-        onAddFromPhoto={triggerPhotoUpload}
+      {/* Hidden Reference Photo Input */}
+      <input
+        ref={referenceFileInputRef}
+        type="file"
+        accept="image/jpeg,image/png,image/webp,image/heic,image/heif,.heic,.heif"
+        onChange={handleReferencePhotoUpload}
+        disabled={isUploadingReference || container.isArchived}
+        className="hidden-file-input"
       />
 
-      {/* Grid Layout for Actions & Details */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '1.75rem', alignItems: 'start' }}>
-        {/* Left Column */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
-          {/* 4. Box Actions */}
-          <div className="card" style={{ padding: '1.5rem' }}>
-            <h3 style={{ marginTop: 0, marginBottom: '1.25rem', fontSize: '1.125rem', fontWeight: 700, color: '#0f172a' }}>
-              Box Actions
-            </h3>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-              <button
-                type="button"
-                className="btn-secondary"
-                disabled={container.isArchived}
-                onClick={() => {
-                  setNewLocationId(container.storageNodeId);
-                  setIsMoving(!isMoving);
-                  setIsEditing(false);
-                }}
-                style={{ justifyContent: 'flex-start', width: '100%', padding: '0.625rem 1rem' }}
-              >
-                📦 Move Box
-              </button>
-
-              {isMoving && (
-                <form onSubmit={handleMoveContainer} style={{ padding: '0.75rem', backgroundColor: '#f8fafc', borderRadius: '0.375rem', border: '1px solid #cbd5e1' }}>
-                  <div className="form-group" style={{ marginBottom: '0.75rem' }}>
-                    <label style={{ fontSize: '0.75rem', fontWeight: 700 }}>Select New Storage Location</label>
-                    <select
-                      value={newLocationId}
-                      onChange={(e) => setNewLocationId(e.target.value)}
-                      style={{ fontSize: '0.8rem', padding: '0.375rem' }}
-                      required
-                    >
-                      {locations.map((loc) => (
-                        <option key={loc.id} value={loc.id}>
-                          {loc.name}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                  <div style={{ display: 'flex', gap: '0.5rem' }}>
-                    <button type="submit" className="btn-primary" style={{ padding: '0.375rem 0.75rem', fontSize: '0.75rem' }}>Move Box</button>
-                    <button type="button" className="btn-secondary" onClick={() => setIsMoving(false)} style={{ padding: '0.375rem 0.75rem', fontSize: '0.75rem' }}>Cancel</button>
-                  </div>
-                </form>
+      {/* 2. Box Header Card */}
+      <section className="card box-header-card">
+        <div className="box-header-card__inner">
+          <div>
+            <span className="badge badge-boxid box-header-card__badge">
+              {container.boxId}
+            </span>
+            <h1 className="box-header-card__title">
+              {container.name || 'Unnamed Box'}
+            </h1>
+            <div className="box-header-card__meta">
+              <span>📍 <strong>{locationPathString}</strong></span>
+              {container.description && <span className="box-header-card__meta-sep">•</span>}
+              {container.description && <span>{container.description}</span>}
+              {container.isPacked && (
+                <>
+                  <span className="box-header-card__meta-sep">•</span>
+                  <span style={{ fontSize: '0.8rem', padding: '0.15rem 0.4rem', borderRadius: '0.25rem', backgroundColor: '#e2f0d9', color: '#385723', fontWeight: 'bold' }}>
+                    Packed
+                  </span>
+                </>
               )}
-
-              <button
-                type="button"
-                className="btn-secondary"
-                disabled={container.isArchived}
-                onClick={() => {
-                  setEditName(container.name || '');
-                  setEditDesc(container.description || '');
-                  setEditPhysicalLabel(container.physicalLabel || '');
-                  setEditPriority(container.movingPriority || '');
-                  setIsEditing(!isEditing);
-                  setIsMoving(false);
-                }}
-                style={{ justifyContent: 'flex-start', width: '100%', padding: '0.625rem 1rem' }}
-              >
-                ✏️ Edit Box Details
-              </button>
-
-              {isEditing && (
-                <form onSubmit={handleUpdateInfo} style={{ padding: '0.75rem', backgroundColor: '#f8fafc', borderRadius: '0.375rem', border: '1px solid #cbd5e1', display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-                  <div className="form-group" style={{ marginBottom: 0 }}>
-                    <label style={{ fontSize: '0.75rem', fontWeight: 700 }}>Box Name</label>
-                    <input
-                      type="text"
-                      value={editName}
-                      onChange={(e) => setEditName(e.target.value)}
-                      style={{ fontSize: '0.8rem', padding: '0.375rem' }}
-                    />
-                  </div>
-                  <div className="form-group" style={{ marginBottom: 0 }}>
-                    <label style={{ fontSize: '0.75rem', fontWeight: 700 }}>Physical Label / Alias</label>
-                    <input
-                      type="text"
-                      placeholder="e.g. Christmas Box, Blue Tote"
-                      value={editPhysicalLabel}
-                      onChange={(e) => setEditPhysicalLabel(e.target.value)}
-                      style={{ fontSize: '0.8rem', padding: '0.375rem' }}
-                    />
-                    <span style={{ fontSize: '0.7rem', color: '#64748b', marginTop: '0.125rem', display: 'block' }}>
-                      Enter what's written on the physical box, such as 'Christmas Box', 'Blue Tote', or 'Kitchen #2'.
-                    </span>
-                  </div>
-                  <div className="form-group" style={{ marginBottom: 0 }}>
-                    <label style={{ fontSize: '0.75rem', fontWeight: 700 }}>Description</label>
-                    <input
-                      type="text"
-                      value={editDesc}
-                      onChange={(e) => setEditDesc(e.target.value)}
-                      style={{ fontSize: '0.8rem', padding: '0.375rem' }}
-                    />
-                  </div>
-                  <div style={{ display: 'flex', gap: '0.5rem' }}>
-                    <button type="submit" className="btn-primary" style={{ padding: '0.375rem 0.75rem', fontSize: '0.75rem' }}>Save Details</button>
-                    <button type="button" className="btn-secondary" onClick={() => setIsEditing(false)} style={{ padding: '0.375rem 0.75rem', fontSize: '0.75rem' }}>Cancel</button>
-                  </div>
-                </form>
+              {container.movingPriority && (
+                <>
+                  <span className="box-header-card__meta-sep">•</span>
+                  <span style={{ fontSize: '0.8rem', padding: '0.15rem 0.4rem', borderRadius: '0.25rem', backgroundColor: '#e0f2fe', color: '#0369a1', fontWeight: 'bold' }}>
+                    {container.movingPriority === 'HIGH' ? 'Open first' : container.movingPriority === 'LOW' ? 'Can wait' : 'Normal'}
+                  </span>
+                </>
               )}
             </div>
           </div>
-
-          {/* 5. Photos */}
-          <div className="card" style={{ padding: '1.5rem' }}>
-            <h3 style={{ marginTop: 0, marginBottom: '0.25rem', fontSize: '1.125rem', fontWeight: 700, color: '#0f172a' }}>
-              Photos
-            </h3>
-            <p style={{ fontSize: '0.8rem', color: '#64748b', marginBottom: '1rem' }}>
-              Reference photos of this box and its contents.
-            </p>
-
-            {/* Hidden reference photo input */}
-            <input
-              ref={referenceFileInputRef}
-              type="file"
-              accept="image/jpeg,image/png,image/webp,image/heic,image/heif,.heic,.heif"
-              onChange={handleReferencePhotoUpload}
-              disabled={isUploadingReference || container.isArchived}
-              style={{ display: 'none' }}
-            />
-
-            {/* Reference Image Gallery */}
-            {referenceImages.length > 0 ? (
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(80px, 1fr))', gap: '0.625rem', marginBottom: '1rem' }}>
-                {referenceImages.map((img) => (
-                  <div key={img.id} style={{ position: 'relative', borderRadius: '0.375rem', overflow: 'hidden', border: '1px solid #cbd5e1', aspectRatio: '1', backgroundColor: '#f8fafc' }}>
-                    <img
-                      src={img.url}
-                      alt="Box reference photo"
-                      style={{ width: '100%', height: '100%', objectFit: 'cover', cursor: 'pointer' }}
-                      onClick={() => setPreviewImageUrl(img.url)}
-                    />
-                    {!container.isArchived && (
-                      <button
-                        type="button"
-                        onClick={() => setImageToDelete({ id: img.id, url: img.url })}
-                        style={{
-                          position: 'absolute',
-                          top: '4px',
-                          right: '4px',
-                          backgroundColor: 'rgba(15, 23, 42, 0.75)',
-                          color: '#fff',
-                          border: 'none',
-                          borderRadius: '50%',
-                          width: '22px',
-                          height: '22px',
-                          fontSize: '14px',
-                          lineHeight: '1',
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          cursor: 'pointer',
-                        }}
-                        title="Delete reference photo"
-                      >
-                        ×
-                      </button>
-                    )}
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <div style={{ fontSize: '0.85rem', color: '#64748b', fontStyle: 'italic', marginBottom: '1rem' }}>
-                No reference photos yet.
-              </div>
-            )}
-
+          <div className="box-header-card__actions" ref={menuRef}>
             <button
               type="button"
-              className="btn-secondary"
-              disabled={isUploadingReference || container.isArchived}
-              onClick={triggerReferencePhotoUpload}
-              style={{ width: '100%', padding: '0.5rem 0.75rem', fontSize: '0.85rem' }}
+              className="btn btn-secondary btn--md box-header-edit-desktop box-header-card__btn"
+              disabled={container.isArchived}
+              onClick={() => {
+                setEditName(container.name || '');
+                setEditDesc(container.description || '');
+                setEditPriority(container.movingPriority || '');
+                setIsEditing(!isEditing);
+                setIsMoving(false);
+                setIsMenuOpen(false);
+              }}
             >
-              {isUploadingReference ? 'Uploading photo...' : '+ Add Photo'}
+              ✏️ Edit Box
             </button>
-            {referenceUploadError && (
-              <div style={{ color: '#dc2626', fontSize: '0.75rem', marginTop: '0.5rem' }}>{referenceUploadError}</div>
-            )}
-          </div>
-        </div>
+            <button
+              type="button"
+              aria-label="Box actions"
+              className="btn btn-secondary btn--icon-md box-header-card__menu-trigger"
+              onClick={() => setIsMenuOpen(!isMenuOpen)}
+            >
+              ⋮
+            </button>
 
-        {/* Right Column */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
-          {/* 6. Box Labels & Identifiers */}
-          <div className="card" style={{ padding: '1.5rem' }}>
-            <h3 style={{ marginTop: 0, marginBottom: '0.5rem', fontSize: '1.125rem', fontWeight: 700, color: '#0f172a' }}>
-              Box Labels & Identifiers
-            </h3>
-            <p style={{ fontSize: '0.8rem', color: '#64748b', marginBottom: '1.25rem' }}>
-              Use what is already on the box or generate WherezIt identifiers.
-            </p>
-
-            {/* WherezIt Box ID section */}
-            <div style={{ padding: '0.75rem', backgroundColor: '#f8fafc', borderRadius: '0.5rem', marginBottom: '1rem', border: '1px solid #e2e8f0' }}>
-              <span style={{ fontSize: '0.7rem', fontWeight: 700, color: '#64748b', textTransform: 'uppercase' }}>WherezIt ID</span>
-              <div style={{ fontSize: '1.125rem', fontWeight: 800, color: '#0f172a', marginTop: '0.125rem' }}>{container.boxId}</div>
-              <span style={{ fontSize: '0.7rem', color: '#94a3b8' }}>Permanent box identifier</span>
-            </div>
-
-            {/* Physical Label section */}
-            <div style={{ padding: '0.75rem', backgroundColor: '#f8fafc', borderRadius: '0.5rem', marginBottom: '1rem', border: '1px solid #e2e8f0' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <span style={{ fontSize: '0.7rem', fontWeight: 700, color: '#64748b', textTransform: 'uppercase' }}>Physical Label</span>
-                {!container.isArchived && (
+            {isMenuOpen && (
+              <div className="box-header-card__dropdown">
+                <button
+                  type="button"
+                  className="box-menu-edit-mobile box-header-card__menu-item"
+                  onClick={() => {
+                    setEditName(container.name || '');
+                    setEditDesc(container.description || '');
+                    setEditPriority(container.movingPriority || '');
+                    setIsEditing(!isEditing);
+                    setIsMoving(false);
+                    setIsMenuOpen(false);
+                  }}
+                  disabled={container.isArchived}
+                >
+                  ✏️ Edit Box
+                </button>
+                <button
+                  type="button"
+                  className="box-header-card__menu-item"
+                  onClick={() => {
+                    setNewLocationId(container.storageNodeId);
+                    setIsMoving(!isMoving);
+                    setIsEditing(false);
+                    setIsMenuOpen(false);
+                  }}
+                  disabled={container.isArchived}
+                >
+                  📦 Move Box
+                </button>
+                <button
+                  type="button"
+                  className={`box-header-card__menu-item ${container.isArchived ? 'box-header-card__menu-item--restore' : ''}`}
+                  onClick={() => {
+                    setIsMenuOpen(false);
+                    setIsArchiveBoxConfirmOpen(true);
+                  }}
+                >
+                  📥 {container.isArchived ? 'Restore Box' : 'Archive Box'}
+                </button>
+                {container.isArchived && isOwner && (
                   <button
                     type="button"
-                    onClick={() => setIsPhysicalLabelOpen(true)}
-                    style={{ background: 'none', border: 'none', color: '#0284c7', fontSize: '0.75rem', fontWeight: 700, cursor: 'pointer', padding: 0 }}
+                    className="box-header-card__menu-item box-header-card__menu-item--danger"
+                    onClick={() => {
+                      setIsMenuOpen(false);
+                      setIsDeleteBoxConfirmOpen(true);
+                    }}
                   >
-                    {container.physicalLabel ? 'Edit' : '+ Add'}
+                    🗑️ Delete Box
                   </button>
                 )}
               </div>
-              <div style={{ fontSize: '0.95rem', fontWeight: 700, color: container.physicalLabel ? '#0369a1' : '#94a3b8', marginTop: '0.25rem' }}>
-                {container.physicalLabel ? `🏷️ ${container.physicalLabel}` : 'No physical label added.'}
-              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Move Box Form */}
+        {isMoving && (
+          <form onSubmit={handleMoveContainer} className="box-header-form">
+            <div className="form-group box-header-form__group">
+              <label className="box-header-form__label">Select New Storage Location</label>
+              <select
+                value={newLocationId}
+                onChange={(e) => setNewLocationId(e.target.value)}
+                className="box-header-form__select"
+                required
+              >
+                {locations.map((loc) => (
+                  <option key={loc.id} value={loc.id}>
+                    {loc.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className="box-header-form__actions">
+              <button type="submit" className="btn-primary box-header-form__btn">Confirm Move</button>
+              <button type="button" className="btn-secondary box-header-form__btn" onClick={() => setIsMoving(false)}>Cancel</button>
+            </div>
+          </form>
+        )}
+
+        {/* Edit Details Form */}
+        {isEditing && (
+          <form onSubmit={handleUpdateInfo} className="box-header-form">
+            <div className="form-group box-header-form__group">
+              <label className="box-header-form__label">Box Name</label>
+              <input
+                type="text"
+                value={editName}
+                onChange={(e) => setEditName(e.target.value)}
+                className="box-header-form__input"
+              />
+            </div>
+            <div className="form-group box-header-form__group">
+              <label className="box-header-form__label">Description</label>
+              <input
+                type="text"
+                value={editDesc}
+                onChange={(e) => setEditDesc(e.target.value)}
+                className="box-header-form__input"
+              />
+            </div>
+            <div className="box-header-form__actions">
+              <button type="submit" className="btn-primary box-header-form__btn">Save Details</button>
+              <button type="button" className="btn-secondary box-header-form__btn" onClick={() => setIsEditing(false)}>Cancel</button>
+            </div>
+          </form>
+        )}
+      </section>
+
+      {/* 3. Main Two-Column Grid Layout */}
+      <div className="box-detail-grid">
+        {/* Left Column: Contents (~55%) */}
+        <div className="box-detail-left">
+          <ItemList
+            workspaceId={workspaceId!}
+            containerId={container.id}
+            isContainerArchived={container.isArchived}
+            onAddFromPhoto={triggerPhotoUpload}
+          />
+        </div>
+
+        {/* Right Column: Labels & Codes + Photos (~45%) */}
+        <div className="box-detail-right">
+          {/* Labels & Codes Card */}
+          <div className="card labels-codes-card">
+            <div className="labels-codes-card__header">
+              <h3 className="labels-codes-card__title">
+                Labels & Codes
+              </h3>
+              <p className="labels-codes-card__subtitle">
+                Ways to recognize or scan this box.
+              </p>
             </div>
 
-            {/* Attached Codes section */}
-            <div style={{ marginBottom: '1rem' }}>
-              <div style={{ fontSize: '0.7rem', fontWeight: 700, color: '#64748b', textTransform: 'uppercase', marginBottom: '0.5rem' }}>
-                Attached Codes
+            {/* 1. BOX ID Section */}
+            <div className="labels-codes-section labels-codes-box-id">
+              <div>
+                <span className="labels-codes-section__label">BOX ID</span>
+                <div className="labels-codes-box-id__value">{container.boxId}</div>
+                <span className="labels-codes-box-id__sub">Permanent WherezIt ID</span>
               </div>
+              <button
+                type="button"
+                className="btn btn-secondary btn--md labels-codes-box-id__print-btn"
+                disabled={container.isArchived}
+                onClick={() => setIsBoxLabelOpen(true)}
+              >
+                🏷️ Print Label
+              </button>
+            </div>
+
+            {/* 2. EXISTING LABEL Section (Rendered only when label text or label photo exists) */}
+            {(container.physicalLabel || labelImage) && (
+              <div className="labels-codes-section">
+                <span className="labels-codes-section__label">
+                  EXISTING LABEL
+                </span>
+
+                <div>
+                  {container.physicalLabel && (
+                    <div className="labels-codes-existing__value">
+                      🏷️ {container.physicalLabel}
+                    </div>
+                  )}
+                  {labelImage && (
+                    <div className="labels-codes-existing__photo-row">
+                      <div
+                        className="labels-codes-existing__thumb"
+                        onClick={() => setPreviewImageUrl(labelImage.url)}
+                        title="View photographed label"
+                      >
+                        <AuthenticatedImage
+                          src={labelImage.url}
+                          alt="Photographed label"
+                          style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                        />
+                      </div>
+                      <span className="labels-codes-existing__photo-caption">From photographed label</span>
+                    </div>
+                  )}
+
+                  {!container.isArchived && (
+                    <div className="labels-codes-existing__btn-row">
+                      <button
+                        type="button"
+                        className="labels-codes-existing__btn"
+                        onClick={() => setIsPhysicalLabelOpen(true)}
+                      >
+                        {container.physicalLabel ? 'Edit Text' : '+ Add Text'}
+                      </button>
+                      <button
+                        type="button"
+                        className="labels-codes-existing__btn labels-codes-existing__btn--sec"
+                        onClick={() => setIsTakePhotoLabelOpen(true)}
+                      >
+                        {labelImage ? 'Replace Photo' : 'Add Photo'}
+                      </button>
+                      <button
+                        type="button"
+                        className="labels-codes-existing__btn labels-codes-existing__btn--danger"
+                        onClick={() => setIsRemoveExistingLabelConfirmOpen(true)}
+                        disabled={deleteExistingLabelMutation.isPending}
+                      >
+                        Remove
+                      </button>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* 3. SCANNABLE CODES Section */}
+            <div className="labels-codes-section labels-codes-section--nobg">
+              <span className="labels-codes-section__label">
+                SCANNABLE CODES
+              </span>
 
               {identifiers.length > 0 ? (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.625rem' }}>
+                <div className="scannable-codes-list" style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
                   {identifiers.map((ident) => (
-                    <div
-                      key={ident.id}
-                      style={{
-                        display: 'flex',
-                        flexDirection: 'column',
-                        gap: '0.375rem',
-                        padding: '0.75rem',
-                        backgroundColor: '#ffffff',
-                        borderRadius: '0.5rem',
-                        border: '1px solid #cbd5e1'
-                      }}
-                    >
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                        <span style={{ fontSize: '0.85rem', fontWeight: 700, color: '#0f172a' }}>
-                          {ident.type === 'QR' ? '📱 QR Code' : '║▌ Barcode'}
-                        </span>
-                        <span style={{
-                          fontSize: '0.65rem',
-                          backgroundColor: ident.value.startsWith('wzi_') ? '#e0f2fe' : '#fef3c7',
-                          color: ident.value.startsWith('wzi_') ? '#0369a1' : '#92400e',
-                          padding: '0.125rem 0.5rem',
-                          borderRadius: '0.25rem',
-                          fontWeight: 700,
-                          textTransform: 'uppercase'
-                        }}>
-                          {ident.value.startsWith('wzi_') ? 'Generated' : 'Attached'}
+                    <div key={ident.id} className="scannable-code-card">
+                      <div className="scannable-code-card__header">
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                          <span style={{ fontSize: '1.1rem' }}>{ident.type === 'QR' ? '📱' : '║▌'}</span>
+                          <span className="scannable-code-card__title">
+                            {ident.type === 'QR' ? 'QR Code' : 'Barcode'}
+                          </span>
+                        </div>
+                        <span className="scannable-code-card__badge">
+                          GENERATED
                         </span>
                       </div>
 
-                      <div
-                        title={ident.value}
-                        style={{
-                          fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace',
-                          fontSize: '0.75rem',
-                          color: '#334155',
-                          backgroundColor: '#f8fafc',
-                          padding: '0.375rem 0.5rem',
-                          borderRadius: '0.375rem',
-                          border: '1px solid #e2e8f0',
-                          overflow: 'hidden',
-                          textOverflow: 'ellipsis',
-                          whiteSpace: 'nowrap'
-                        }}
-                      >
-                        {ident.value}
+                      <div className="scannable-code-card__subtext">
+                        Scan to open {container.boxId}
                       </div>
 
                       {!container.isArchived && (
-                        <div style={{ display: 'flex', gap: '0.375rem', justifyContent: 'flex-end', marginTop: '0.125rem' }}>
+                        <div className="scannable-code-card__actions">
                           <button
                             type="button"
+                            className="scannable-code-card__btn"
                             onClick={() => ident.type === 'QR' ? setIsQrOpen(true) : setIsBarcodeOpen(true)}
-                            style={{
-                              background: '#ffffff',
-                              border: '1px solid #cbd5e1',
-                              borderRadius: '0.375rem',
-                              color: '#0284c7',
-                              fontSize: '0.75rem',
-                              padding: '0.2rem 0.5rem',
-                              cursor: 'pointer',
-                              fontWeight: 600
-                            }}
                           >
                             View
                           </button>
                           <button
                             type="button"
+                            className="scannable-code-card__btn scannable-code-card__btn--print"
                             onClick={() => ident.type === 'QR' ? setIsQrOpen(true) : setIsBarcodeOpen(true)}
-                            style={{
-                              background: '#ffffff',
-                              border: '1px solid #cbd5e1',
-                              borderRadius: '0.375rem',
-                              color: '#475569',
-                              fontSize: '0.75rem',
-                              padding: '0.2rem 0.5rem',
-                              cursor: 'pointer',
-                              fontWeight: 600
-                            }}
                           >
                             Print
                           </button>
                           <button
                             type="button"
+                            className="scannable-code-card__btn scannable-code-card__btn--danger"
                             onClick={() => setRevokeIdentifierTarget({ id: ident.id, type: ident.type as any, value: ident.value })}
-                            style={{
-                              background: '#ffffff',
-                              border: '1px solid #fca5a5',
-                              borderRadius: '0.375rem',
-                              color: '#dc2626',
-                              fontSize: '0.75rem',
-                              padding: '0.2rem 0.5rem',
-                              cursor: 'pointer',
-                              fontWeight: 600
-                            }}
                           >
                             Remove
                           </button>
@@ -725,93 +747,111 @@ export const ContainerDetailScreen: React.FC = () => {
                   ))}
                 </div>
               ) : (
-                <div style={{ fontSize: '0.85rem', color: '#64748b', fontStyle: 'italic', marginBottom: '0.5rem' }}>
-                  No codes attached yet.
+                <div className="scannable-codes-empty">
+                  No scannable codes generated.
                 </div>
               )}
 
-              <button
-                type="button"
-                className="btn-secondary"
-                disabled={container.isArchived}
-                onClick={() => setIsAttachMasterOpen(true)}
-                style={{ fontSize: '0.85rem', padding: '0.5rem 0.75rem', width: '100%', justifyContent: 'center', marginTop: '0.75rem' }}
-              >
-                + Attach Existing Identifier
-              </button>
-            </div>
-
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', marginTop: '1.25rem', paddingTop: '1rem', borderTop: '1px solid #e2e8f0' }}>
-              <button
-                type="button"
-                className="btn-secondary"
-                disabled={container.isArchived}
-                onClick={() => setIsBoxLabelOpen(true)}
-                style={{ fontSize: '0.85rem', padding: '0.5rem 0.75rem', justifyContent: 'flex-start' }}
-              >
-                🏷️ View / Print Box Label
-              </button>
-              <button
-                type="button"
-                className="btn-secondary"
-                disabled={container.isArchived}
-                onClick={() => setIsQrOpen(true)}
-                style={{ fontSize: '0.85rem', padding: '0.5rem 0.75rem', justifyContent: 'flex-start' }}
-              >
-                📱 Generate / View QR Code
-              </button>
-              <button
-                type="button"
-                className="btn-secondary"
-                disabled={container.isArchived}
-                onClick={() => setIsBarcodeOpen(true)}
-                style={{ fontSize: '0.85rem', padding: '0.5rem 0.75rem', justifyContent: 'flex-start' }}
-              >
-                ║▌ Generate / View Barcode
-              </button>
-            </div>
-          </div>
-
-          {/* 7. More Actions (Neutral, replaces Danger Zone) */}
-          <div className="card" style={{ padding: '1.5rem', border: '1px solid #e2e8f0' }}>
-            <h3 style={{ marginTop: 0, marginBottom: '0.75rem', fontSize: '1.125rem', fontWeight: 700, color: '#0f172a' }}>
-              More Actions
-            </h3>
-            <p style={{ fontSize: '0.8rem', color: '#64748b', marginBottom: '1.25rem' }}>
-              {container.isArchived
-                ? 'Restore this container to reactivate it, or permanently delete it.'
-                : 'Archive this container to hide it from active storage views.'}
-            </p>
-            {container.isArchived ? (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-                <button
-                  type="button"
-                  className="btn-primary"
-                  onClick={handleArchiveToggle}
-                  style={{ padding: '0.5rem 1rem', width: '100%', fontSize: '0.85rem' }}
-                >
-                  Restore Box
-                </button>
-                {isOwner && (
+              {/* Conditional generation actions & attach master */}
+              <div className="scannable-codes-gen-actions">
+                {!identifiers.some((i) => i.type === 'QR') && !container.isArchived && (
                   <button
                     type="button"
-                    className="btn-danger"
-                    onClick={() => setIsDeleteBoxConfirmOpen(true)}
-                    style={{ padding: '0.5rem 1rem', width: '100%', fontSize: '0.85rem' }}
+                    className="btn btn-secondary btn--md scannable-codes-gen-btn"
+                    onClick={() => setIsQrOpen(true)}
                   >
-                    Delete Box Permanently
+                    📱 + Generate QR Code
+                  </button>
+                )}
+                {!identifiers.some((i) => i.type === 'BARCODE') && !container.isArchived && (
+                  <button
+                    type="button"
+                    className="btn btn-secondary btn--md scannable-codes-gen-btn"
+                    onClick={() => setIsBarcodeOpen(true)}
+                  >
+                    ║▌ + Generate Barcode
+                  </button>
+                )}
+                {!container.isArchived && (
+                  <button
+                    type="button"
+                    className="btn btn-secondary btn--md scannable-codes-gen-btn"
+                    onClick={() => setIsAttachMasterOpen(true)}
+                  >
+                    + Add Existing Code or Label
                   </button>
                 )}
               </div>
+            </div>
+          </div>
+
+          {/* Photos Card */}
+          <div className="card photos-card">
+            <div className="photos-card-header">
+              <div>
+                <h3 className="photos-card-title">
+                  Photos
+                </h3>
+                <p className="photos-card-subtitle">
+                  Reference photos of this box.
+                </p>
+              </div>
+              {!container.isArchived && (
+                <button
+                  type="button"
+                  className="btn btn-secondary btn--md"
+                  disabled={isUploadingReference}
+                  onClick={triggerReferencePhotoUpload}
+                >
+                  {isUploadingReference ? 'Uploading...' : '+ Add Photo'}
+                </button>
+              )}
+            </div>
+
+            {referenceImages.length > 0 ? (
+              <>
+                <div className="photos-grid">
+                  {referenceImages.slice(0, 4).map((img, idx) => (
+                    <div key={img.id} className="photos-grid__thumb-wrapper">
+                      <AuthenticatedImage
+                        src={img.url}
+                        alt="Box reference photo"
+                        className="photos-grid__thumb-img"
+                        onClick={() => setGalleryIndex(idx)}
+                      />
+                      {!container.isArchived && (
+                        <button
+                          type="button"
+                          onClick={() => setImageToDelete({ id: img.id, url: img.url })}
+                          className="photos-grid__delete-btn"
+                          title="Delete reference photo"
+                        >
+                          ×
+                        </button>
+                      )}
+                    </div>
+                  ))}
+                </div>
+
+                {referenceImages.length > 4 && (
+                  <div className="photos-card__view-all-wrapper">
+                    <button
+                      type="button"
+                      onClick={() => setGalleryIndex(0)}
+                      className="photos-card__view-all-btn"
+                    >
+                      View all photos
+                    </button>
+                  </div>
+                )}
+              </>
             ) : (
-              <button
-                type="button"
-                className="btn-secondary"
-                onClick={() => setIsArchiveBoxConfirmOpen(true)}
-                style={{ padding: '0.5rem 1rem', width: '100%', fontSize: '0.85rem' }}
-              >
-                Archive Box
-              </button>
+              <div className="photos-card__empty">
+                No reference photos added yet.
+              </div>
+            )}
+            {referenceUploadError && (
+              <div className="photos-card__error">{referenceUploadError}</div>
             )}
           </div>
         </div>
@@ -852,55 +892,34 @@ export const ContainerDetailScreen: React.FC = () => {
       {/* Box Archive Confirmation Modal */}
       {isArchiveBoxConfirmOpen && (
         <div
-          style={{
-            position: 'fixed',
-            top: 0,
-            left: 0,
-            right: 0,
-            bottom: 0,
-            backgroundColor: 'rgba(0, 0, 0, 0.5)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            zIndex: 1000,
-            padding: '1rem',
-          }}
+          className="container-modal-backdrop"
           role="dialog"
           aria-modal="true"
           aria-labelledby="archive-box-modal-title"
         >
-          <div
-            style={{
-              backgroundColor: '#fff',
-              borderRadius: '0.5rem',
-              padding: '1.5rem',
-              maxWidth: '400px',
-              width: '100%',
-              boxShadow: '0 10px 25px rgba(0,0,0,0.2)',
-            }}
-          >
-            <h3 id="archive-box-modal-title" style={{ margin: '0 0 0.75rem 0', fontSize: '1.125rem', color: '#0f172a', fontWeight: 700 }}>
-              Archive this box?
+          <div className="container-modal-surface container-modal-surface--md">
+            <h3 id="archive-box-modal-title" className="container-modal-title">
+              {container.isArchived ? 'Restore this box?' : 'Archive this box?'}
             </h3>
-            <p style={{ fontSize: '0.875rem', color: '#475569', marginBottom: '1.5rem', marginTop: 0 }}>
-              This box will be hidden from active storage views. You can restore it later.
+            <p className="container-modal-subtitle">
+              {container.isArchived
+                ? 'This box will be restored to active storage views.'
+                : 'This box will be hidden from active storage views. You can restore it later.'}
             </p>
-            <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'flex-end' }}>
+            <div className="container-modal-actions">
               <button
                 type="button"
-                className="btn-secondary"
+                className="btn btn-secondary btn--md"
                 onClick={() => setIsArchiveBoxConfirmOpen(false)}
-                style={{ padding: '0.5rem 1rem', fontSize: '0.875rem' }}
               >
                 Cancel
               </button>
               <button
                 type="button"
-                className="btn-primary"
+                className="btn btn-primary btn--md"
                 onClick={handleArchiveToggle}
-                style={{ padding: '0.5rem 1.25rem', fontSize: '0.875rem' }}
               >
-                Archive Box
+                {container.isArchived ? 'Restore Box' : 'Archive Box'}
               </button>
             </div>
           </div>
@@ -910,54 +929,31 @@ export const ContainerDetailScreen: React.FC = () => {
       {/* Delete Photo Confirmation Modal */}
       {imageToDelete && (
         <div
-          style={{
-            position: 'fixed',
-            top: 0,
-            left: 0,
-            right: 0,
-            bottom: 0,
-            backgroundColor: 'rgba(0, 0, 0, 0.5)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            zIndex: 1000,
-            padding: '1rem',
-          }}
+          className="container-modal-backdrop"
           role="dialog"
           aria-modal="true"
           aria-labelledby="delete-photo-modal-title"
         >
-          <div
-            style={{
-              backgroundColor: '#fff',
-              borderRadius: '0.5rem',
-              padding: '1.5rem',
-              maxWidth: '400px',
-              width: '100%',
-              boxShadow: '0 10px 25px rgba(0,0,0,0.2)',
-            }}
-          >
-            <h3 id="delete-photo-modal-title" style={{ margin: '0 0 0.75rem 0', fontSize: '1.125rem', color: '#dc2626', fontWeight: 700 }}>
+          <div className="container-modal-surface container-modal-surface--md">
+            <h3 id="delete-photo-modal-title" className="container-modal-title container-modal-title--danger">
               Delete reference photo?
             </h3>
-            <p style={{ fontSize: '0.875rem', color: '#475569', marginBottom: '1.5rem', marginTop: 0 }}>
+            <p className="container-modal-subtitle">
               This will permanently delete this photo from WherezIt. This action cannot be undone.
             </p>
-            <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'flex-end' }}>
+            <div className="container-modal-actions">
               <button
                 type="button"
-                className="btn-secondary"
+                className="btn btn-secondary btn--md"
                 onClick={() => setImageToDelete(null)}
-                style={{ padding: '0.5rem 1rem', fontSize: '0.875rem' }}
               >
                 Cancel
               </button>
               <button
                 type="button"
-                className="btn-danger"
+                className="btn btn-danger btn--md"
                 onClick={handleConfirmDeleteImage}
                 disabled={deleteImageMutation.isPending}
-                style={{ padding: '0.5rem 1.25rem', fontSize: '0.875rem' }}
               >
                 {deleteImageMutation.isPending ? 'Deleting...' : 'Delete Photo'}
               </button>
@@ -969,59 +965,72 @@ export const ContainerDetailScreen: React.FC = () => {
       {/* Permanent Delete Box Confirmation Modal */}
       {isDeleteBoxConfirmOpen && (
         <div
-          style={{
-            position: 'fixed',
-            top: 0,
-            left: 0,
-            right: 0,
-            bottom: 0,
-            backgroundColor: 'rgba(0, 0, 0, 0.5)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            zIndex: 1000,
-            padding: '1rem',
-          }}
+          className="container-modal-backdrop"
           role="dialog"
           aria-modal="true"
           aria-labelledby="delete-box-modal-title"
         >
-          <div
-            style={{
-              backgroundColor: '#fff',
-              borderRadius: '0.5rem',
-              padding: '1.5rem',
-              maxWidth: '450px',
-              width: '100%',
-              boxShadow: '0 10px 25px rgba(0,0,0,0.2)',
-            }}
-          >
-            <h3 id="delete-box-modal-title" style={{ margin: '0 0 0.75rem 0', fontSize: '1.125rem', color: '#dc2626', fontWeight: 700 }}>
+          <div className="container-modal-surface container-modal-surface--lg">
+            <h3 id="delete-box-modal-title" className="container-modal-title container-modal-title--danger">
               Permanently delete {container.boxId}?
             </h3>
-            <p style={{ fontSize: '0.875rem', color: '#475569', marginBottom: '1rem', marginTop: 0 }}>
+            <p className="container-modal-subtitle">
               Are you sure you want to permanently delete <strong>{container.boxId} {container.name ? `(${container.name})` : ''}</strong>?
             </p>
-            <div style={{ backgroundColor: '#fef2f2', borderLeft: '4px solid #ef4444', padding: '0.75rem 1rem', borderRadius: '0.25rem', marginBottom: '1.5rem', fontSize: '0.8rem', color: '#991b1b' }}>
+            <div className="container-modal-warning">
               <strong>Warning:</strong> All contained items, reference photos, QR/barcode identifiers, and box history will be permanently deleted from WherezIt. This action cannot be undone.
             </div>
-            <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'flex-end' }}>
+            <div className="container-modal-actions">
               <button
                 type="button"
-                className="btn-secondary"
+                className="btn btn-secondary btn--md"
                 onClick={() => setIsDeleteBoxConfirmOpen(false)}
-                style={{ padding: '0.5rem 1rem', fontSize: '0.875rem' }}
               >
                 Cancel
               </button>
               <button
                 type="button"
-                className="btn-danger"
+                className="btn btn-danger btn--md"
                 onClick={handlePermanentDelete}
                 disabled={deleteContainerMutation.isPending}
-                style={{ padding: '0.5rem 1.25rem', fontSize: '0.875rem' }}
               >
                 {deleteContainerMutation.isPending ? 'Deleting...' : 'Delete Box Permanently'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Remove Existing Label Confirmation Modal */}
+      {isRemoveExistingLabelConfirmOpen && (
+        <div
+          className="container-modal-backdrop"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="remove-label-modal-title"
+        >
+          <div className="container-modal-surface">
+            <h3 id="remove-label-modal-title" className="container-modal-title container-modal-title--danger">
+              Remove Existing Label?
+            </h3>
+            <p className="container-modal-subtitle" style={{ marginBottom: '1.25rem' }}>
+              This will remove the saved label text and label photo from this box.
+            </p>
+            <div className="container-modal-actions">
+              <button
+                type="button"
+                className="btn btn-secondary btn--md"
+                onClick={() => setIsRemoveExistingLabelConfirmOpen(false)}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                className="btn btn-danger btn--md"
+                onClick={handleConfirmRemoveExistingLabel}
+                disabled={deleteExistingLabelMutation.isPending}
+              >
+                {deleteExistingLabelMutation.isPending ? 'Removing...' : 'Remove Label'}
               </button>
             </div>
           </div>
@@ -1099,61 +1108,94 @@ export const ContainerDetailScreen: React.FC = () => {
           onClose={() => setRevokeIdentifierTarget(null)}
         />
       )}
-      {/* Full-size Reference Photo Preview Modal */}
+      {/* Reference Photo Gallery Modal */}
+      {galleryIndex !== null && referenceImages[galleryIndex] && (
+        <div
+          className="photo-gallery-backdrop"
+          onClick={() => setGalleryIndex(null)}
+          role="dialog"
+          aria-modal="true"
+        >
+          <div className="photo-gallery-surface" onClick={(e) => e.stopPropagation()}>
+            <button
+              type="button"
+              className="photo-gallery-close"
+              onClick={() => setGalleryIndex(null)}
+              title="Close gallery (Esc)"
+            >
+              ×
+            </button>
+
+            <div className="photo-gallery-main">
+              {referenceImages.length > 1 && (
+                <button
+                  type="button"
+                  className="photo-gallery-nav-btn photo-gallery-nav-btn--prev"
+                  onClick={() => setGalleryIndex((prev) => (prev !== null && prev > 0 ? prev - 1 : referenceImages.length - 1))}
+                  title="Previous photo (Left Arrow)"
+                >
+                  ‹
+                </button>
+              )}
+              <AuthenticatedImage
+                src={referenceImages[galleryIndex].url}
+                alt={`Reference photo ${galleryIndex + 1}`}
+                className="photo-gallery-img"
+              />
+              {referenceImages.length > 1 && (
+                <button
+                  type="button"
+                  className="photo-gallery-nav-btn photo-gallery-nav-btn--next"
+                  onClick={() => setGalleryIndex((prev) => (prev !== null && prev < referenceImages.length - 1 ? prev + 1 : 0))}
+                  title="Next photo (Right Arrow)"
+                >
+                  ›
+                </button>
+              )}
+            </div>
+
+            <div className="photo-gallery-info">
+              <span>{galleryIndex + 1} of {referenceImages.length}</span>
+            </div>
+
+            {referenceImages.length > 1 && (
+              <div className="photo-gallery-strip">
+                {referenceImages.map((img, idx) => (
+                  <AuthenticatedImage
+                    key={img.id}
+                    src={img.url}
+                    alt={`Thumbnail ${idx + 1}`}
+                    className={`photo-gallery-strip-thumb ${idx === galleryIndex ? 'photo-gallery-strip-thumb--active' : ''}`}
+                    onClick={() => setGalleryIndex(idx)}
+                  />
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Full-size Single Image Preview Modal */}
       {previewImageUrl && (
         <div
-          style={{
-            position: 'fixed',
-            inset: 0,
-            backgroundColor: 'rgba(15, 23, 42, 0.85)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            zIndex: 1000,
-            padding: '1.5rem'
-          }}
+          className="container-modal-backdrop"
           onClick={() => setPreviewImageUrl(null)}
           role="dialog"
           aria-modal="true"
         >
           <div
-            style={{
-              position: 'relative',
-              maxWidth: '90vw',
-              maxHeight: '90vh',
-              backgroundColor: '#ffffff',
-              borderRadius: '0.75rem',
-              padding: '0.5rem',
-              boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.3)'
-            }}
+            className="photo-preview-surface"
             onClick={(e) => e.stopPropagation()}
           >
-            <img
+            <AuthenticatedImage
               src={previewImageUrl}
-              alt="Full reference photo preview"
-              style={{ maxWidth: '100%', maxHeight: '80vh', objectFit: 'contain', borderRadius: '0.5rem', display: 'block' }}
+              alt="Full photo preview"
+              className="photo-preview-img"
             />
             <button
               type="button"
               onClick={() => setPreviewImageUrl(null)}
-              style={{
-                position: 'absolute',
-                top: '-12px',
-                right: '-12px',
-                backgroundColor: '#ffffff',
-                color: '#0f172a',
-                border: '1px solid #cbd5e1',
-                borderRadius: '50%',
-                width: '32px',
-                height: '32px',
-                fontSize: '18px',
-                fontWeight: 'bold',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                cursor: 'pointer',
-                boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)'
-              }}
+              className="photo-preview-close"
               title="Close preview"
             >
               ×

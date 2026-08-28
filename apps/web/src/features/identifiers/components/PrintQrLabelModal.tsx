@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { QRCodeSVG } from 'qrcode.react';
 import { acquireContainerQrIdentifier, QrIdentifierResponse } from '../api/identifierApi';
+import { useContainerIdentifiers } from '../hooks/useIdentifiers';
+import { useQueryClient } from '@tanstack/react-query';
 
 interface PrintQrLabelModalProps {
   workspaceId: string;
@@ -15,9 +17,25 @@ export const PrintQrLabelModal: React.FC<PrintQrLabelModalProps> = ({
   boxDisplayId,
   onClose,
 }) => {
+  const queryClient = useQueryClient();
+  const { data: identifiers } = useContainerIdentifiers(workspaceId, containerId);
   const [identifier, setIdentifier] = useState<QrIdentifierResponse | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (identifiers && !identifier) {
+      const activeQr = identifiers.find(i => i.type === 'QR');
+      if (activeQr) {
+        setIdentifier({
+          identifierId: activeQr.id,
+          value: activeQr.value,
+          type: 'QR',
+          createdAt: activeQr.createdAt || new Date().toISOString()
+        });
+      }
+    }
+  }, [identifiers, identifier, workspaceId, containerId]);
 
   const handleGenerate = async () => {
     try {
@@ -25,6 +43,8 @@ export const PrintQrLabelModal: React.FC<PrintQrLabelModalProps> = ({
       setError(null);
       const res = await acquireContainerQrIdentifier(workspaceId, containerId);
       setIdentifier(res);
+      queryClient.invalidateQueries({ queryKey: ['containerIdentifiers', workspaceId, containerId] });
+      queryClient.invalidateQueries({ queryKey: ['container', workspaceId, containerId] });
       setIsLoading(false);
     } catch (err: any) {
       setError(err.message || 'Failed to generate QR label.');
@@ -209,22 +229,22 @@ export const PrintQrLabelModal: React.FC<PrintQrLabelModalProps> = ({
             <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'flex-end' }} className="no-print">
               <button
                 type="button"
+                className="btn btn-secondary btn--md"
                 onClick={onClose}
-                style={{ padding: '0.5rem 1rem', border: '1px solid #cbd5e0', borderRadius: '0.25rem', backgroundColor: '#fff', cursor: 'pointer' }}
               >
                 Close
               </button>
               <button
                 type="button"
+                className="btn btn-danger btn--md"
                 onClick={handleRevoke}
-                style={{ padding: '0.5rem 1rem', border: '1px solid #e53e3e', color: '#e53e3e', borderRadius: '0.25rem', backgroundColor: '#fff', cursor: 'pointer', fontWeight: 500 }}
               >
                 Revoke Label
               </button>
               <button
                 type="button"
+                className="btn btn-primary btn--md"
                 onClick={handlePrint}
-                style={{ padding: '0.5rem 1.25rem', backgroundColor: '#2b6cb0', color: '#fff', border: 'none', borderRadius: '0.25rem', fontWeight: 600, cursor: 'pointer' }}
               >
                 Print Label
               </button>

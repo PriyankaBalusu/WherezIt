@@ -1,13 +1,22 @@
 import { render, screen, waitFor, fireEvent } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { PrintBarcodeLabelModal } from './components/PrintBarcodeLabelModal';
 import * as barcodeApi from './api/barcodeApi';
 
 vi.mock('./api/barcodeApi');
+vi.mock('./hooks/useIdentifiers', () => ({
+  useContainerIdentifiers: () => ({ data: [] }),
+}));
 
 describe('PrintBarcodeLabelModal (ID-003)', () => {
+  let queryClient: QueryClient;
+
   beforeEach(() => {
     vi.clearAllMocks();
+    queryClient = new QueryClient({
+      defaultOptions: { queries: { retry: false } },
+    });
   });
 
   it('renders Code 128 barcode SVG, box display ID, and human-readable box ID', async () => {
@@ -19,13 +28,15 @@ describe('PrintBarcodeLabelModal (ID-003)', () => {
     });
 
     render(
-      <PrintBarcodeLabelModal
-        workspaceId="ws-123"
-        containerId="c-456"
-        boxDisplayId="BOX 010"
-        isOpen={true}
-        onClose={() => {}}
-      />
+      <QueryClientProvider client={queryClient}>
+        <PrintBarcodeLabelModal
+          workspaceId="ws-123"
+          containerId="c-456"
+          boxDisplayId="BOX 010"
+          isOpen={true}
+          onClose={() => {}}
+        />
+      </QueryClientProvider>
     );
 
     // Initial state: Show "No barcode" message and "Generate Barcode" button

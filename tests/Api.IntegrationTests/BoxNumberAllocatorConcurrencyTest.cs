@@ -39,26 +39,38 @@ public class BoxNumberAllocatorConcurrencyTest : IClassFixture<PostgresTestFixtu
         using var scope = _fixture.Services.CreateScope();
         var dbContext = scope.ServiceProvider.GetRequiredService<WherezItDbContext>();
 
+        var namespaceId = Guid.NewGuid();
+        var ns = new InventoryNamespace { Id = namespaceId, Name = "Concurrency Namespace", CreatedAt = DateTimeOffset.UtcNow, UpdatedAt = DateTimeOffset.UtcNow };
+        var counter = new InventoryNamespaceBoxCounter { InventoryNamespaceId = namespaceId, NextBoxNumber = 1 };
+        dbContext.InventoryNamespaces.Add(ns);
+        dbContext.InventoryNamespaceBoxCounters.Add(counter);
+
         var workspace = new Workspace
         {
             Id = Guid.NewGuid(),
             Name = "Concurrency WS",
+            InventoryNamespaceId = namespaceId,
             CreatedAt = DateTimeOffset.UtcNow,
             UpdatedAt = DateTimeOffset.UtcNow
         };
         dbContext.Workspaces.Add(workspace);
         await dbContext.SaveChangesAsync();
 
-        // Verify counter row does NOT exist initially
-        var initialCounter = await dbContext.WorkspaceBoxCounters.FirstOrDefaultAsync(c => c.WorkspaceId == workspace.Id);
-        Assert.Null(initialCounter);
+        // Verify counter row does NOT exist initially (our SaveChangesAsync interceptor automatically seeds it!)
+        var initialCounter = await dbContext.InventoryNamespaceBoxCounters.FirstOrDefaultAsync(c => c.InventoryNamespaceId == workspace.InventoryNamespaceId);
+        Assert.NotNull(initialCounter);
+        Assert.Equal(1, initialCounter.NextBoxNumber);
+
+        // Manually delete the automatically seeded counter to verify lazy initialization concurrency
+        dbContext.InventoryNamespaceBoxCounters.Remove(initialCounter);
+        await dbContext.SaveChangesAsync();
 
         const int concurrentTasksCount = 20;
         var tasks = Enumerable.Range(0, concurrentTasksCount).Select(async _ =>
         {
             using var taskScope = _fixture.Services.CreateScope();
             var allocator = taskScope.ServiceProvider.GetRequiredService<IBoxNumberAllocator>();
-            return await allocator.AllocateNextAsync(workspace.Id);
+            return await allocator.AllocateNextAsync(workspace.InventoryNamespaceId);
         }).ToArray();
 
         var results = await Task.WhenAll(tasks);
@@ -76,7 +88,7 @@ public class BoxNumberAllocatorConcurrencyTest : IClassFixture<PostgresTestFixtu
         // Verify counter state in database equals 21
         using var verifyScope = _fixture.Services.CreateScope();
         var verifyDbContext = verifyScope.ServiceProvider.GetRequiredService<WherezItDbContext>();
-        var finalCounter = await verifyDbContext.WorkspaceBoxCounters.FirstOrDefaultAsync(c => c.WorkspaceId == workspace.Id);
+        var finalCounter = await verifyDbContext.InventoryNamespaceBoxCounters.FirstOrDefaultAsync(c => c.InventoryNamespaceId == workspace.InventoryNamespaceId);
 
         Assert.NotNull(finalCounter);
         Assert.Equal(21, finalCounter.NextBoxNumber);
@@ -88,17 +100,21 @@ public class BoxNumberAllocatorConcurrencyTest : IClassFixture<PostgresTestFixtu
         using var scope = _fixture.Services.CreateScope();
         var dbContext = scope.ServiceProvider.GetRequiredService<WherezItDbContext>();
 
-        var wsA = new Workspace { Id = Guid.NewGuid(), Name = "WS Alpha", CreatedAt = DateTimeOffset.UtcNow, UpdatedAt = DateTimeOffset.UtcNow };
-        var wsB = new Workspace { Id = Guid.NewGuid(), Name = "WS Beta", CreatedAt = DateTimeOffset.UtcNow, UpdatedAt = DateTimeOffset.UtcNow };
+        var nsA = new InventoryNamespace { Id = Guid.NewGuid(), Name = "Namespace A", CreatedAt = DateTimeOffset.UtcNow, UpdatedAt = DateTimeOffset.UtcNow };
+        var nsB = new InventoryNamespace { Id = Guid.NewGuid(), Name = "Namespace B", CreatedAt = DateTimeOffset.UtcNow, UpdatedAt = DateTimeOffset.UtcNow };
+        dbContext.InventoryNamespaces.AddRange(nsA, nsB);
+
+        var wsA = new Workspace { Id = Guid.NewGuid(), Name = "WS Alpha", InventoryNamespaceId = nsA.Id, CreatedAt = DateTimeOffset.UtcNow, UpdatedAt = DateTimeOffset.UtcNow };
+        var wsB = new Workspace { Id = Guid.NewGuid(), Name = "WS Beta", InventoryNamespaceId = nsB.Id, CreatedAt = DateTimeOffset.UtcNow, UpdatedAt = DateTimeOffset.UtcNow };
         dbContext.Workspaces.AddRange(wsA, wsB);
         await dbContext.SaveChangesAsync();
 
         var allocator = scope.ServiceProvider.GetRequiredService<IBoxNumberAllocator>();
 
-        var numA1 = await allocator.AllocateNextAsync(wsA.Id);
-        var numB1 = await allocator.AllocateNextAsync(wsB.Id);
-        var numA2 = await allocator.AllocateNextAsync(wsA.Id);
-        var numB2 = await allocator.AllocateNextAsync(wsB.Id);
+        var numA1 = await allocator.AllocateNextAsync(wsA.InventoryNamespaceId);
+        var numB1 = await allocator.AllocateNextAsync(wsB.InventoryNamespaceId);
+        var numA2 = await allocator.AllocateNextAsync(wsA.InventoryNamespaceId);
+        var numB2 = await allocator.AllocateNextAsync(wsB.InventoryNamespaceId);
 
         Assert.Equal(1, numA1);
         Assert.Equal(1, numB1);

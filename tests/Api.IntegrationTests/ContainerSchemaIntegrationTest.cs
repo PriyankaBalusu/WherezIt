@@ -24,8 +24,12 @@ public class ContainerSchemaIntegrationTest : IClassFixture<PostgresTestFixture>
         using var scope = _fixture.Services.CreateScope();
         var dbContext = scope.ServiceProvider.GetRequiredService<WherezItDbContext>();
 
-        var wsA = new Workspace { Id = Guid.NewGuid(), Name = "Workspace A", CreatedAt = DateTimeOffset.UtcNow, UpdatedAt = DateTimeOffset.UtcNow };
-        var wsB = new Workspace { Id = Guid.NewGuid(), Name = "Workspace B", CreatedAt = DateTimeOffset.UtcNow, UpdatedAt = DateTimeOffset.UtcNow };
+        var nsA = new InventoryNamespace { Id = Guid.NewGuid(), Name = "Namespace A", CreatedAt = DateTimeOffset.UtcNow, UpdatedAt = DateTimeOffset.UtcNow };
+        var nsB = new InventoryNamespace { Id = Guid.NewGuid(), Name = "Namespace B", CreatedAt = DateTimeOffset.UtcNow, UpdatedAt = DateTimeOffset.UtcNow };
+        dbContext.InventoryNamespaces.AddRange(nsA, nsB);
+
+        var wsA = new Workspace { Id = Guid.NewGuid(), Name = "Workspace A", InventoryNamespaceId = nsA.Id, CreatedAt = DateTimeOffset.UtcNow, UpdatedAt = DateTimeOffset.UtcNow };
+        var wsB = new Workspace { Id = Guid.NewGuid(), Name = "Workspace B", InventoryNamespaceId = nsB.Id, CreatedAt = DateTimeOffset.UtcNow, UpdatedAt = DateTimeOffset.UtcNow };
 
         var nodeA = new StorageNode { Id = Guid.NewGuid(), WorkspaceId = wsA.Id, ParentId = null, Name = "Node A", CreatedAt = DateTimeOffset.UtcNow, UpdatedAt = DateTimeOffset.UtcNow };
         var nodeB = new StorageNode { Id = Guid.NewGuid(), WorkspaceId = wsB.Id, ParentId = null, Name = "Node B", CreatedAt = DateTimeOffset.UtcNow, UpdatedAt = DateTimeOffset.UtcNow };
@@ -121,20 +125,21 @@ public class ContainerSchemaIntegrationTest : IClassFixture<PostgresTestFixture>
     }
 
     [Fact]
-    public async Task WorkspaceBoxCounter_DefaultValue_AndSchemaVerification()
+    public async Task InventoryNamespaceBoxCounter_DefaultValue_AndSchemaVerification()
     {
         using var scope = _fixture.Services.CreateScope();
         var dbContext = scope.ServiceProvider.GetRequiredService<WherezItDbContext>();
 
-        var ws = new Workspace { Id = Guid.NewGuid(), Name = "Counter WS", CreatedAt = DateTimeOffset.UtcNow, UpdatedAt = DateTimeOffset.UtcNow };
+        var ns = new InventoryNamespace { Id = Guid.NewGuid(), Name = "Isolated Counter Namespace", CreatedAt = DateTimeOffset.UtcNow, UpdatedAt = DateTimeOffset.UtcNow };
+        var counter = new InventoryNamespaceBoxCounter { InventoryNamespaceId = ns.Id, NextBoxNumber = 1 };
+        dbContext.InventoryNamespaces.Add(ns);
+        dbContext.InventoryNamespaceBoxCounters.Add(counter);
+
+        var ws = new Workspace { Id = Guid.NewGuid(), Name = "Counter WS", InventoryNamespaceId = ns.Id, CreatedAt = DateTimeOffset.UtcNow, UpdatedAt = DateTimeOffset.UtcNow };
         dbContext.Workspaces.Add(ws);
         await dbContext.SaveChangesAsync();
 
-        var counter = new WorkspaceBoxCounter { WorkspaceId = ws.Id };
-        dbContext.WorkspaceBoxCounters.Add(counter);
-        await dbContext.SaveChangesAsync();
-
-        var dbCounter = await dbContext.WorkspaceBoxCounters.FirstOrDefaultAsync(c => c.WorkspaceId == ws.Id);
+        var dbCounter = await dbContext.InventoryNamespaceBoxCounters.FirstOrDefaultAsync(c => c.InventoryNamespaceId == ns.Id);
         Assert.NotNull(dbCounter);
         Assert.Equal(1, dbCounter.NextBoxNumber);
     }

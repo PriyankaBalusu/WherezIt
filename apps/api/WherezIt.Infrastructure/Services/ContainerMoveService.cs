@@ -73,6 +73,10 @@ public class ContainerMoveService : IContainerMoveService
 
             // Execute move
             container.StorageNodeId = request.StorageNodeId;
+            if (container.DestinationStorageNodeId == request.StorageNodeId)
+            {
+                container.DestinationStorageNodeId = null;
+            }
             container.UpdatedAt = DateTimeOffset.UtcNow;
 
             // Create immutable ActivityHistory audit record

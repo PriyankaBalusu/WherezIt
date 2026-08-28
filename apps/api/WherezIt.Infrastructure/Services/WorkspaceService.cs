@@ -38,7 +38,8 @@ public class WorkspaceService : IWorkspaceService
                 m.Workspace.Id,
                 m.Workspace.Name,
                 m.Role.ToString(),
-                m.Workspace.CreatedAt))
+                m.Workspace.CreatedAt,
+                m.Workspace.InventoryNamespaceId))
             .ToList();
     }
 
@@ -62,11 +63,80 @@ public class WorkspaceService : IWorkspaceService
 
         using var transaction = await _dbContext.Database.BeginTransactionAsync(cancellationToken);
 
+        // Resolve user's inventory namespaces
+        var userNamespaceIds = await _dbContext.InventoryNamespaceMembers
+            .Where(m => m.UserId == user.Id)
+            .Select(m => m.InventoryNamespaceId)
+            .ToListAsync(cancellationToken);
+
+        Guid targetNamespaceId;
         var now = DateTimeOffset.UtcNow;
+
+        if (userNamespaceIds.Count == 0)
+        {
+            // Case 0 inventories: create default "My Inventory"
+            var newNamespace = new InventoryNamespace
+            {
+                Id = Guid.NewGuid(),
+                Name = "My Inventory",
+                CreatedAt = now,
+                UpdatedAt = now
+            };
+
+            var nsMember = new InventoryNamespaceMember
+            {
+                InventoryNamespaceId = newNamespace.Id,
+                UserId = user.Id,
+                Role = WorkspaceRole.OWNER,
+                CreatedAt = now
+            };
+
+            var nsCounter = new InventoryNamespaceBoxCounter
+            {
+                InventoryNamespaceId = newNamespace.Id,
+                NextBoxNumber = 1
+            };
+
+            _dbContext.InventoryNamespaces.Add(newNamespace);
+            _dbContext.InventoryNamespaceMembers.Add(nsMember);
+            _dbContext.InventoryNamespaceBoxCounters.Add(nsCounter);
+
+            targetNamespaceId = newNamespace.Id;
+        }
+        else if (userNamespaceIds.Count == 1)
+        {
+            if (request.InventoryNamespaceId.HasValue)
+            {
+                if (!userNamespaceIds.Contains(request.InventoryNamespaceId.Value))
+                {
+                    throw new UnauthorizedAccessException("User is not a member of the requested inventory.");
+                }
+                targetNamespaceId = request.InventoryNamespaceId.Value;
+            }
+            else
+            {
+                targetNamespaceId = userNamespaceIds[0];
+            }
+        }
+        else // 2+ inventories
+        {
+            if (!request.InventoryNamespaceId.HasValue)
+            {
+                throw new ArgumentException("InventoryNamespaceId is required because you belong to multiple inventories.", nameof(request));
+            }
+
+            if (!userNamespaceIds.Contains(request.InventoryNamespaceId.Value))
+            {
+                throw new UnauthorizedAccessException("User is not a member of the requested inventory.");
+            }
+            targetNamespaceId = request.InventoryNamespaceId.Value;
+        }
+
         var workspace = new Workspace
         {
             Id = Guid.NewGuid(),
             Name = trimmedName,
+            InventoryNamespaceId = targetNamespaceId,
             CreatedAt = now,
             UpdatedAt = now
         };
@@ -89,6 +159,7 @@ public class WorkspaceService : IWorkspaceService
             workspace.Id,
             workspace.Name,
             member.Role.ToString(),
-            workspace.CreatedAt);
+            workspace.CreatedAt,
+            workspace.InventoryNamespaceId);
     }
 }

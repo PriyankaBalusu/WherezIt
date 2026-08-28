@@ -1,6 +1,8 @@
 import React, { useEffect, useRef, useState } from 'react';
 import JsBarcode from 'jsbarcode';
 import { acquireContainerBarcodeIdentifier, BarcodeIdentifierResponse } from '../api/barcodeApi';
+import { useContainerIdentifiers } from '../hooks/useIdentifiers';
+import { useQueryClient } from '@tanstack/react-query';
 
 interface PrintBarcodeLabelModalProps {
   workspaceId: string;
@@ -17,10 +19,26 @@ export const PrintBarcodeLabelModal: React.FC<PrintBarcodeLabelModalProps> = ({
   isOpen,
   onClose,
 }) => {
+  const queryClient = useQueryClient();
+  const { data: identifiers } = useContainerIdentifiers(workspaceId, containerId);
   const [identifier, setIdentifier] = useState<BarcodeIdentifierResponse | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
   const svgRef = useRef<SVGSVGElement | null>(null);
+
+  useEffect(() => {
+    if (isOpen && identifiers && !identifier) {
+      const activeBarcode = identifiers.find(i => i.type === 'BARCODE');
+      if (activeBarcode) {
+        setIdentifier({
+          identifierId: activeBarcode.id,
+          value: activeBarcode.value,
+          type: 'BARCODE',
+          createdAt: activeBarcode.createdAt || new Date().toISOString()
+        });
+      }
+    }
+  }, [isOpen, identifiers, identifier, workspaceId, containerId]);
 
   const handleGenerate = async () => {
     setIsLoading(true);
@@ -28,6 +46,8 @@ export const PrintBarcodeLabelModal: React.FC<PrintBarcodeLabelModalProps> = ({
     try {
       const data = await acquireContainerBarcodeIdentifier(workspaceId, containerId);
       setIdentifier(data);
+      queryClient.invalidateQueries({ queryKey: ['containerIdentifiers', workspaceId, containerId] });
+      queryClient.invalidateQueries({ queryKey: ['container', workspaceId, containerId] });
       setIsLoading(false);
     } catch (err: any) {
       setError(err.message || 'Failed to acquire barcode');
@@ -233,26 +253,24 @@ export const PrintBarcodeLabelModal: React.FC<PrintBarcodeLabelModalProps> = ({
             <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'flex-end' }} className="no-print">
               <button
                 type="button"
-                className="btn-secondary"
+                className="btn btn-secondary btn--md"
                 onClick={onClose}
-                style={{ padding: '0.5rem 1rem', fontSize: '0.875rem' }}
               >
                 Close
               </button>
               <button
                 type="button"
+                className="btn btn-danger btn--md"
                 onClick={handleRevoke}
                 disabled={!identifier}
-                style={{ padding: '0.5rem 1rem', border: '1px solid #dc2626', color: '#dc2626', borderRadius: '0.25rem', backgroundColor: '#fff', cursor: 'pointer', fontWeight: 500, fontSize: '0.875rem' }}
               >
                 Revoke Label
               </button>
               <button
                 type="button"
-                className="btn-primary"
+                className="btn btn-primary btn--md"
                 onClick={() => window.print()}
                 disabled={!identifier}
-                style={{ padding: '0.5rem 1.25rem', fontSize: '0.875rem' }}
               >
                 Print Label
               </button>

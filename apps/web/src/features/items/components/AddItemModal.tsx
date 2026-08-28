@@ -162,17 +162,15 @@ export const AddItemModal: React.FC<AddItemModalProps> = ({
           <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'flex-end', marginTop: '0.5rem' }}>
             <button
               type="button"
-              className="btn-secondary"
+              className="btn btn-secondary btn--md"
               onClick={onClose}
-              style={{ padding: '0.5rem 1rem', fontSize: '0.875rem' }}
             >
               Cancel
             </button>
             <button
               type="submit"
               disabled={isSubmitting}
-              className="btn-primary"
-              style={{ padding: '0.5rem 1.25rem', fontSize: '0.875rem' }}
+              className="btn btn-primary btn--md"
             >
               {isSubmitting ? 'Adding...' : 'Add Item'}
             </button>

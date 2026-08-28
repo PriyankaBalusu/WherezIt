@@ -350,6 +350,7 @@ public class ItemImageStorageCleanupUnitTests
             context,
             fakeAuth,
             fakeStorage,
+            null!,
             NullLogger<ImageManagementService>.Instance);
 
         var identity = new AuthenticatedIdentity("user-123", "owner@wherezit.dev", true);
@@ -403,6 +404,7 @@ public class ItemImageStorageCleanupUnitTests
             context,
             fakeAuth,
             fakeStorage,
+            null!,
             NullLogger<ImageManagementService>.Instance);
 
         var attackerIdentity = new AuthenticatedIdentity("attacker-999", "attacker@evil.dev", true);

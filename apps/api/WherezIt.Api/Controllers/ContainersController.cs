@@ -165,6 +165,30 @@ public class ContainersController : ControllerBase
         }
     }
 
+    [HttpPost("{containerId}/unpack")]
+    public async Task<IActionResult> UnpackContainer(
+        [FromRoute] Guid workspaceId,
+        [FromRoute] Guid containerId,
+        CancellationToken cancellationToken = default)
+    {
+        var identity = GetAuthenticatedIdentity();
+        if (identity == null) return Unauthorized();
+
+        try
+        {
+            var container = await _containerService.UnpackContainerAsync(identity, workspaceId, containerId, cancellationToken);
+            return Ok(container);
+        }
+        catch (KeyNotFoundException ex)
+        {
+            return NotFound(new { error = ex.Message });
+        }
+        catch (UnauthorizedAccessException)
+        {
+            return Forbid();
+        }
+    }
+
     [HttpPost("{containerId}/move")]
     public async Task<IActionResult> MoveContainer(
         [FromRoute] Guid workspaceId,

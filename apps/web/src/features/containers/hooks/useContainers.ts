@@ -51,8 +51,9 @@ export function useUpdateContainer(workspaceId: string) {
   return useMutation({
     mutationFn: ({ containerId, data }: { containerId: string; data: UpdateContainerRequest }) =>
       updateContainer(workspaceId, containerId, data, getIdToken),
-    onSuccess: () => {
+    onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: ['containers', workspaceId] });
+      queryClient.invalidateQueries({ queryKey: ['container', workspaceId, variables.containerId] });
     },
   });
 }

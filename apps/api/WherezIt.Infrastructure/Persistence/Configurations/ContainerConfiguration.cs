@@ -70,9 +70,20 @@ public class ContainerConfiguration : IEntityTypeConfiguration<Container>
             .HasColumnType("timestamp with time zone")
             .IsRequired();
 
+        builder.Property(c => c.InventoryNamespaceId)
+            .HasColumnName("inventory_namespace_id")
+            .IsRequired();
+
+        builder.HasOne(c => c.InventoryNamespace)
+            .WithMany()
+            .HasForeignKey(c => c.InventoryNamespaceId)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        // Composite Foreign Key to Workspace enforcing same namespace
         builder.HasOne(c => c.Workspace)
             .WithMany()
-            .HasForeignKey(c => c.WorkspaceId)
+            .HasForeignKey(c => new { c.InventoryNamespaceId, c.WorkspaceId })
+            .HasPrincipalKey(w => new { w.InventoryNamespaceId, w.Id })
             .OnDelete(DeleteBehavior.Cascade);
 
         // Composite Foreign Key to StorageNode enforcing same workspace
@@ -93,9 +104,9 @@ public class ContainerConfiguration : IEntityTypeConfiguration<Container>
             .IsUnique()
             .HasDatabaseName("ix_containers_workspace_id_id");
 
-        builder.HasIndex(c => new { c.WorkspaceId, c.BoxNumber })
+        builder.HasIndex(c => new { c.InventoryNamespaceId, c.BoxNumber })
             .IsUnique()
-            .HasDatabaseName("ix_containers_workspace_id_box_number");
+            .HasDatabaseName("ix_containers_inventory_namespace_id_box_number");
 
         builder.HasIndex(c => new { c.WorkspaceId, c.StorageNodeId })
             .HasDatabaseName("ix_containers_workspace_id_storage_node_id");

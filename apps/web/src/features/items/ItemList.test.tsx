@@ -185,10 +185,11 @@ describe('ItemList UI (ITEM-001)', () => {
     );
 
     await waitFor(() => {
-      expect(screen.getByLabelText(/Show Archived Items/i)).toBeInTheDocument();
+      expect(screen.getByLabelText(/Contents display options/i)).toBeInTheDocument();
     });
 
-    fireEvent.click(screen.getByLabelText(/Show Archived Items/i));
+    fireEvent.click(screen.getByLabelText(/Contents display options/i));
+    fireEvent.click(screen.getByText(/Show archived items/i));
 
     await waitFor(() => {
       expect(screen.getByText('Old Blanket')).toBeInTheDocument();

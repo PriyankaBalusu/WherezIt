@@ -7,5 +7,8 @@ public class Workspace
     public DateTimeOffset CreatedAt { get; set; }
     public DateTimeOffset UpdatedAt { get; set; }
 
+    public Guid InventoryNamespaceId { get; set; }
+
+    public InventoryNamespace InventoryNamespace { get; set; } = null!;
     public ICollection<WorkspaceMember> Members { get; set; } = new List<WorkspaceMember>();
 }

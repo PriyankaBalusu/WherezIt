@@ -280,17 +280,15 @@ export const EditItemModal: React.FC<EditItemModalProps> = ({
           <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'flex-end', marginTop: '0.5rem' }}>
             <button
               type="button"
-              className="btn-secondary"
+              className="btn btn-secondary btn--md"
               onClick={onClose}
-              style={{ padding: '0.5rem 1.25rem', fontSize: '0.875rem' }}
             >
               Cancel
             </button>
             <button
               type="submit"
-              className="btn-primary"
+              className="btn btn-primary btn--md"
               disabled={updateMutation.isPending}
-              style={{ padding: '0.5rem 1.5rem', fontSize: '0.875rem' }}
             >
               {updateMutation.isPending ? 'Saving...' : 'Save Changes'}
             </button>

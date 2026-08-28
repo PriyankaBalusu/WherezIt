@@ -10,7 +10,7 @@ public class ActivityHistoryConfiguration : IEntityTypeConfiguration<ActivityHis
     {
         builder.ToTable("activity_histories", t =>
         {
-            t.HasCheckConstraint("ck_activity_histories_activity_type", "activity_type = 'CONTAINER_MOVED'");
+            t.HasCheckConstraint("ck_activity_histories_activity_type", "activity_type IN ('CONTAINER_MOVED', 'TRANSFERRED_OUT', 'TRANSFERRED_IN')");
         });
 
         builder.HasKey(a => a.Id);
@@ -64,11 +64,10 @@ public class ActivityHistoryConfiguration : IEntityTypeConfiguration<ActivityHis
             .HasForeignKey(a => a.WorkspaceId)
             .OnDelete(DeleteBehavior.Cascade);
 
-        // Container relationship (composite FK enforcing same workspace)
+        // Container relationship (simple FK on ContainerId only)
         builder.HasOne(a => a.Container)
             .WithMany()
-            .HasForeignKey(a => new { a.WorkspaceId, a.ContainerId })
-            .HasPrincipalKey(c => new { c.WorkspaceId, c.Id })
+            .HasForeignKey(a => a.ContainerId)
             .OnDelete(DeleteBehavior.Cascade);
 
         // Previous StorageNode relationship (composite FK enforcing same workspace, SET NULL on node deletion)

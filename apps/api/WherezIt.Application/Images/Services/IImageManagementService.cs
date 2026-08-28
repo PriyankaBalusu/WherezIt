@@ -37,6 +37,39 @@ public interface IImageManagementService
         Guid imageId,
         CancellationToken cancellationToken = default);
 
+    Task<ImageUploadResponseDto> UploadContainerPhysicalLabelImageAsync(
+        AuthenticatedIdentity identity,
+        Guid workspaceId,
+        Guid containerId,
+        Stream contentStream,
+        string contentType,
+        long length,
+        CancellationToken cancellationToken = default);
+
+    Task<ContainerImageResponseDto?> GetContainerPhysicalLabelImageAsync(
+        AuthenticatedIdentity identity,
+        Guid workspaceId,
+        Guid containerId,
+        CancellationToken cancellationToken = default);
+
+    Task DeleteContainerPhysicalLabelImageAsync(
+        AuthenticatedIdentity identity,
+        Guid workspaceId,
+        Guid containerId,
+        CancellationToken cancellationToken = default);
+
+    Task DeleteContainerExistingLabelAsync(
+        AuthenticatedIdentity identity,
+        Guid workspaceId,
+        Guid containerId,
+        CancellationToken cancellationToken = default);
+
+    Task<string?> ExtractContainerPhysicalLabelOcrTextAsync(
+        AuthenticatedIdentity identity,
+        Guid workspaceId,
+        Guid containerId,
+        CancellationToken cancellationToken = default);
+
     Task<ImageUploadResponseDto> UploadItemImageAsync(
         AuthenticatedIdentity identity,
         Guid workspaceId,

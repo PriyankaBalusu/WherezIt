@@ -331,17 +331,15 @@ export const ChangePasswordModal: React.FC<ChangePasswordModalProps> = ({
             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.75rem' }}>
               <button
                 type="button"
-                className="btn-secondary"
+                className="btn btn-secondary btn--md"
                 onClick={handleClose}
-                style={{ padding: '0.5rem 1rem', fontSize: '0.875rem' }}
               >
                 Cancel
               </button>
               <button
                 type="submit"
-                className="btn-primary"
+                className="btn btn-primary btn--md"
                 disabled={isSubmitting}
-                style={{ padding: '0.5rem 1.25rem', fontSize: '0.875rem' }}
               >
                 {isSubmitting ? 'Updating...' : 'Update Password'}
               </button>

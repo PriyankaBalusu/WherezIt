@@ -8,6 +8,8 @@ using WherezIt.Application.Authentication;
 using WherezIt.Application.Containers.Dtos;
 using WherezIt.Application.Containers.Services;
 using WherezIt.Application.Images.Services;
+using WherezIt.Application.Items.Dtos;
+using WherezIt.Application.Items.Services;
 using WherezIt.Application.StorageLocations.Dtos;
 using WherezIt.Application.StorageLocations.Services;
 using WherezIt.Application.Workspaces.Dtos;
@@ -221,5 +223,139 @@ public class ImageUploadAndRetrievalIntegrationTest : IClassFixture<PostgresTest
         // 7. Reference photo list is now empty
         var refPhotosAfterDelete = await imageService.GetContainerReferenceImagesAsync(userA, wsA.Id, containerA.Id);
         Assert.Empty(refPhotosAfterDelete);
+    }
+
+    [Fact]
+    public async Task PhysicalLabelImage_Flow_ExcludesFromReferenceGallery_And_PreservesPriorImageOnReplacementFailure()
+    {
+        using var scope = _fixture.Services.CreateScope();
+        var workspaceService = scope.ServiceProvider.GetRequiredService<IWorkspaceService>();
+        var locationService = scope.ServiceProvider.GetRequiredService<IStorageLocationService>();
+        var containerService = scope.ServiceProvider.GetRequiredService<IContainerService>();
+        var imageService = scope.ServiceProvider.GetRequiredService<IImageManagementService>();
+        var db = scope.ServiceProvider.GetRequiredService<WherezItDbContext>();
+
+        var user = new AuthenticatedIdentity($"label_user_{Guid.NewGuid():N}", "label_user@example.com", true);
+        var ws = await workspaceService.CreateWorkspaceAsync(user, new CreateWorkspaceRequestDto("Label WS"));
+        var loc = await locationService.CreateLocationAsync(user, ws.Id, new CreateStorageLocationRequestDto("Bay L", null));
+        var container = await containerService.CreateContainerAsync(user, ws.Id, new CreateContainerRequestDto(loc.Id, "Bin L1", null));
+
+        var sampleBytes = new byte[] { 0xFF, 0xD8, 0xFF, 0xE0, 0x00, 0x10, 0x4A, 0x46, 0x49, 0x46, 0x00, 0x01 };
+
+        // 1. Upload initial physical label image
+        using var stream1 = new MemoryStream(sampleBytes);
+        var labelResult1 = await imageService.UploadContainerPhysicalLabelImageAsync(
+            user, ws.Id, container.Id, stream1, "image/jpeg", sampleBytes.Length);
+
+        Assert.NotNull(labelResult1);
+
+        // Verify DB purpose is PHYSICAL_LABEL
+        var asset1 = await db.ImageAssets.FindAsync(labelResult1.Id);
+        Assert.NotNull(asset1);
+        Assert.Equal("PHYSICAL_LABEL", asset1.ImagePurpose);
+
+        // 2. Verify reference photo query EXCLUDES physical label photo
+        var refImages = await imageService.GetContainerReferenceImagesAsync(user, ws.Id, container.Id);
+        Assert.Empty(refImages);
+
+        // 3. Query physical label image directly
+        var retrievedLabel = await imageService.GetContainerPhysicalLabelImageAsync(user, ws.Id, container.Id);
+        Assert.NotNull(retrievedLabel);
+        Assert.Equal(labelResult1.Id, retrievedLabel.Id);
+
+        // 4. Attempt uploading invalid replacement file -> failure should preserve initial physical label image
+        var invalidBytes = new byte[] { 0x00, 0x00, 0x00, 0x00 };
+        using var invalidStream = new MemoryStream(invalidBytes);
+
+        await Assert.ThrowsAsync<ArgumentException>(() =>
+            imageService.UploadContainerPhysicalLabelImageAsync(user, ws.Id, container.Id, invalidStream, "image/jpeg", invalidBytes.Length));
+
+        // Prior label image must remain active and unchanged in DB
+        var retrievedAfterFailedUpload = await imageService.GetContainerPhysicalLabelImageAsync(user, ws.Id, container.Id);
+        Assert.NotNull(retrievedAfterFailedUpload);
+        Assert.Equal(labelResult1.Id, retrievedAfterFailedUpload.Id);
+
+        // 5. Upload valid replacement physical label image -> replaces old asset
+        using var stream2 = new MemoryStream(sampleBytes);
+        var labelResult2 = await imageService.UploadContainerPhysicalLabelImageAsync(
+            user, ws.Id, container.Id, stream2, "image/jpeg", sampleBytes.Length);
+
+        Assert.NotNull(labelResult2);
+        Assert.NotEqual(labelResult1.Id, labelResult2.Id);
+
+        var retrievedLabel2 = await imageService.GetContainerPhysicalLabelImageAsync(user, ws.Id, container.Id);
+        Assert.NotNull(retrievedLabel2);
+        Assert.Equal(labelResult2.Id, retrievedLabel2.Id);
+
+        // Old asset must be removed from DB
+        var oldAssetInDb = await db.ImageAssets.FindAsync(labelResult1.Id);
+        Assert.Null(oldAssetInDb);
+    }
+
+    [Fact]
+    public async Task ExistingItemImage_HasItemPurpose_And_ItemPhotoQueryStillFindsIt()
+    {
+        using var scope = _fixture.Services.CreateScope();
+        var workspaceService = scope.ServiceProvider.GetRequiredService<IWorkspaceService>();
+        var locationService = scope.ServiceProvider.GetRequiredService<IStorageLocationService>();
+        var containerService = scope.ServiceProvider.GetRequiredService<IContainerService>();
+        var itemService = scope.ServiceProvider.GetRequiredService<IItemService>();
+        var imageService = scope.ServiceProvider.GetRequiredService<IImageManagementService>();
+        var db = scope.ServiceProvider.GetRequiredService<WherezItDbContext>();
+
+        var user = new AuthenticatedIdentity($"item_user_{Guid.NewGuid():N}", "item_user@example.com", true);
+        var ws = await workspaceService.CreateWorkspaceAsync(user, new CreateWorkspaceRequestDto("Item WS"));
+        var loc = await locationService.CreateLocationAsync(user, ws.Id, new CreateStorageLocationRequestDto("Rack I", null));
+        var container = await containerService.CreateContainerAsync(user, ws.Id, new CreateContainerRequestDto(loc.Id, "Bin I1", null));
+        var item = await itemService.CreateItemAsync(user, ws.Id, container.Id, new CreateItemRequestDto("Power Drill", 1));
+
+        var sampleBytes = new byte[] { 0xFF, 0xD8, 0xFF, 0xE0, 0x00, 0x10, 0x4A, 0x46, 0x49, 0x46, 0x00, 0x01 };
+
+        // Upload Item Image
+        using var stream = new MemoryStream(sampleBytes);
+        var itemUploadResult = await imageService.UploadItemImageAsync(
+            user, ws.Id, item.Id, stream, "image/jpeg", sampleBytes.Length);
+
+        Assert.NotNull(itemUploadResult);
+
+        // Verify ImagePurpose is ITEM
+        var asset = await db.ImageAssets.FindAsync(itemUploadResult.Id);
+        Assert.NotNull(asset);
+        Assert.Equal("ITEM", asset.ImagePurpose);
+        Assert.Equal(item.Id, asset.ItemId);
+        Assert.Null(asset.ContainerId);
+
+        // Query item images
+        var itemImages = await imageService.GetItemImagesAsync(user, ws.Id, item.Id);
+        Assert.Single(itemImages);
+        Assert.Equal(itemUploadResult.Id, itemImages[0].Id);
+    }
+
+    [Fact]
+    public async Task PhysicalLabelImage_TenantIsolation_EnforcesWorkspaceAccess()
+    {
+        using var scope = _fixture.Services.CreateScope();
+        var workspaceService = scope.ServiceProvider.GetRequiredService<IWorkspaceService>();
+        var locationService = scope.ServiceProvider.GetRequiredService<IStorageLocationService>();
+        var containerService = scope.ServiceProvider.GetRequiredService<IContainerService>();
+        var imageService = scope.ServiceProvider.GetRequiredService<IImageManagementService>();
+
+        var userA = new AuthenticatedIdentity($"tenant_a_{Guid.NewGuid():N}", "user_a@example.com", true);
+        var userB = new AuthenticatedIdentity($"tenant_b_{Guid.NewGuid():N}", "user_b@example.com", true);
+
+        var wsA = await workspaceService.CreateWorkspaceAsync(userA, new CreateWorkspaceRequestDto("Tenant WS A"));
+        var locA = await locationService.CreateLocationAsync(userA, wsA.Id, new CreateStorageLocationRequestDto("Bay A", null));
+        var containerA = await containerService.CreateContainerAsync(userA, wsA.Id, new CreateContainerRequestDto(locA.Id, "Bin A1", null));
+
+        var sampleBytes = new byte[] { 0xFF, 0xD8, 0xFF, 0xE0, 0x00, 0x10, 0x4A, 0x46, 0x49, 0x46, 0x00, 0x01 };
+        using var stream = new MemoryStream(sampleBytes);
+        await imageService.UploadContainerPhysicalLabelImageAsync(userA, wsA.Id, containerA.Id, stream, "image/jpeg", sampleBytes.Length);
+
+        // User B cannot query or delete User A's physical label photo
+        await Assert.ThrowsAsync<UnauthorizedAccessException>(() =>
+            imageService.GetContainerPhysicalLabelImageAsync(userB, wsA.Id, containerA.Id));
+
+        await Assert.ThrowsAsync<UnauthorizedAccessException>(() =>
+            imageService.DeleteContainerPhysicalLabelImageAsync(userB, wsA.Id, containerA.Id));
     }
 }

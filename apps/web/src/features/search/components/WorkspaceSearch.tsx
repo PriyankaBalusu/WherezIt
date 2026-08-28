@@ -35,15 +35,26 @@ export const WorkspaceSearch: React.FC<WorkspaceSearchProps> = ({ workspaceId, i
   };
 
   const [isListening, setIsListening] = useState(false);
+  const [recognitionRef, setRecognitionRef] = useState<any>(null);
+  const isSpeechSupported =
+    typeof window !== 'undefined' &&
+    (('SpeechRecognition' in window) || ('webkitSpeechRecognition' in window));
 
   const handleVoiceSearch = () => {
+    if (isListening && recognitionRef) {
+      try {
+        recognitionRef.stop();
+      } catch {
+        // ignore
+      }
+      setIsListening(false);
+      return;
+    }
+
     const SpeechRecognition =
       (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
 
-    if (!SpeechRecognition) {
-      alert('Speech recognition is not supported in this browser.');
-      return;
-    }
+    if (!SpeechRecognition) return;
 
     try {
       const recognition = new SpeechRecognition();
@@ -51,21 +62,27 @@ export const WorkspaceSearch: React.FC<WorkspaceSearchProps> = ({ workspaceId, i
       recognition.interimResults = false;
 
       recognition.onstart = () => setIsListening(true);
-      recognition.onend = () => setIsListening(false);
-      recognition.onerror = () => setIsListening(false);
+      recognition.onend = () => {
+        setIsListening(false);
+        setRecognitionRef(null);
+      };
+      recognition.onerror = () => {
+        setIsListening(false);
+        setRecognitionRef(null);
+      };
 
       recognition.onresult = (event: any) => {
-        const transcript = event.results[0][0].transcript;
+        const transcript = event.results[0]?.[0]?.transcript;
         if (transcript) {
           setInputQuery(transcript);
-          setActiveQuery(transcript.trim());
-          setSubmitted(true);
         }
       };
 
+      setRecognitionRef(recognition);
       recognition.start();
     } catch {
       setIsListening(false);
+      setRecognitionRef(null);
     }
   };
 
@@ -75,41 +92,50 @@ export const WorkspaceSearch: React.FC<WorkspaceSearchProps> = ({ workspaceId, i
         Storage Space Search
       </h2>
 
-      <form onSubmit={handleSearchSubmit} style={{ display: 'flex', gap: '0.5rem', marginBottom: '1.75rem' }}>
-        <input
-          type="text"
-          value={inputQuery}
-          onChange={(e) => setInputQuery(e.target.value)}
-          maxLength={100}
-          placeholder="Search items (e.g., Christmas lights) or BOX (e.g., BOX 012)..."
-          aria-label="Search query"
-          style={{
-            flex: 1,
-            padding: '0.75rem 1rem',
-            fontSize: '1rem',
-            border: '1px solid #cbd5e1',
-            borderRadius: '0.5rem',
-            backgroundColor: '#ffffff',
-            color: '#0f172a',
-          }}
-        />
-        <button
-          type="button"
-          onClick={handleVoiceSearch}
-          style={{
-            backgroundColor: isListening ? '#ef4444' : '#ffffff',
-            color: isListening ? '#ffffff' : '#475569',
-            border: '1px solid #cbd5e1',
-            borderRadius: '0.5rem',
-            padding: '0 1rem',
-            fontSize: '1.125rem',
-            cursor: 'pointer',
-            transition: 'all 150ms ease',
-          }}
-          title={isListening ? 'Listening...' : 'Voice Search'}
-        >
-          🎙️
-        </button>
+      <form onSubmit={handleSearchSubmit} style={{ display: 'flex', gap: '0.5rem', marginBottom: '1.75rem', flexWrap: 'wrap' }}>
+        <div style={{ flex: 1, minWidth: '220px', position: 'relative', display: 'flex', alignItems: 'center' }}>
+          <input
+            type="text"
+            value={inputQuery}
+            onChange={(e) => setInputQuery(e.target.value)}
+            maxLength={100}
+            placeholder="Search items (e.g., Christmas lights) or BOX (e.g., BOX 012)..."
+            aria-label="Search query"
+            style={{
+              width: '100%',
+              padding: '0.75rem 2.5rem 0.75rem 1rem',
+              fontSize: '1rem',
+              border: '1px solid #cbd5e1',
+              borderRadius: '0.5rem',
+              backgroundColor: '#ffffff',
+              color: '#0f172a',
+              boxSizing: 'border-box',
+            }}
+          />
+          {isSpeechSupported && (
+            <button
+              type="button"
+              onClick={handleVoiceSearch}
+              style={{
+                position: 'absolute',
+                right: '0.5rem',
+                backgroundColor: isListening ? '#ef4444' : 'transparent',
+                color: isListening ? '#ffffff' : '#64748b',
+                border: 'none',
+                borderRadius: '0.25rem',
+                padding: '0.25rem 0.5rem',
+                fontSize: '0.9rem',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.25rem',
+              }}
+              title={isListening ? 'Click to cancel voice input' : 'Voice search'}
+            >
+              🎙️ {isListening ? <span style={{ fontSize: '0.75rem', fontWeight: 700 }}>Listening... (Cancel)</span> : null}
+            </button>
+          )}
+        </div>
         <button
           type="submit"
           className="btn-primary"

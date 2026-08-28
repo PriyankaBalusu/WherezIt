@@ -18,12 +18,14 @@ interface CreateWorkspaceModalProps {
   isOpen: boolean;
   onClose: () => void;
   onCreated?: (workspaceId: string) => void;
+  inventoryNamespaceId?: string;
 }
 
 export const CreateWorkspaceModal: React.FC<CreateWorkspaceModalProps> = ({
   isOpen,
   onClose,
   onCreated,
+  inventoryNamespaceId,
 }) => {
   const { mutateAsync: createWs, isPending, error: mutationError } = useCreateWorkspace();
 
@@ -56,7 +58,7 @@ export const CreateWorkspaceModal: React.FC<CreateWorkspaceModalProps> = ({
 
   const onSubmit = async (data: CreateWorkspaceFormData) => {
     try {
-      const newWs = await createWs({ name: data.name });
+      const newWs = await createWs({ name: data.name, inventoryNamespaceId });
       reset();
       onClose();
       if (onCreated && newWs?.id) {
@@ -191,40 +193,17 @@ export const CreateWorkspaceModal: React.FC<CreateWorkspaceModalProps> = ({
           <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.75rem' }}>
             <button
               type="button"
+              className="btn btn-secondary btn--md"
               onClick={onClose}
               disabled={isPending}
-              style={{
-                padding: '0.625rem 1.25rem',
-                fontSize: '0.875rem',
-                fontWeight: 600,
-                color: '#475569',
-                backgroundColor: '#f1f5f9',
-                border: '1px solid #cbd5e1',
-                borderRadius: '0.5rem',
-                cursor: 'pointer',
-              }}
             >
               Cancel
             </button>
 
             <button
               type="submit"
+              className="btn btn-primary btn--md"
               disabled={isPending}
-              style={{
-                padding: '0.625rem 1.25rem',
-                fontSize: '0.875rem',
-                fontWeight: 700,
-                color: '#ffffff',
-                background: 'linear-gradient(135deg, #0284c7 0%, #0369a1 100%)',
-                border: 'none',
-                borderRadius: '0.5rem',
-                cursor: isPending ? 'not-allowed' : 'pointer',
-                opacity: isPending ? 0.75 : 1,
-                boxShadow: '0 4px 12px rgba(2, 132, 199, 0.25)',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '0.5rem',
-              }}
             >
               {isPending ? (
                 <>

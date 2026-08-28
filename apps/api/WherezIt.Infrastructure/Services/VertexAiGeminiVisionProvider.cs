@@ -60,9 +60,15 @@ public class VertexAiGeminiVisionProvider : IInventoryVisionProvider
 
         string mimeType = contentType.Equals("image/jpg", StringComparison.OrdinalIgnoreCase) ? "image/jpeg" : contentType.ToLowerInvariant();
 
+        if (imageStream.CanSeek)
+        {
+            imageStream.Position = 0;
+        }
+
         using var ms = new MemoryStream();
         await imageStream.CopyToAsync(ms, cancellationToken);
         var imageBytes = ms.ToArray();
+        _logger.LogInformation("Image stream copied for analysis. MIME: {MimeType}, Bytes: {ByteCount}, CanSeek: {CanSeek}", mimeType, imageBytes.Length, imageStream.CanSeek);
         var base64Image = Convert.ToBase64String(imageBytes);
 
         GoogleCredential credential;
@@ -270,5 +276,157 @@ Rules:
         {
             throw new InvalidOperationException("Failed to parse Gemini structured JSON output.", ex);
         }
+    }
+
+    public async Task<string?> ExtractLabelTextAsync(
+        Stream imageStream,
+        string contentType,
+        CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(contentType) ||
+            (!contentType.Equals("image/jpeg", StringComparison.OrdinalIgnoreCase) &&
+             !contentType.Equals("image/jpg", StringComparison.OrdinalIgnoreCase) &&
+             !contentType.Equals("image/png", StringComparison.OrdinalIgnoreCase) &&
+             !contentType.Equals("image/webp", StringComparison.OrdinalIgnoreCase)))
+        {
+            throw new ArgumentException($"Unsupported image content-type: '{contentType}'.");
+        }
+
+        if (imageStream == null || imageStream.Length == 0)
+        {
+            throw new ArgumentException("Image stream must not be empty.");
+        }
+
+        string mimeType = contentType.Equals("image/jpg", StringComparison.OrdinalIgnoreCase) ? "image/jpeg" : contentType.ToLowerInvariant();
+
+        if (imageStream.CanSeek)
+        {
+            imageStream.Position = 0;
+        }
+
+        using var ms = new MemoryStream();
+        await imageStream.CopyToAsync(ms, cancellationToken);
+        var imageBytes = ms.ToArray();
+        _logger.LogInformation("Image stream copied for OCR. MIME: {MimeType}, Bytes: {ByteCount}, CanSeek: {CanSeek}", mimeType, imageBytes.Length, imageStream.CanSeek);
+        var base64Image = Convert.ToBase64String(imageBytes);
+
+        GoogleCredential credential;
+        try
+        {
+            credential = await GoogleCredential.GetApplicationDefaultAsync(cancellationToken);
+            if (credential.IsCreateScopedRequired)
+            {
+                credential = credential.CreateScoped("https://www.googleapis.com/auth/cloud-platform");
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to load Google Application Default Credentials (ADC).");
+            throw new UnauthorizedAccessException("Google Application Default Credentials (ADC) were not found.", ex);
+        }
+
+        var accessToken = await credential.UnderlyingCredential.GetAccessTokenForRequestAsync(cancellationToken: cancellationToken);
+        var endpointUrl = $"https://aiplatform.{_options.Location}.rep.googleapis.com/v1/projects/{_options.ProjectId}/locations/{_options.Location}/publishers/google/models/{_options.ModelName}:generateContent";
+
+        var promptText = @"You are reading a photograph of a physical label, tag, sticker, handwritten marking, or printed packaging text on an item or container.
+
+Transcribe visible text that could help a user recognize or identify the item or container.
+
+Rules:
+1. Transcribe only text that is visibly present.
+2. Preserve useful identifying words, names, codes, or short phrases.
+3. Ignore unrelated background text when possible.
+4. Do not invent missing words or guess unreadable letters.
+5. Do not infer a generic category or label name that is not visibly written.
+6. If there is no useful readable text, return empty JSON with detectedText = null.";
+
+        var requestBody = new
+        {
+            contents = new[]
+            {
+                new
+                {
+                    role = "user",
+                    parts = new object[]
+                    {
+                        new { text = promptText },
+                        new
+                        {
+                            inlineData = new
+                            {
+                                mimeType = mimeType,
+                                data = base64Image
+                            }
+                        }
+                    }
+                }
+            },
+            generationConfig = new
+            {
+                responseMimeType = "application/json",
+                responseSchema = new
+                {
+                    type = "OBJECT",
+                    properties = new
+                    {
+                        detectedText = new { type = "STRING" }
+                    }
+                },
+                temperature = 0.1,
+                maxOutputTokens = 256
+            }
+        };
+
+        var jsonPayload = JsonSerializer.Serialize(requestBody);
+        using var httpRequest = new HttpRequestMessage(HttpMethod.Post, endpointUrl);
+        httpRequest.Headers.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);
+        httpRequest.Content = new StringContent(jsonPayload, Encoding.UTF8, "application/json");
+
+        _logger.LogInformation("Invoking Vertex AI Gemini model {ModelName} for label OCR...", _options.ModelName);
+
+        using var httpResponse = await _httpClient.SendAsync(httpRequest, cancellationToken);
+        if (!httpResponse.IsSuccessStatusCode)
+        {
+            var errorContent = await httpResponse.Content.ReadAsStringAsync(cancellationToken);
+            _logger.LogError("Vertex AI OCR HTTP {StatusCode} failure: {ErrorContent}", (int)httpResponse.StatusCode, errorContent);
+            return null;
+        }
+
+        var responseJson = await httpResponse.Content.ReadAsStringAsync(cancellationToken);
+        using var doc = JsonDocument.Parse(responseJson);
+        var root = doc.RootElement;
+
+        if (!root.TryGetProperty("candidates", out var candidates) || candidates.ValueKind != JsonValueKind.Array || candidates.GetArrayLength() == 0)
+        {
+            return null;
+        }
+
+        var candidate = candidates[0];
+        if (!candidate.TryGetProperty("content", out var content) ||
+            !content.TryGetProperty("parts", out var parts) ||
+            parts.ValueKind != JsonValueKind.Array || parts.GetArrayLength() == 0)
+        {
+            return null;
+        }
+
+        var text = parts[0].GetProperty("text").GetString();
+        if (string.IsNullOrWhiteSpace(text)) return null;
+
+        try
+        {
+            using var labelDoc = JsonDocument.Parse(text);
+            if (labelDoc.RootElement.TryGetProperty("detectedText", out var detectedProp))
+            {
+                var result = detectedProp.GetString()?.Trim();
+                return string.IsNullOrWhiteSpace(result) ? null : result;
+            }
+        }
+        catch
+        {
+            var rawTrimmed = text.Trim();
+            return string.IsNullOrWhiteSpace(rawTrimmed) ? null : rawTrimmed;
+        }
+
+        return null;
     }
 }

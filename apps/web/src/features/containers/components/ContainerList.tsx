@@ -47,7 +47,7 @@ export const ContainerList: React.FC<ContainerListProps> = ({
         <div style={{ textAlign: 'center', padding: '3rem 1.5rem', color: '#64748b', backgroundColor: '#f8fafc', borderRadius: '0.5rem', border: '1px dashed #cbd5e1' }}>
           <h3 style={{ margin: '0 0 0.5rem 0', color: '#0f172a', fontSize: '1.1rem' }}>No boxes here yet</h3>
           <p style={{ margin: '0 0 1.25rem 0', fontSize: '0.875rem' }}>Create a box to start organizing items in this location.</p>
-          <button type="button" className="btn-primary" onClick={onAddBox}>
+          <button type="button" className="btn btn-primary btn--md" onClick={onAddBox}>
             + Add Box
           </button>
         </div>

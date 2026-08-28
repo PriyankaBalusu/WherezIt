@@ -98,7 +98,7 @@ describe('Workspace Multi-Workspace Selection & Onboarding (WS-UI-002)', () => {
 
   it('automatically selects single workspace and shows selector button', async () => {
     vi.mocked(workspaceApi.fetchWorkspaces).mockResolvedValue([
-      { id: 'ws-1', name: 'Sole Workspace', role: 'OWNER', createdAt: '2026-08-15T00:00:00Z' },
+      { id: 'ws-1', name: 'Sole Workspace', role: 'OWNER', createdAt: '2026-08-15T00:00:00Z', inventoryNamespaceId: 'ns-1' },
     ]);
 
     render(
@@ -120,8 +120,8 @@ describe('Workspace Multi-Workspace Selection & Onboarding (WS-UI-002)', () => {
 
   it('renders selector dropdown and allows switching between multiple workspaces', async () => {
     vi.mocked(workspaceApi.fetchWorkspaces).mockResolvedValue([
-      { id: 'ws-1', name: 'Home Workspace', role: 'OWNER', createdAt: '2026-08-15T00:00:00Z' },
-      { id: 'ws-2', name: 'Office Workspace', role: 'MEMBER', createdAt: '2026-08-15T00:00:00Z' },
+      { id: 'ws-1', name: 'Home Workspace', role: 'OWNER', createdAt: '2026-08-15T00:00:00Z', inventoryNamespaceId: 'ns-1' },
+      { id: 'ws-2', name: 'Office Workspace', role: 'MEMBER', createdAt: '2026-08-15T00:00:00Z', inventoryNamespaceId: 'ns-1' },
     ]);
 
     render(
@@ -153,13 +153,14 @@ describe('Workspace Multi-Workspace Selection & Onboarding (WS-UI-002)', () => {
 
   it('opens Create Workspace modal when + Create Workspace action is clicked in dropdown', async () => {
     vi.mocked(workspaceApi.fetchWorkspaces).mockResolvedValue([
-      { id: 'ws-1', name: 'Home Workspace', role: 'OWNER', createdAt: '2026-08-15T00:00:00Z' },
+      { id: 'ws-1', name: 'Home Workspace', role: 'OWNER', createdAt: '2026-08-15T00:00:00Z', inventoryNamespaceId: 'ns-1' },
     ]);
     vi.mocked(workspaceApi.createWorkspace).mockResolvedValue({
       id: 'ws-new',
       name: 'New Workshop',
       role: 'OWNER',
       createdAt: '2026-08-23T00:00:00Z',
+      inventoryNamespaceId: 'ns-1',
     });
 
     render(

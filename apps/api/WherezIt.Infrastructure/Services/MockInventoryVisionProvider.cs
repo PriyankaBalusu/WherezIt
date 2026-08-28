@@ -45,4 +45,22 @@ public class MockInventoryVisionProvider : IInventoryVisionProvider
 
         return Task.FromResult(mockResults);
     }
+
+    public Task<string?> ExtractLabelTextAsync(
+        Stream imageStream,
+        string contentType,
+        CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(contentType) || !AllowedMimeTypes.Contains(contentType))
+        {
+            throw new ArgumentException($"Unsupported image content-type: '{contentType}'.");
+        }
+
+        if (imageStream == null || imageStream.Length == 0)
+        {
+            throw new ArgumentException("Image stream must not be null or empty.");
+        }
+
+        return Task.FromResult<string?>("GARAGE TOOLS");
+    }
 }

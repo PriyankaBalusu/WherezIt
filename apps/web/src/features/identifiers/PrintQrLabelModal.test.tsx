@@ -1,14 +1,23 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { PrintQrLabelModal } from './components/PrintQrLabelModal';
 import * as identifierApi from './api/identifierApi';
 
 vi.mock('./api/identifierApi');
+vi.mock('./hooks/useIdentifiers', () => ({
+  useContainerIdentifiers: () => ({ data: [] }),
+}));
 
 describe('PrintQrLabelModal (ID-002)', () => {
+  let queryClient: QueryClient;
+
   beforeEach(() => {
     vi.clearAllMocks();
     vi.spyOn(window, 'print').mockImplementation(() => {});
+    queryClient = new QueryClient({
+      defaultOptions: { queries: { retry: false } },
+    });
   });
 
   it('acquires and renders QR label with canonical BOX display ID and scan instruction', async () => {
@@ -21,12 +30,14 @@ describe('PrintQrLabelModal (ID-002)', () => {
 
     const handleClose = vi.fn();
     render(
-      <PrintQrLabelModal
-        workspaceId="ws-1"
-        containerId="box-4"
-        boxDisplayId="BOX 004"
-        onClose={handleClose}
-      />
+      <QueryClientProvider client={queryClient}>
+        <PrintQrLabelModal
+          workspaceId="ws-1"
+          containerId="box-4"
+          boxDisplayId="BOX 004"
+          onClose={handleClose}
+        />
+      </QueryClientProvider>
     );
 
     // Initial state: Show "No QR code" message and "Generate QR Code" button

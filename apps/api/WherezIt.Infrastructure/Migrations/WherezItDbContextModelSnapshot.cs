@@ -131,6 +131,8 @@ namespace WherezIt.Infrastructure.Migrations
 
                     b.HasKey("Id");
 
+                    b.HasIndex("ContainerId");
+
                     b.HasIndex("WorkspaceId", "DestinationStorageNodeId");
 
                     b.HasIndex("WorkspaceId", "PreviousStorageNodeId");
@@ -140,7 +142,7 @@ namespace WherezIt.Infrastructure.Migrations
 
                     b.ToTable("activity_histories", null, t =>
                         {
-                            t.HasCheckConstraint("ck_activity_histories_activity_type", "activity_type = 'CONTAINER_MOVED'");
+                            t.HasCheckConstraint("ck_activity_histories_activity_type", "activity_type IN ('CONTAINER_MOVED', 'TRANSFERRED_OUT', 'TRANSFERRED_IN')");
                         });
                 });
 
@@ -166,6 +168,10 @@ namespace WherezIt.Infrastructure.Migrations
                     b.Property<Guid?>("DestinationStorageNodeId")
                         .HasColumnType("uuid")
                         .HasColumnName("destination_storage_node_id");
+
+                    b.Property<Guid>("InventoryNamespaceId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("inventory_namespace_id");
 
                     b.Property<bool>("IsArchived")
                         .ValueGeneratedOnAdd()
@@ -208,9 +214,11 @@ namespace WherezIt.Infrastructure.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("WorkspaceId", "BoxNumber")
+                    b.HasIndex("InventoryNamespaceId", "BoxNumber")
                         .IsUnique()
-                        .HasDatabaseName("ix_containers_workspace_id_box_number");
+                        .HasDatabaseName("ix_containers_inventory_namespace_id_box_number");
+
+                    b.HasIndex("InventoryNamespaceId", "WorkspaceId");
 
                     b.HasIndex("WorkspaceId", "DestinationStorageNodeId")
                         .HasDatabaseName("ix_containers_workspace_id_destination_storage_node_id");
@@ -363,6 +371,14 @@ namespace WherezIt.Infrastructure.Migrations
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("created_at");
 
+                    b.Property<string>("ImagePurpose")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasDefaultValue("REFERENCE")
+                        .HasColumnName("image_purpose");
+
                     b.Property<Guid?>("ItemId")
                         .HasColumnType("uuid")
                         .HasColumnName("item_id");
@@ -402,6 +418,8 @@ namespace WherezIt.Infrastructure.Migrations
 
                     b.ToTable("image_assets", null, t =>
                         {
+                            t.HasCheckConstraint("CK_image_assets_purpose_valid", "image_purpose IN ('REFERENCE', 'PHYSICAL_LABEL', 'ITEM')");
+
                             t.HasCheckConstraint("CK_image_assets_size_positive", "size_bytes > 0");
 
                             t.HasCheckConstraint("CK_image_assets_status_valid", "status IN ('PENDING', 'READY', 'FAILED')");
@@ -456,6 +474,75 @@ namespace WherezIt.Infrastructure.Migrations
                         {
                             t.HasCheckConstraint("CK_inventory_captures_status_valid", "status IN ('UPLOADED', 'QUEUED', 'PROCESSING', 'REVIEW_REQUIRED', 'CONFIRMED', 'FAILED')");
                         });
+                });
+
+            modelBuilder.Entity("WherezIt.Domain.Entities.InventoryNamespace", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("name");
+
+                    b.Property<DateTimeOffset>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("inventory_namespaces", (string)null);
+                });
+
+            modelBuilder.Entity("WherezIt.Domain.Entities.InventoryNamespaceBoxCounter", b =>
+                {
+                    b.Property<Guid>("InventoryNamespaceId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("inventory_namespace_id");
+
+                    b.Property<int>("NextBoxNumber")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasDefaultValue(1)
+                        .HasColumnName("next_box_number");
+
+                    b.HasKey("InventoryNamespaceId");
+
+                    b.ToTable("inventory_namespace_box_counters", (string)null);
+                });
+
+            modelBuilder.Entity("WherezIt.Domain.Entities.InventoryNamespaceMember", b =>
+                {
+                    b.Property<Guid>("InventoryNamespaceId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("inventory_namespace_id");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("user_id");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<string>("Role")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("role");
+
+                    b.HasKey("InventoryNamespaceId", "UserId");
+
+                    b.HasIndex("UserId");
+
+                    b.ToTable("inventory_namespace_members", (string)null);
                 });
 
             modelBuilder.Entity("WherezIt.Domain.Entities.Item", b =>
@@ -617,6 +704,10 @@ namespace WherezIt.Infrastructure.Migrations
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("created_at");
 
+                    b.Property<Guid>("InventoryNamespaceId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("inventory_namespace_id");
+
                     b.Property<string>("Name")
                         .IsRequired()
                         .HasMaxLength(100)
@@ -628,6 +719,12 @@ namespace WherezIt.Infrastructure.Migrations
                         .HasColumnName("updated_at");
 
                     b.HasKey("Id");
+
+                    b.HasAlternateKey("InventoryNamespaceId", "Id")
+                        .HasName("ak_workspaces_inventory_namespace_id_id");
+
+                    b.HasIndex("InventoryNamespaceId")
+                        .HasDatabaseName("ix_workspaces_inventory_namespace_id");
 
                     b.ToTable("workspaces", (string)null);
                 });
@@ -690,16 +787,15 @@ namespace WherezIt.Infrastructure.Migrations
 
             modelBuilder.Entity("WherezIt.Domain.Entities.ActivityHistory", b =>
                 {
-                    b.HasOne("WherezIt.Domain.Entities.Workspace", "Workspace")
+                    b.HasOne("WherezIt.Domain.Entities.Container", "Container")
                         .WithMany()
-                        .HasForeignKey("WorkspaceId")
+                        .HasForeignKey("ContainerId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
-                    b.HasOne("WherezIt.Domain.Entities.Container", "Container")
+                    b.HasOne("WherezIt.Domain.Entities.Workspace", "Workspace")
                         .WithMany()
-                        .HasForeignKey("WorkspaceId", "ContainerId")
-                        .HasPrincipalKey("WorkspaceId", "Id")
+                        .HasForeignKey("WorkspaceId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
@@ -726,9 +822,16 @@ namespace WherezIt.Infrastructure.Migrations
 
             modelBuilder.Entity("WherezIt.Domain.Entities.Container", b =>
                 {
+                    b.HasOne("WherezIt.Domain.Entities.InventoryNamespace", "InventoryNamespace")
+                        .WithMany()
+                        .HasForeignKey("InventoryNamespaceId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
                     b.HasOne("WherezIt.Domain.Entities.Workspace", "Workspace")
                         .WithMany()
-                        .HasForeignKey("WorkspaceId")
+                        .HasForeignKey("InventoryNamespaceId", "WorkspaceId")
+                        .HasPrincipalKey("InventoryNamespaceId", "Id")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
@@ -746,6 +849,8 @@ namespace WherezIt.Infrastructure.Migrations
                         .IsRequired();
 
                     b.Navigation("DestinationStorageNode");
+
+                    b.Navigation("InventoryNamespace");
 
                     b.Navigation("StorageNode");
 
@@ -824,6 +929,36 @@ namespace WherezIt.Infrastructure.Migrations
                     b.Navigation("ImageAsset");
                 });
 
+            modelBuilder.Entity("WherezIt.Domain.Entities.InventoryNamespaceBoxCounter", b =>
+                {
+                    b.HasOne("WherezIt.Domain.Entities.InventoryNamespace", "InventoryNamespace")
+                        .WithOne("BoxCounter")
+                        .HasForeignKey("WherezIt.Domain.Entities.InventoryNamespaceBoxCounter", "InventoryNamespaceId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("InventoryNamespace");
+                });
+
+            modelBuilder.Entity("WherezIt.Domain.Entities.InventoryNamespaceMember", b =>
+                {
+                    b.HasOne("WherezIt.Domain.Entities.InventoryNamespace", "InventoryNamespace")
+                        .WithMany("Members")
+                        .HasForeignKey("InventoryNamespaceId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("WherezIt.Domain.Entities.User", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("InventoryNamespace");
+
+                    b.Navigation("User");
+                });
+
             modelBuilder.Entity("WherezIt.Domain.Entities.Item", b =>
                 {
                     b.HasOne("WherezIt.Domain.Entities.Workspace", "Workspace")
@@ -863,6 +998,17 @@ namespace WherezIt.Infrastructure.Migrations
                     b.Navigation("Workspace");
                 });
 
+            modelBuilder.Entity("WherezIt.Domain.Entities.Workspace", b =>
+                {
+                    b.HasOne("WherezIt.Domain.Entities.InventoryNamespace", "InventoryNamespace")
+                        .WithMany("Workspaces")
+                        .HasForeignKey("InventoryNamespaceId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("InventoryNamespace");
+                });
+
             modelBuilder.Entity("WherezIt.Domain.Entities.WorkspaceBoxCounter", b =>
                 {
                     b.HasOne("WherezIt.Domain.Entities.Workspace", "Workspace")
@@ -898,6 +1044,15 @@ namespace WherezIt.Infrastructure.Migrations
                     b.Navigation("Jobs");
 
                     b.Navigation("Suggestions");
+                });
+
+            modelBuilder.Entity("WherezIt.Domain.Entities.InventoryNamespace", b =>
+                {
+                    b.Navigation("BoxCounter");
+
+                    b.Navigation("Members");
+
+                    b.Navigation("Workspaces");
                 });
 
             modelBuilder.Entity("WherezIt.Domain.Entities.StorageNode", b =>

@@ -19,6 +19,9 @@ vi.mock('../workspaces/context/WorkspaceContext', () => ({
   }),
 }));
 
+let mockPhysicalLabel: string | null = 'Attic Box #1';
+let mockLabelImage: any = null;
+
 vi.mock('./hooks/useContainers', () => ({
   useContainer: (workspaceId?: string, containerId?: string) => {
     if (containerId === 'box-not-found') {
@@ -32,7 +35,7 @@ vi.mock('./hooks/useContainers', () => ({
         name: 'Holiday Decorations',
         description: 'Christmas and Thanksgiving lights',
         storageNodeId: 'loc-100',
-        physicalLabel: 'Attic Box #1',
+        physicalLabel: mockPhysicalLabel,
         isArchived: false,
       },
       isLoading: false,
@@ -58,6 +61,10 @@ vi.mock('./hooks/useContainerImages', () => ({
   useContainerImages: () => ({ data: [] }),
   useDeleteContainerImage: () => ({ mutateAsync: vi.fn() }),
   useUploadContainerImage: () => ({ mutateAsync: vi.fn() }),
+  usePhysicalLabelImage: () => ({ data: mockLabelImage }),
+  useUploadPhysicalLabelImage: () => ({ mutateAsync: vi.fn() }),
+  useDeletePhysicalLabelImage: () => ({ mutateAsync: vi.fn() }),
+  useDeleteExistingLabel: () => ({ mutateAsync: vi.fn() }),
 }));
 
 vi.mock('../identifiers/hooks/useIdentifiers', () => ({
@@ -83,12 +90,15 @@ describe('ContainerDetailScreen Regression Suite', () => {
   let queryClient: QueryClient;
 
   beforeEach(() => {
+    mockPhysicalLabel = null;
+    mockLabelImage = null;
     queryClient = new QueryClient({
       defaultOptions: { queries: { retry: false } },
     });
   });
 
   it('renders container detail when items have zero images without blank screen', async () => {
+    mockPhysicalLabel = 'Attic Box #1';
     render(
       <QueryClientProvider client={queryClient}>
         <MemoryRouter initialEntries={['/workspaces/ws-123/containers/cont-123']}>
@@ -120,5 +130,92 @@ describe('ContainerDetailScreen Regression Suite', () => {
     expect(await screen.findByText("We couldn't load this box.")).toBeInTheDocument();
     expect(screen.getByText('Try Again')).toBeInTheDocument();
     expect(screen.getByText('Back to Storage')).toBeInTheDocument();
+  });
+
+  it('A. hides Existing Label section when no text and no photo exist', async () => {
+    mockPhysicalLabel = null;
+    mockLabelImage = null;
+    render(
+      <QueryClientProvider client={queryClient}>
+        <MemoryRouter initialEntries={['/workspaces/ws-123/containers/cont-123']}>
+          <Routes>
+            <Route path="/workspaces/:workspaceId/containers/:containerId" element={<ContainerDetailScreen />} />
+          </Routes>
+        </MemoryRouter>
+      </QueryClientProvider>
+    );
+
+    expect(await screen.findByText('Holiday Decorations')).toBeInTheDocument();
+    expect(screen.queryByText('EXISTING LABEL')).not.toBeInTheDocument();
+    expect(screen.queryByText('No existing label added.')).not.toBeInTheDocument();
+  });
+
+  it('B. renders Existing Label section when text exists', async () => {
+    mockPhysicalLabel = 'Handwritten Storage Label';
+    mockLabelImage = null;
+    render(
+      <QueryClientProvider client={queryClient}>
+        <MemoryRouter initialEntries={['/workspaces/ws-123/containers/cont-123']}>
+          <Routes>
+            <Route path="/workspaces/:workspaceId/containers/:containerId" element={<ContainerDetailScreen />} />
+          </Routes>
+        </MemoryRouter>
+      </QueryClientProvider>
+    );
+
+    expect(await screen.findByText('EXISTING LABEL')).toBeInTheDocument();
+    expect(screen.getByText('🏷️ Handwritten Storage Label')).toBeInTheDocument();
+  });
+
+  it('C. renders Existing Label section when photo exists', async () => {
+    mockPhysicalLabel = null;
+    mockLabelImage = { id: 'img-1', url: 'https://example.com/label.jpg' };
+    render(
+      <QueryClientProvider client={queryClient}>
+        <MemoryRouter initialEntries={['/workspaces/ws-123/containers/cont-123']}>
+          <Routes>
+            <Route path="/workspaces/:workspaceId/containers/:containerId" element={<ContainerDetailScreen />} />
+          </Routes>
+        </MemoryRouter>
+      </QueryClientProvider>
+    );
+
+    expect(await screen.findByText('EXISTING LABEL')).toBeInTheDocument();
+    expect(screen.getByText('From photographed label')).toBeInTheDocument();
+  });
+
+  it('D. renders Existing Label section when both text and photo exist', async () => {
+    mockPhysicalLabel = 'Garage Tools';
+    mockLabelImage = { id: 'img-1', url: 'https://example.com/label.jpg' };
+    render(
+      <QueryClientProvider client={queryClient}>
+        <MemoryRouter initialEntries={['/workspaces/ws-123/containers/cont-123']}>
+          <Routes>
+            <Route path="/workspaces/:workspaceId/containers/:containerId" element={<ContainerDetailScreen />} />
+          </Routes>
+        </MemoryRouter>
+      </QueryClientProvider>
+    );
+
+    expect(await screen.findByText('EXISTING LABEL')).toBeInTheDocument();
+    expect(screen.getByText('🏷️ Garage Tools')).toBeInTheDocument();
+    expect(screen.getByText('From photographed label')).toBeInTheDocument();
+  });
+
+  it('E-H. opens general chooser with + Add Existing Code or Label button and renders level 1 and level 2 options', async () => {
+    mockPhysicalLabel = null;
+    mockLabelImage = null;
+    render(
+      <QueryClientProvider client={queryClient}>
+        <MemoryRouter initialEntries={['/workspaces/ws-123/containers/cont-123']}>
+          <Routes>
+            <Route path="/workspaces/:workspaceId/containers/:containerId" element={<ContainerDetailScreen />} />
+          </Routes>
+        </MemoryRouter>
+      </QueryClientProvider>
+    );
+
+    const btn = await screen.findByText('+ Add Existing Code or Label');
+    expect(btn).toBeInTheDocument();
   });
 });

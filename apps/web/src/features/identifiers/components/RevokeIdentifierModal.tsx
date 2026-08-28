@@ -79,18 +79,16 @@ export const RevokeIdentifierModal: React.FC<RevokeIdentifierModalProps> = ({
         <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'flex-end' }}>
           <button
             type="button"
-            className="btn-secondary"
+            className="btn btn-secondary btn--md"
             onClick={onClose}
-            style={{ padding: '0.5rem 1rem', fontSize: '0.875rem' }}
           >
             Cancel
           </button>
           <button
             type="button"
-            className="btn-danger"
+            className="btn btn-danger btn--md"
             onClick={handleConfirmRevoke}
             disabled={revokeMutation.isPending}
-            style={{ padding: '0.5rem 1.25rem', fontSize: '0.875rem' }}
           >
             {revokeMutation.isPending ? 'Removing...' : 'Remove Identifier'}
           </button>

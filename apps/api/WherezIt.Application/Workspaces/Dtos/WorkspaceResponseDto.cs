@@ -4,5 +4,6 @@ public record WorkspaceResponseDto(
     Guid Id,
     string Name,
     string Role,
-    DateTimeOffset CreatedAt
+    DateTimeOffset CreatedAt,
+    Guid InventoryNamespaceId
 );

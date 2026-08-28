@@ -12,4 +12,9 @@ public interface IInventoryVisionProvider
         Stream imageStream,
         string contentType,
         CancellationToken cancellationToken = default);
+
+    Task<string?> ExtractLabelTextAsync(
+        Stream imageStream,
+        string contentType,
+        CancellationToken cancellationToken = default);
 }

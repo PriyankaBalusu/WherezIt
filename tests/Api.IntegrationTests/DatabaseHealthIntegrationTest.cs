@@ -1,5 +1,7 @@
 using System.Net;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
+using WherezIt.Infrastructure.Persistence;
 using WherezIt.Api.IntegrationTests.Fixtures;
 using Xunit;
 

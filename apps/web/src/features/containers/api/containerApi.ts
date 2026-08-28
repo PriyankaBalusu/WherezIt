@@ -82,6 +82,30 @@ export async function updateContainer(
   return response.json();
 }
 
+export async function unpackContainer(
+  workspaceId: string,
+  containerId: string,
+  getIdToken: () => Promise<string | null>
+): Promise<Container> {
+  const token = await getIdToken();
+  if (!token) throw new Error('User is not authenticated.');
+
+  const response = await fetch(`${API_BASE_URL}/workspaces/${workspaceId}/containers/${containerId}/unpack`, {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${token}`,
+      'Content-Type': 'application/json',
+    },
+  });
+
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(errorData.error || `Failed to unpack container: ${response.statusText}`);
+  }
+
+  return response.json();
+}
+
 export async function archiveContainer(
   workspaceId: string,
   containerId: string,
@@ -170,6 +194,62 @@ export async function deleteContainer(
     const errorData = await response.json().catch(() => ({}));
     throw new Error(errorData.error || `Failed to delete container: ${response.statusText}`);
   }
+}
+
+export async function moveContainer(
+  workspaceId: string,
+  containerId: string,
+  storageNodeId: string,
+  getIdToken: () => Promise<string | null>
+): Promise<Container> {
+  const token = await getIdToken();
+  if (!token) throw new Error('User is not authenticated.');
+
+  const response = await fetch(`${API_BASE_URL}/workspaces/${workspaceId}/containers/${containerId}/move`, {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${token}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ storageNodeId }),
+  });
+
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(errorData.error || `Failed to move container: ${response.statusText}`);
+  }
+
+  return response.json();
+}
+
+export async function transferContainer(
+  inventoryNamespaceId: string,
+  containerId: string,
+  destinationWorkspaceId: string,
+  destinationStorageNodeId: string,
+  getIdToken: () => Promise<string | null>
+): Promise<Container> {
+  const token = await getIdToken();
+  if (!token) throw new Error('User is not authenticated.');
+
+  const response = await fetch(`${API_BASE_URL}/inventory-namespaces/${inventoryNamespaceId}/containers/${containerId}/transfer`, {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${token}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      destinationWorkspaceId,
+      destinationStorageNodeId,
+    }),
+  });
+
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(errorData.error || `Failed to transfer container: ${response.statusText}`);
+  }
+
+  return response.json();
 }
 
 

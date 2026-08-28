@@ -8,7 +8,7 @@ import {
   useCreateStorageLocation,
   useRenameStorageLocation,
 } from '../../locations/hooks/useStorageLocations';
-import { useCreateContainer } from '../../containers/hooks/useContainers';
+import { useCreateContainer, useContainers } from '../../containers/hooks/useContainers';
 
 interface WorkspaceHomeProps {
   activeWorkspace: Workspace;
@@ -37,9 +37,16 @@ export const WorkspaceHome: React.FC<WorkspaceHomeProps> = ({ activeWorkspace })
 
   // Queries & Mutations
   const { data: locations = [] } = useStorageLocations(activeWorkspace.id);
+  const { data: activeContainers = [] } = useContainers(
+    activeWorkspace.id,
+    selectedLocationId || undefined,
+    false
+  );
   const createLocationMutation = useCreateStorageLocation(activeWorkspace.id);
   const renameLocationMutation = useRenameStorageLocation(activeWorkspace.id);
   const createBoxMutation = useCreateContainer(activeWorkspace.id);
+
+  const hasActiveBoxes = activeContainers.length > 0;
 
   const selectedLocation = locations.find(l => l.id === selectedLocationId);
 
@@ -153,8 +160,9 @@ export const WorkspaceHome: React.FC<WorkspaceHomeProps> = ({ activeWorkspace })
         style={{
           textAlign: 'center',
           padding: '1.75rem 1rem 2.25rem 1rem',
-          maxWidth: '650px',
+          maxWidth: '768px',
           margin: '0 auto 1.5rem auto',
+          width: '100%',
         }}
       >
         <h1 style={{ fontSize: '2.25rem', fontWeight: 800, color: '#0f172a', margin: '0 0 0.5rem 0', letterSpacing: '-0.025em' }}>
@@ -230,18 +238,19 @@ export const WorkspaceHome: React.FC<WorkspaceHomeProps> = ({ activeWorkspace })
 
         {/* Right Column: Your Boxes */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', minHeight: '36px' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', minHeight: '40px' }}>
             <h2 style={{ fontSize: '1.15rem', fontWeight: 700, color: '#0f172a', margin: 0 }}>
               {selectedLocation ? `Boxes in ${selectedLocation.name}` : 'Your Boxes'}
             </h2>
-            <button
-              type="button"
-              className="btn-primary"
-              onClick={openAddBoxModal}
-              style={{ padding: '0.35rem 0.7rem', fontSize: '0.8rem' }}
-            >
-              + Add Box
-            </button>
+            {hasActiveBoxes && (
+              <button
+                type="button"
+                className="btn btn-primary btn--md"
+                onClick={openAddBoxModal}
+              >
+                + Add Box
+              </button>
+            )}
           </div>
 
           <ContainerList
@@ -302,12 +311,12 @@ export const WorkspaceHome: React.FC<WorkspaceHomeProps> = ({ activeWorkspace })
               <div className="modal-footer">
                 <button
                   type="button"
-                  className="btn-secondary"
+                  className="btn btn-secondary btn--md"
                   onClick={() => setIsAddLocationOpen(false)}
                 >
                   Cancel
                 </button>
-                <button type="submit" className="btn-primary">
+                <button type="submit" className="btn btn-primary btn--md">
                   Add Location
                 </button>
               </div>
@@ -350,12 +359,12 @@ export const WorkspaceHome: React.FC<WorkspaceHomeProps> = ({ activeWorkspace })
               <div className="modal-footer">
                 <button
                   type="button"
-                  className="btn-secondary"
+                  className="btn btn-secondary btn--md"
                   onClick={() => setIsRenameLocationOpen(false)}
                 >
                   Cancel
                 </button>
-                <button type="submit" className="btn-primary">
+                <button type="submit" className="btn btn-primary btn--md">
                   Rename
                 </button>
               </div>
@@ -425,12 +434,12 @@ export const WorkspaceHome: React.FC<WorkspaceHomeProps> = ({ activeWorkspace })
               <div className="modal-footer">
                 <button
                   type="button"
-                  className="btn-secondary"
+                  className="btn btn-secondary btn--md"
                   onClick={() => setIsAddBoxOpen(false)}
                 >
                   Cancel
                 </button>
-                <button type="submit" className="btn-primary">
+                <button type="submit" className="btn btn-primary btn--md">
                   Create Box
                 </button>
               </div>

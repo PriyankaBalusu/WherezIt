@@ -1,0 +1,318 @@
+/* QuickPackScreen.css - Moving Assistant Phase 1 Styles */
+
+.quickpack-container {
+  max-width: 760px;
+  margin: 1.5rem auto;
+  padding: 0 1rem;
+  box-sizing: border-box;
+}
+
+@media (min-width: 640px) {
+  .quickpack-container {
+    margin: 2.5rem auto;
+    padding: 0 1.5rem;
+  }
+}
+
+.quickpack-header {
+  margin-bottom: 1.5rem;
+}
+
+.quickpack-badge {
+  font-size: 0.75rem;
+  font-weight: 800;
+  color: var(--color-primary, #0284c7);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  display: inline-block;
+  margin-bottom: 0.25rem;
+}
+
+.quickpack-title {
+  font-size: 1.875rem;
+  font-weight: 800;
+  margin: 0 0 0.375rem 0;
+  color: var(--color-text, #0f172a);
+  line-height: 1.2;
+}
+
+.quickpack-subtitle {
+  color: var(--color-text-muted, #64748b);
+  font-size: 0.95rem;
+  margin: 0;
+}
+
+/* Progress Bar */
+.quickpack-progress-bar {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 1.5rem;
+}
+
+.quickpack-progress-text {
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: var(--color-text-muted, #64748b);
+  white-space: nowrap;
+}
+
+.quickpack-progress-track {
+  flex: 1;
+  height: 6px;
+  background-color: var(--color-bg-subtle, #e2e8f0);
+  border-radius: 9999px;
+  overflow: hidden;
+}
+
+.quickpack-progress-fill {
+  height: 100%;
+  background-color: var(--color-primary, #0284c7);
+  border-radius: 9999px;
+  transition: width 250ms ease;
+}
+
+/* Card */
+.quickpack-card {
+  background-color: var(--color-surface, #ffffff);
+  border-radius: var(--radius-lg, 0.75rem);
+  box-shadow: var(--shadow-md, 0 4px 6px -1px rgba(0,0,0,0.1));
+  border: 1px solid var(--color-border, #e2e8f0);
+  padding: 1.5rem;
+  box-sizing: border-box;
+}
+
+@media (min-width: 640px) {
+  .quickpack-card {
+    padding: 2rem;
+  }
+}
+
+.quickpack-step-heading {
+  font-size: 1.25rem;
+  font-weight: 800;
+  color: var(--color-text, #0f172a);
+  margin: 0 0 1.25rem 0;
+  outline: none;
+}
+
+.quickpack-error-banner {
+  background-color: var(--color-danger-bg, #fef2f2);
+  color: var(--color-danger, #dc2626);
+  padding: 0.875rem 1rem;
+  border-radius: var(--radius-md, 0.5rem);
+  margin-bottom: 1.25rem;
+  border: 1px solid rgba(220, 38, 38, 0.2);
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
+/* Form Controls */
+.quickpack-field-group {
+  margin-bottom: 1.5rem;
+}
+
+.quickpack-field-group:last-child {
+  margin-bottom: 0;
+}
+
+.quickpack-label {
+  display: block;
+  font-weight: 700;
+  font-size: 0.9rem;
+  color: var(--color-text, #0f172a);
+  margin-bottom: 0.375rem;
+}
+
+.quickpack-select,
+.quickpack-input {
+  width: 100%;
+  padding: 0.625rem 0.875rem;
+  border: 1px solid var(--color-border-strong, #cbd5e1);
+  border-radius: var(--radius-md, 0.5rem);
+  font-size: 0.95rem;
+  color: var(--color-text, #0f172a);
+  background-color: var(--color-surface, #ffffff);
+  box-sizing: border-box;
+  transition: border-color 150ms ease, box-shadow 150ms ease;
+}
+
+.quickpack-select:focus,
+.quickpack-input:focus {
+  outline: none;
+  border-color: var(--color-primary, #0284c7);
+  box-shadow: 0 0 0 3px rgba(2, 132, 199, 0.15);
+}
+
+.quickpack-help-text {
+  font-size: 0.8rem;
+  color: var(--color-text-muted, #64748b);
+  margin-top: 0.375rem;
+  display: block;
+}
+
+/* Photo Picker Area */
+.quickpack-photo-box {
+  border: 2px dashed var(--color-border-strong, #cbd5e1);
+  border-radius: var(--radius-md, 0.5rem);
+  padding: 1.75rem 1rem;
+  text-align: center;
+  background-color: var(--color-bg, #f8fafc);
+  margin-bottom: 1.25rem;
+}
+
+.quickpack-photo-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.75rem 1.5rem;
+  font-size: 0.95rem;
+  font-weight: 700;
+}
+
+.quickpack-preview-container {
+  margin-top: 1rem;
+  text-align: center;
+}
+
+.quickpack-preview-img {
+  max-height: 220px;
+  max-width: 100%;
+  border-radius: var(--radius-md, 0.5rem);
+  object-fit: cover;
+  border: 1px solid var(--color-border, #e2e8f0);
+  box-shadow: var(--shadow-sm, 0 1px 2px 0 rgba(0, 0, 0, 0.05));
+}
+
+.quickpack-preview-actions {
+  margin-top: 0.75rem;
+  display: flex;
+  gap: 0.75rem;
+  justify-content: center;
+}
+
+/* Priority Pills */
+.quickpack-priority-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0.75rem;
+}
+
+@media (max-width: 480px) {
+  .quickpack-priority-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.quickpack-priority-pill {
+  padding: 0.625rem 0.75rem;
+  border: 2px solid var(--color-border-strong, #cbd5e1);
+  border-radius: var(--radius-md, 0.5rem);
+  background-color: var(--color-surface, #ffffff);
+  color: var(--color-text, #0f172a);
+  font-size: 0.9rem;
+  font-weight: 700;
+  cursor: pointer;
+  text-align: center;
+  transition: all 150ms ease;
+}
+
+.quickpack-priority-pill:hover {
+  border-color: var(--color-primary, #0284c7);
+  background-color: var(--color-bg-subtle, #f0f9ff);
+}
+
+.quickpack-priority-pill--selected {
+  border-color: var(--color-primary, #0284c7);
+  background-color: #e0f2fe;
+  color: #0369a1;
+}
+
+/* Checkbox */
+.quickpack-checkbox-label {
+  display: flex;
+  align-items: center;
+  gap: 0.625rem;
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--color-text, #0f172a);
+  cursor: pointer;
+  user-select: none;
+}
+
+.quickpack-checkbox-input {
+  width: 18px;
+  height: 18px;
+  accent-color: var(--color-primary, #0284c7);
+  cursor: pointer;
+}
+
+/* Summary Box */
+.quickpack-summary-card {
+  background-color: var(--color-bg, #f8fafc);
+  border: 1px solid var(--color-border, #e2e8f0);
+  border-radius: var(--radius-md, 0.5rem);
+  padding: 1rem 1.25rem;
+  margin-top: 1.5rem;
+}
+
+.quickpack-summary-title {
+  font-size: 0.75rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  color: var(--color-text-muted, #64748b);
+  text-transform: uppercase;
+  margin-bottom: 0.75rem;
+}
+
+.quickpack-summary-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 0.75rem 1.25rem;
+  font-size: 0.875rem;
+}
+
+@media (max-width: 480px) {
+  .quickpack-summary-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.quickpack-summary-item {
+  display: flex;
+  flex-direction: column;
+}
+
+.quickpack-summary-label {
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: var(--color-text-muted, #64748b);
+  text-transform: uppercase;
+}
+
+.quickpack-summary-value {
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: var(--color-text, #0f172a);
+}
+
+/* Action Buttons Footer */
+.quickpack-actions-row {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.75rem;
+  margin-top: 1.75rem;
+  flex-wrap: wrap;
+}
+
+@media (max-width: 480px) {
+  .quickpack-actions-row {
+    flex-direction: column-reverse;
+    align-items: stretch;
+  }
+
+  .quickpack-actions-row > button {
+    width: 100%;
+  }
+}
