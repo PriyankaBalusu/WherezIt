@@ -1,6 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Workspace } from '../types/workspace';
+import { WorkspaceSelector } from './WorkspaceSelector';
+import { WorkspaceManageMenu } from './WorkspaceManageMenu';
+import { useWorkspaceContext } from '../context/WorkspaceContext';
 import { StorageLocationList } from '../../locations/components/StorageLocationList';
 import { ContainerList } from '../../containers/components/ContainerList';
 import {
@@ -10,14 +13,32 @@ import {
 } from '../../locations/hooks/useStorageLocations';
 import { useCreateContainer, useContainers } from '../../containers/hooks/useContainers';
 
+export interface SearchSuggestion {
+  id: string;
+  label: string;
+  query: string;
+}
+
+export const DEFAULT_SEARCH_SUGGESTIONS: SearchSuggestion[] = [
+  { id: 'christmas', label: 'Christmas decor', query: 'Christmas decor' },
+  { id: 'camping', label: 'camping gear', query: 'camping gear' },
+  { id: 'passports', label: 'passports', query: 'passports' },
+];
+
 interface WorkspaceHomeProps {
   activeWorkspace: Workspace;
 }
 
 export const WorkspaceHome: React.FC<WorkspaceHomeProps> = ({ activeWorkspace }) => {
   const navigate = useNavigate();
+  const workspaceContext = useWorkspaceContext();
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedLocationId, setSelectedLocationId] = useState<string | null>(null);
+
+  // Reset selected location when active workspace changes
+  useEffect(() => {
+    setSelectedLocationId(null);
+  }, [activeWorkspace.id]);
 
   // Modal visibility states
   const [isAddLocationOpen, setIsAddLocationOpen] = useState(false);
@@ -46,8 +67,6 @@ export const WorkspaceHome: React.FC<WorkspaceHomeProps> = ({ activeWorkspace })
   const renameLocationMutation = useRenameStorageLocation(activeWorkspace.id);
   const createBoxMutation = useCreateContainer(activeWorkspace.id);
 
-  const hasActiveBoxes = activeContainers.length > 0;
-
   const selectedLocation = locations.find(l => l.id === selectedLocationId);
 
   // Close modals on Escape key
@@ -66,8 +85,13 @@ export const WorkspaceHome: React.FC<WorkspaceHomeProps> = ({ activeWorkspace })
   const handleSearchSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (searchQuery.trim()) {
-      navigate(`/workspaces/${activeWorkspace.id}/search?q=${encodeURIComponent(searchQuery.trim())}`);
+      navigate(`/search?q=${encodeURIComponent(searchQuery.trim())}`);
     }
+  };
+
+  const handleSuggestionClick = (query: string) => {
+    setSearchQuery(query);
+    navigate(`/search?q=${encodeURIComponent(query)}`);
   };
 
   const handleAddLocationSubmit = async (e: React.FormEvent) => {
@@ -122,7 +146,6 @@ export const WorkspaceHome: React.FC<WorkspaceHomeProps> = ({ activeWorkspace })
       setAddBoxDesc('');
       setIsAddBoxOpen(false);
       
-      // Optionally navigate to new box detail screen
       if (newBox && newBox.id) {
         navigate(`/workspaces/${activeWorkspace.id}/containers/${newBox.id}`);
       }
@@ -156,56 +179,87 @@ export const WorkspaceHome: React.FC<WorkspaceHomeProps> = ({ activeWorkspace })
   return (
     <div className="app-container" style={{ padding: '1rem' }}>
       {/* Search Hero Area */}
-      <section
-        style={{
-          textAlign: 'center',
-          padding: '1.75rem 1rem 2.25rem 1rem',
-          maxWidth: '768px',
-          margin: '0 auto 1.5rem auto',
-          width: '100%',
-        }}
-      >
-        <h1 style={{ fontSize: '2.25rem', fontWeight: 800, color: '#0f172a', margin: '0 0 0.5rem 0', letterSpacing: '-0.025em' }}>
+      <section className="search-hero">
+        <h1 className="search-hero__title">
           Where is it?
         </h1>
-        <p style={{ color: '#64748b', fontSize: '0.95rem', margin: '0 0 1.25rem 0' }}>
-          Find any item, box, or storage location.
+        <p className="search-hero__subtitle">
+          Find anything you've stored.
         </p>
         
-        <form onSubmit={handleSearchSubmit} style={{ display: 'flex', gap: '0.5rem', boxShadow: '0 4px 12px rgba(0,0,0,0.05)', borderRadius: '0.5rem', backgroundColor: '#ffffff', padding: '0.375rem', border: '1px solid #e2e8f0' }}>
-          <input
-            type="text"
-            placeholder="Search items, boxes, or locations... (e.g. Christmas lights)"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            style={{
-              flex: 1,
-              padding: '0.625rem 0.875rem',
-              border: 'none',
-              fontSize: '1rem',
-              color: '#0f172a',
-              outline: 'none',
-            }}
-          />
+        <form onSubmit={handleSearchSubmit} className="search-hero__form">
+          <div className="search-hero__input-wrapper">
+            <span className="search-hero__icon" aria-hidden="true">
+              🔍
+            </span>
+            <input
+              type="text"
+              className="search-hero__input"
+              placeholder="Where are my Christmas lights?"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              aria-label="Search stored items or boxes"
+            />
+          </div>
           <button
             type="submit"
-            className="btn-primary"
-            style={{ padding: '0.625rem 1.25rem' }}
+            className="btn btn-primary search-hero__button"
           >
             Search
           </button>
         </form>
+
+        {/* Suggestion Chips */}
+        <div className="search-hero__suggestions">
+          <span className="search-hero__suggestions-label">Try searching:</span>
+          <div className="search-hero__chips">
+            {DEFAULT_SEARCH_SUGGESTIONS.map((chip) => (
+              <button
+                key={chip.id}
+                type="button"
+                className="search-hero__chip"
+                onClick={() => handleSuggestionClick(chip.query)}
+              >
+                {chip.label}
+              </button>
+            ))}
+          </div>
+        </div>
       </section>
 
       {/* Main Browse Columns */}
       <div className="home-grid">
-        {/* Left Column: Storage Location Tree */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', minHeight: '36px' }}>
+        {/* Left Column: Cohesive Browse Storage Panel */}
+        <div className="card browse-storage-card" style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem', padding: '1.25rem', backgroundColor: '#ffffff', borderRadius: '0.75rem', border: '1px solid #e2e8f0', height: 'fit-content' }}>
+          <div>
+            <h2 style={{ fontSize: '1.25rem', fontWeight: 800, color: '#0f172a', margin: '0 0 0.75rem 0' }}>
+              Browse Storage
+            </h2>
+            {/* Storage Space Selector & Management Menu */}
+            <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                {workspaceContext?.workspaces && workspaceContext.workspaces.length > 0 && (
+                  <WorkspaceSelector
+                    workspaces={workspaceContext.workspaces}
+                    activeWorkspaceId={activeWorkspace.id}
+                    onSelectWorkspace={(newId) => {
+                      setSelectedLocationId(null);
+                      workspaceContext.setActiveWorkspaceId(newId);
+                    }}
+                    onCreateWorkspace={workspaceContext.openCreateWorkspaceModal}
+                  />
+                )}
+              </div>
+              <WorkspaceManageMenu workspace={activeWorkspace} />
+            </div>
+          </div>
+
+          {/* Locations Tree Header */}
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingTop: '0.75rem', borderTop: '1px solid #f1f5f9' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-              <h2 style={{ fontSize: '1.15rem', fontWeight: 700, color: '#0f172a', margin: 0 }}>
-                Storage Locations
-              </h2>
+              <h3 style={{ fontSize: '1rem', fontWeight: 700, color: '#0f172a', margin: 0 }}>
+                Locations
+              </h3>
               {selectedLocationId && (
                 <button
                   type="button"
@@ -238,21 +292,6 @@ export const WorkspaceHome: React.FC<WorkspaceHomeProps> = ({ activeWorkspace })
 
         {/* Right Column: Your Boxes */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', minHeight: '40px' }}>
-            <h2 style={{ fontSize: '1.15rem', fontWeight: 700, color: '#0f172a', margin: 0 }}>
-              {selectedLocation ? `Boxes in ${selectedLocation.name}` : 'Your Boxes'}
-            </h2>
-            {hasActiveBoxes && (
-              <button
-                type="button"
-                className="btn btn-primary btn--md"
-                onClick={openAddBoxModal}
-              >
-                + Add Box
-              </button>
-            )}
-          </div>
-
           <ContainerList
             workspaceId={activeWorkspace.id}
             selectedLocationId={selectedLocationId}

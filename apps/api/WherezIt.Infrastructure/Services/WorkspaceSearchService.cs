@@ -41,30 +41,88 @@ public class WorkspaceSearchService : IWorkspaceSearchService
         string query,
         CancellationToken cancellationToken = default)
     {
+        // Verify workspace membership
+        var user = await _dbContext.Users.FirstOrDefaultAsync(u => u.FirebaseUid == identity.FirebaseUid, cancellationToken);
+        if (user == null)
+        {
+            throw new UnauthorizedAccessException("User not found.");
+        }
+
+        var isMember = await _dbContext.WorkspaceMembers.AnyAsync(wm => wm.WorkspaceId == workspaceId && wm.UserId == user.Id, cancellationToken);
+        if (!isMember)
+        {
+            throw new UnauthorizedAccessException("User is not authorized to access this Storage Space.");
+        }
+
+        var workspace = await _dbContext.Workspaces.FindAsync(new object[] { workspaceId }, cancellationToken);
+        var workspaceMap = new Dictionary<Guid, string>
+        {
+            { workspaceId, workspace?.Name ?? "Storage Space" }
+        };
+
+        return await ExecuteSearchAsync(identity, new[] { workspaceId }, workspaceMap, query, cancellationToken);
+    }
+
+    public async Task<IReadOnlyList<SearchResultDto>> SearchAuthorizedWorkspacesAsync(
+        AuthenticatedIdentity identity,
+        string query,
+        CancellationToken cancellationToken = default)
+    {
+        var user = await _dbContext.Users.FirstOrDefaultAsync(u => u.FirebaseUid == identity.FirebaseUid, cancellationToken);
+        if (user == null)
+        {
+            return Array.Empty<SearchResultDto>();
+        }
+
+        var userWorkspaces = await _dbContext.WorkspaceMembers
+            .AsNoTracking()
+            .Where(wm => wm.UserId == user.Id)
+            .Include(wm => wm.Workspace)
+            .Select(wm => wm.Workspace)
+            .ToListAsync(cancellationToken);
+
+        if (userWorkspaces.Count == 0)
+        {
+            return Array.Empty<SearchResultDto>();
+        }
+
+        var workspaceMap = userWorkspaces.ToDictionary(w => w.Id, w => w.Name);
+        var authorizedWorkspaceIds = workspaceMap.Keys.ToList();
+
+        return await ExecuteSearchAsync(identity, authorizedWorkspaceIds, workspaceMap, query, cancellationToken);
+    }
+
+    private async Task<IReadOnlyList<SearchResultDto>> ExecuteSearchAsync(
+        AuthenticatedIdentity identity,
+        IReadOnlyList<Guid> workspaceIds,
+        Dictionary<Guid, string> workspaceMap,
+        string query,
+        CancellationToken cancellationToken)
+    {
         if (string.IsNullOrWhiteSpace(query))
         {
             return Array.Empty<SearchResultDto>();
         }
 
-        // Build Structured Query Context
+        // Build Structured Query Context with Phrase-Aware Resolution
         var context = BuildQueryContext(query);
         if (context.Components.Count == 0 && string.IsNullOrWhiteSpace(context.CleanedQuery))
         {
             return Array.Empty<SearchResultDto>();
         }
 
-        // Fetch Candidate Data
+        // Fetch Candidate Data across authorized workspaces
         var containers = await _dbContext.Containers
             .AsNoTracking()
             .Include(c => c.StorageNode)
-            .Where(c => c.WorkspaceId == workspaceId && !c.IsArchived)
+            .Where(c => workspaceIds.Contains(c.WorkspaceId) && !c.IsArchived)
             .ToListAsync(cancellationToken);
 
         var items = await _dbContext.Items
             .AsNoTracking()
             .Include(i => i.Container)
             .ThenInclude(c => c.StorageNode)
-            .Where(i => i.WorkspaceId == workspaceId && !i.IsArchived && !i.Container.IsArchived)
+            .Where(i => workspaceIds.Contains(i.WorkspaceId) && !i.IsArchived && !i.Container.IsArchived)
             .ToListAsync(cancellationToken);
 
         // Score & Rank Candidates
@@ -79,13 +137,16 @@ public class WorkspaceSearchService : IWorkspaceSearchService
             if (score > 0 && containerIdsAdded.Add(c.Id))
             {
                 var (locationId, locationName, breadcrumbSegments, breadcrumbDisplay) =
-                    await ResolveLocationBreadcrumbAsync(identity, workspaceId, c.StorageNodeId, c.StorageNode?.Name, cancellationToken);
+                    await ResolveLocationBreadcrumbAsync(identity, c.WorkspaceId, c.StorageNodeId, c.StorageNode?.Name, cancellationToken);
 
                 var boxDisplayId = c.BoxNumber < 1000 ? $"BOX {c.BoxNumber:D3}" : $"BOX {c.BoxNumber}";
+                var wsName = workspaceMap.GetValueOrDefault(c.WorkspaceId, "Storage Space");
 
                 candidateScores.Add((score, new SearchResultDto
                 {
                     ResultType = "CONTAINER",
+                    WorkspaceId = c.WorkspaceId,
+                    WorkspaceName = wsName,
                     ItemId = null,
                     ItemName = null,
                     Quantity = null,
@@ -107,13 +168,16 @@ public class WorkspaceSearchService : IWorkspaceSearchService
             if (score > 0 && itemIdsAdded.Add(item.Id))
             {
                 var (locationId, locationName, breadcrumbSegments, breadcrumbDisplay) =
-                    await ResolveLocationBreadcrumbAsync(identity, workspaceId, item.Container.StorageNodeId, item.Container.StorageNode?.Name, cancellationToken);
+                    await ResolveLocationBreadcrumbAsync(identity, item.WorkspaceId, item.Container.StorageNodeId, item.Container.StorageNode?.Name, cancellationToken);
 
                 var boxDisplayId = item.Container.BoxNumber < 1000 ? $"BOX {item.Container.BoxNumber:D3}" : $"BOX {item.Container.BoxNumber}";
+                var wsName = workspaceMap.GetValueOrDefault(item.WorkspaceId, "Storage Space");
 
                 candidateScores.Add((score, new SearchResultDto
                 {
                     ResultType = "ITEM",
+                    WorkspaceId = item.WorkspaceId,
+                    WorkspaceName = wsName,
                     ItemId = item.Id,
                     ItemName = item.Name,
                     Quantity = item.Quantity,
@@ -148,34 +212,84 @@ public class WorkspaceSearchService : IWorkspaceSearchService
         bool isShortQuery = cleanedQuery.Length <= 3 && !targetBoxNumber.HasValue;
 
         var components = new List<QueryComponent>();
-        var addedTokens = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var consumedIndices = new HashSet<int>();
 
-        foreach (var token in tokens)
+        if (!isShortQuery && tokens.Count > 1)
         {
-            if (!addedTokens.Add(token)) continue;
-
-            var concepts = SearchVocabulary.FindConceptsForTerm(token);
-            if (concepts.Count > 0)
+            // Stage A: 3-word phrase resolution
+            for (int i = 0; i <= tokens.Count - 3; i++)
             {
-                components.Add(new QueryComponent(token, concepts[0]));
+                if (consumedIndices.Contains(i) || consumedIndices.Contains(i + 1) || consumedIndices.Contains(i + 2))
+                    continue;
+
+                string phrase3 = $"{tokens[i]} {tokens[i + 1]} {tokens[i + 2]}";
+                var matches = SearchVocabulary.FindConceptsForPhrase(phrase3);
+                if (matches.Count > 0)
+                {
+                    foreach (var m in matches)
+                    {
+                        components.Add(new QueryComponent(phrase3, m));
+                    }
+                    consumedIndices.Add(i);
+                    consumedIndices.Add(i + 1);
+                    consumedIndices.Add(i + 2);
+                }
+            }
+
+            // Stage B: 2-word phrase resolution
+            for (int i = 0; i <= tokens.Count - 2; i++)
+            {
+                if (consumedIndices.Contains(i) || consumedIndices.Contains(i + 1))
+                    continue;
+
+                string phrase2 = $"{tokens[i]} {tokens[i + 1]}";
+                var matches = SearchVocabulary.FindConceptsForPhrase(phrase2);
+                if (matches.Count > 0)
+                {
+                    foreach (var m in matches)
+                    {
+                        components.Add(new QueryComponent(phrase2, m));
+                    }
+                    consumedIndices.Add(i);
+                    consumedIndices.Add(i + 1);
+                }
+            }
+        }
+
+        // Stage C: Single-token resolution for remaining unconsumed tokens
+        for (int i = 0; i < tokens.Count; i++)
+        {
+            if (consumedIndices.Contains(i)) continue;
+
+            string token = tokens[i];
+            var matches = SearchVocabulary.FindConceptsForPhrase(token);
+            if (matches.Count > 0)
+            {
+                foreach (var m in matches)
+                {
+                    components.Add(new QueryComponent(token, m));
+                }
             }
             else if (!isShortQuery && token.Length >= 4)
             {
                 string? bestTerm = FindClosestVocabularyTerm(token);
                 if (bestTerm != null)
                 {
-                    var typoConcepts = SearchVocabulary.FindConceptsForTerm(bestTerm);
-                    if (typoConcepts.Count > 0)
+                    var typoMatches = SearchVocabulary.FindConceptsForPhrase(bestTerm);
+                    if (typoMatches.Count > 0)
                     {
-                        components.Add(new QueryComponent(token, typoConcepts[0]));
+                        foreach (var m in typoMatches)
+                        {
+                            components.Add(new QueryComponent(token, m));
+                        }
                         continue;
                     }
                 }
-                components.Add(new QueryComponent(token, concept: null));
+                components.Add(new QueryComponent(token, conceptMatch: null));
             }
             else
             {
-                components.Add(new QueryComponent(token, concept: null));
+                components.Add(new QueryComponent(token, conceptMatch: null));
             }
         }
 
@@ -209,23 +323,11 @@ public class WorkspaceSearchService : IWorkspaceSearchService
         {
             if (StopWords.Contains(t)) continue;
 
-            string normalized = NormalizePlural(t);
+            string normalized = SearchTextNormalizer.NormalizeTerm(t);
             tokens.Add(normalized);
         }
 
         return (q, tokens);
-    }
-
-    private static string NormalizePlural(string word)
-    {
-        if (word.EndsWith("ies") && word.Length > 4)
-            return word.Substring(0, word.Length - 3) + "y";
-        if (word.EndsWith("es") && word.Length > 3 && !word.EndsWith("shoes") && !word.EndsWith("clothes") && !word.EndsWith("glasses"))
-            return word.Substring(0, word.Length - 2);
-        if (word.EndsWith("s") && word.Length > 3 && !word.EndsWith("ss") && !word.EndsWith("shoes") && !word.EndsWith("clothes") && !word.EndsWith("glasses"))
-            return word.Substring(0, word.Length - 1);
-
-        return word;
     }
 
     private static int? DetectBoxNumber(string rawQuery, string cleanedQuery)
@@ -259,13 +361,13 @@ public class WorkspaceSearchService : IWorkspaceSearchService
         {
             foreach (var term in concept.Terms)
             {
-                int dist = LevenshteinDistance(queryToken, term);
+                int dist = LevenshteinDistance(queryToken, term.Value);
                 int maxAllowed = queryToken.Length <= 5 ? 1 : 2;
 
                 if (dist <= maxAllowed && dist < minDistance)
                 {
                     minDistance = dist;
-                    bestTerm = term;
+                    bestTerm = term.Value;
                 }
             }
         }
@@ -325,9 +427,10 @@ public class WorkspaceSearchService : IWorkspaceSearchService
                 var words = cName.Split(new[] { ' ', '-', '_', '/' }, StringSplitOptions.RemoveEmptyEntries);
                 foreach (var w in words)
                 {
-                    if (component.Concept.ContainsTerm(w))
+                    var matchingTerm = component.Concept.FindMatchingTerm(w);
+                    if (matchingTerm != null)
                     {
-                        compScore += 20;
+                        compScore += (20 * matchingTerm.Strength * component.Strength);
                         compMatched = true;
                         break;
                     }
@@ -421,9 +524,10 @@ public class WorkspaceSearchService : IWorkspaceSearchService
                 // Concept sibling term match in item name
                 foreach (var word in itemWords)
                 {
-                    if (component.Concept.ContainsTerm(word))
+                    var matchingTerm = component.Concept.FindMatchingTerm(word);
+                    if (matchingTerm != null)
                     {
-                        compScore += 25;
+                        compScore += (25 * matchingTerm.Strength * component.Strength);
                         compMatched = true;
                         break;
                     }
@@ -431,7 +535,7 @@ public class WorkspaceSearchService : IWorkspaceSearchService
 
                 if (!compMatched && component.Concept.MatchesCategory(iCategory))
                 {
-                    compScore += 18;
+                    compScore += (18 * component.Strength);
                     compMatched = true;
                 }
             }
@@ -474,12 +578,10 @@ public class WorkspaceSearchService : IWorkspaceSearchService
 
             if (coverageRatio >= 1.0)
             {
-                // Full coverage bonus for matching all query components
                 rawScore += 35;
             }
             else
             {
-                // Soft-AND Penalty for missing explicit query components (e.g. missing "nike" in "nike shoes")
                 rawScore *= (coverageRatio * 0.35);
             }
         }

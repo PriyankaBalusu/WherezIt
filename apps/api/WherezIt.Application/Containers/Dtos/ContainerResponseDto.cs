@@ -16,5 +16,6 @@ public record ContainerResponseDto(
     bool IsPacked,
     string? MovingPriority,
     DateTimeOffset CreatedAt,
-    DateTimeOffset UpdatedAt
+    DateTimeOffset UpdatedAt,
+    int ItemCount = 0
 );

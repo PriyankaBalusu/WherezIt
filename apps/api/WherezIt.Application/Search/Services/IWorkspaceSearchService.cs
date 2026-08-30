@@ -14,4 +14,9 @@ public interface IWorkspaceSearchService
         Guid workspaceId,
         string query,
         CancellationToken cancellationToken = default);
+
+    Task<IReadOnlyList<SearchResultDto>> SearchAuthorizedWorkspacesAsync(
+        AuthenticatedIdentity identity,
+        string query,
+        CancellationToken cancellationToken = default);
 }

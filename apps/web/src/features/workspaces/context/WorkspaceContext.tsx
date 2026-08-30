@@ -96,14 +96,6 @@ export const WorkspaceProvider: React.FC<{ children?: React.ReactNode }> = ({ ch
 
             {activeWorkspace && (
               <div className="nav-center">
-                {workspaces.length > 0 && (
-                  <WorkspaceSelector
-                    workspaces={workspaces}
-                    activeWorkspaceId={activeWorkspace.id}
-                    onSelectWorkspace={handleSelectWorkspace}
-                    onCreateWorkspace={() => setIsCreateModalOpen(true)}
-                  />
-                )}
                 {/* Desktop Quick Links */}
                 <nav className="nav-quick-links nav-quick-links-desktop">
                   <NavLink

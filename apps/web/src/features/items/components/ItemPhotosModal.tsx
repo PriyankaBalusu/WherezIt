@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { AuthenticatedImage } from '../../images/components/AuthenticatedImage';
 import { useAuth } from '../../auth/useAuth';
-import { compressImage } from '../../images/utils/compressImage';
+import { uploadItemImage } from '../api/itemApi';
 
 interface ItemPhotosModalProps {
   workspaceId: string;
@@ -67,22 +67,9 @@ export const ItemPhotosModal: React.FC<ItemPhotosModalProps> = ({
     try {
       setIsUploading(true);
       setError(null);
-      const compressed = await compressImage(file);
-      const formData = new FormData();
-      formData.append('file', compressed.file);
-
       const token = await getIdToken();
-      const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || import.meta.env.VITE_API_URL || '/api/v1';
-      const response = await fetch(`${API_BASE_URL}/workspaces/${encodeURIComponent(workspaceId)}/items/${encodeURIComponent(itemId)}/images`, {
-        method: 'POST',
-        headers: { Authorization: `Bearer ${token}` },
-        body: formData,
-      });
-
-      if (!response.ok) {
-        throw new Error('Failed to upload item photo.');
-      }
-
+      if (!token) throw new Error('Unauthenticated');
+      await uploadItemImage(workspaceId, itemId, file, token);
       await fetchImages();
     } catch (err: any) {
       setError(err.message || 'Upload failed.');

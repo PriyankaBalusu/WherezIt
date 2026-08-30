@@ -7,6 +7,10 @@ public class SearchResultDto
 {
     public string ResultType { get; set; } = null!; // "ITEM" | "CONTAINER"
     
+    // Workspace / Storage Space Context
+    public Guid WorkspaceId { get; set; }
+    public string WorkspaceName { get; set; } = null!;
+
     // ITEM fields (nullable for CONTAINER)
     public Guid? ItemId { get; set; }
     public string? ItemName { get; set; }

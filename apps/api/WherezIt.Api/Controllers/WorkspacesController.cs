@@ -1,4 +1,7 @@
+using System;
 using System.Security.Claims;
+using System.Threading;
+using System.Threading.Tasks;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using WherezIt.Application.Authentication;
@@ -51,6 +54,49 @@ public class WorkspacesController : ControllerBase
         catch (ArgumentException ex)
         {
             return BadRequest(new { error = ex.Message });
+        }
+    }
+
+    [HttpPut("{workspaceId}")]
+    public async Task<IActionResult> RenameWorkspace(
+        [FromRoute] Guid workspaceId,
+        [FromBody] CreateWorkspaceRequestDto request,
+        CancellationToken cancellationToken)
+    {
+        var identity = GetAuthenticatedIdentity();
+        if (identity == null) return Unauthorized();
+
+        try
+        {
+            var workspace = await _workspaceService.RenameWorkspaceAsync(identity, workspaceId, request.Name, cancellationToken);
+            return Ok(workspace);
+        }
+        catch (UnauthorizedAccessException)
+        {
+            return Forbid();
+        }
+        catch (ArgumentException ex)
+        {
+            return BadRequest(new { error = ex.Message });
+        }
+    }
+
+    [HttpDelete("{workspaceId}")]
+    public async Task<IActionResult> DeleteWorkspace(
+        [FromRoute] Guid workspaceId,
+        CancellationToken cancellationToken)
+    {
+        var identity = GetAuthenticatedIdentity();
+        if (identity == null) return Unauthorized();
+
+        try
+        {
+            await _workspaceService.DeleteWorkspaceAsync(identity, workspaceId, cancellationToken);
+            return NoContent();
+        }
+        catch (UnauthorizedAccessException)
+        {
+            return Forbid();
         }
     }
 

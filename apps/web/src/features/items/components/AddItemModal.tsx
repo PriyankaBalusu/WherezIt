@@ -1,9 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 
 interface AddItemModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSubmit: (data: { name: string; category?: string; quantity: number }) => Promise<void>;
+  onSubmit: (data: { name: string; category?: string; quantity: number; photoFile?: File | null }) => Promise<void>;
   isSubmitting?: boolean;
 }
 
@@ -16,29 +16,73 @@ export const AddItemModal: React.FC<AddItemModalProps> = ({
   const [name, setName] = useState('');
   const [category, setCategory] = useState('');
   const [quantity, setQuantity] = useState(1);
+  const [selectedPhotoFile, setSelectedPhotoFile] = useState<File | null>(null);
+  const [photoPreviewUrl, setPhotoPreviewUrl] = useState<string | null>(null);
   const [formError, setFormError] = useState<string | null>(null);
+
+  const cameraInputRef = useRef<HTMLInputElement>(null);
+  const libraryInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (isOpen) {
       setName('');
       setCategory('');
       setQuantity(1);
+      setSelectedPhotoFile(null);
+      setPhotoPreviewUrl(null);
       setFormError(null);
     }
   }, [isOpen]);
 
   useEffect(() => {
+    return () => {
+      if (photoPreviewUrl) {
+        URL.revokeObjectURL(photoPreviewUrl);
+      }
+    };
+  }, [photoPreviewUrl]);
+
+  useEffect(() => {
     if (!isOpen) return;
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
-        onClose();
+      if (e.key === 'Escape' && !isSubmitting) {
+        handleClose();
       }
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isOpen, onClose]);
+  }, [isOpen, isSubmitting]);
 
   if (!isOpen) return null;
+
+  const handleClose = () => {
+    if (photoPreviewUrl) {
+      URL.revokeObjectURL(photoPreviewUrl);
+    }
+    setSelectedPhotoFile(null);
+    setPhotoPreviewUrl(null);
+    onClose();
+  };
+
+  const handlePhotoSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      if (photoPreviewUrl) {
+        URL.revokeObjectURL(photoPreviewUrl);
+      }
+      setSelectedPhotoFile(file);
+      setPhotoPreviewUrl(URL.createObjectURL(file));
+    }
+    if (e.target) e.target.value = '';
+  };
+
+  const handleRemovePhoto = () => {
+    if (photoPreviewUrl) {
+      URL.revokeObjectURL(photoPreviewUrl);
+    }
+    setSelectedPhotoFile(null);
+    setPhotoPreviewUrl(null);
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -59,8 +103,9 @@ export const AddItemModal: React.FC<AddItemModalProps> = ({
         name: name.trim(),
         category: category.trim() ? category.trim() : undefined,
         quantity,
+        photoFile: selectedPhotoFile,
       });
-      onClose();
+      handleClose();
     } catch (err: any) {
       setFormError(err.message || 'Failed to add item.');
     }
@@ -85,6 +130,25 @@ export const AddItemModal: React.FC<AddItemModalProps> = ({
       aria-modal="true"
       aria-labelledby="add-item-modal-title"
     >
+      {/* Hidden File Inputs for Camera & Photo Library */}
+      <input
+        type="file"
+        accept="image/*"
+        capture="environment"
+        ref={cameraInputRef}
+        onChange={handlePhotoSelect}
+        style={{ display: 'none' }}
+        aria-label="Take photo with camera"
+      />
+      <input
+        type="file"
+        accept="image/*"
+        ref={libraryInputRef}
+        onChange={handlePhotoSelect}
+        style={{ display: 'none' }}
+        aria-label="Choose existing photo"
+      />
+
       <div
         style={{
           backgroundColor: '#fff',
@@ -93,6 +157,7 @@ export const AddItemModal: React.FC<AddItemModalProps> = ({
           maxWidth: '440px',
           width: '100%',
           boxShadow: '0 10px 25px rgba(0,0,0,0.2)',
+          boxSizing: 'border-box',
         }}
       >
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem' }}>
@@ -101,8 +166,9 @@ export const AddItemModal: React.FC<AddItemModalProps> = ({
           </h3>
           <button
             type="button"
-            onClick={onClose}
-            style={{ border: 'none', background: 'none', fontSize: '1.5rem', cursor: 'pointer', color: '#94a3b8' }}
+            onClick={handleClose}
+            disabled={isSubmitting}
+            style={{ border: 'none', background: 'none', fontSize: '1.5rem', cursor: isSubmitting ? 'not-allowed' : 'pointer', color: '#94a3b8' }}
             aria-label="Close modal"
           >
             &times;
@@ -126,6 +192,7 @@ export const AddItemModal: React.FC<AddItemModalProps> = ({
               value={name}
               onChange={(e) => setName(e.target.value)}
               required
+              disabled={isSubmitting}
               style={{ width: '100%', padding: '0.625rem', borderRadius: '0.375rem', border: '1px solid #cbd5e1', fontSize: '0.875rem', boxSizing: 'border-box' }}
             />
           </div>
@@ -139,6 +206,7 @@ export const AddItemModal: React.FC<AddItemModalProps> = ({
               placeholder="e.g. Holiday Decor"
               value={category}
               onChange={(e) => setCategory(e.target.value)}
+              disabled={isSubmitting}
               style={{ width: '100%', padding: '0.625rem', borderRadius: '0.375rem', border: '1px solid #cbd5e1', fontSize: '0.875rem', boxSizing: 'border-box' }}
             />
           </div>
@@ -155,15 +223,68 @@ export const AddItemModal: React.FC<AddItemModalProps> = ({
                 const val = parseInt(e.target.value, 10);
                 setQuantity(isNaN(val) ? 0 : val);
               }}
+              disabled={isSubmitting}
               style={{ width: '100px', padding: '0.625rem', borderRadius: '0.375rem', border: '1px solid #cbd5e1', fontSize: '0.875rem', boxSizing: 'border-box' }}
             />
+          </div>
+
+          {/* Optional Item Photo Section */}
+          <div className="form-group" style={{ marginBottom: 0 }}>
+            <label style={{ fontSize: '0.875rem', fontWeight: 600, color: '#334155', marginBottom: '0.375rem', display: 'block' }}>
+              Item Photo <span style={{ color: '#64748b', fontWeight: 400 }}>(optional)</span>
+            </label>
+
+            {selectedPhotoFile && photoPreviewUrl ? (
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', padding: '0.5rem', border: '1px solid #e2e8f0', borderRadius: '0.375rem', backgroundColor: '#f8fafc' }}>
+                <img
+                  src={photoPreviewUrl}
+                  alt="Item photo preview"
+                  style={{ width: '52px', height: '52px', objectFit: 'cover', borderRadius: '0.25rem', border: '1px solid #cbd5e1' }}
+                />
+                <div style={{ flex: 1, overflow: 'hidden' }}>
+                  <p style={{ margin: 0, fontSize: '0.8rem', color: '#0f172a', fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    {selectedPhotoFile.name}
+                  </p>
+                  <button
+                    type="button"
+                    onClick={handleRemovePhoto}
+                    disabled={isSubmitting}
+                    style={{ background: 'none', border: 'none', color: '#dc2626', fontSize: '0.75rem', padding: 0, cursor: 'pointer', fontWeight: 600, marginTop: '0.2rem' }}
+                  >
+                    Remove photo
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+                <button
+                  type="button"
+                  className="btn btn-secondary btn--sm"
+                  onClick={() => cameraInputRef.current?.click()}
+                  disabled={isSubmitting}
+                  style={{ fontSize: '0.8rem', padding: '0.4rem 0.65rem' }}
+                >
+                  📷 Take Photo
+                </button>
+                <button
+                  type="button"
+                  className="btn btn-secondary btn--sm"
+                  onClick={() => libraryInputRef.current?.click()}
+                  disabled={isSubmitting}
+                  style={{ fontSize: '0.8rem', padding: '0.4rem 0.65rem' }}
+                >
+                  📁 Choose Existing Photo
+                </button>
+              </div>
+            )}
           </div>
 
           <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'flex-end', marginTop: '0.5rem' }}>
             <button
               type="button"
               className="btn btn-secondary btn--md"
-              onClick={onClose}
+              onClick={handleClose}
+              disabled={isSubmitting}
             >
               Cancel
             </button>
@@ -172,7 +293,7 @@ export const AddItemModal: React.FC<AddItemModalProps> = ({
               disabled={isSubmitting}
               className="btn btn-primary btn--md"
             >
-              {isSubmitting ? 'Adding...' : 'Add Item'}
+              {isSubmitting ? 'Adding Item...' : 'Add Item'}
             </button>
           </div>
         </form>

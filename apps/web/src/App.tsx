@@ -22,11 +22,16 @@ const queryClient = new QueryClient({
   },
 });
 
-const WorkspaceSearchScreen: React.FC = () => {
-  const { workspaceId } = useParams<{ workspaceId: string }>();
+const GlobalSearchScreen: React.FC = () => {
   const [searchParams] = useSearchParams();
   const query = searchParams.get('q') || '';
-  return <WorkspaceSearch workspaceId={workspaceId!} initialQuery={query} />;
+  return <WorkspaceSearch initialQuery={query} />;
+};
+
+const WorkspaceSearchScreen: React.FC = () => {
+  const [searchParams] = useSearchParams();
+  const query = searchParams.get('q') || '';
+  return <WorkspaceSearch initialQuery={query} />;
 };
 
 const CaptureReviewScreenWrapper: React.FC = () => {
@@ -108,6 +113,16 @@ export const App: React.FC = () => {
                     <ContainerErrorBoundary>
                       <ContainerDetailScreen />
                     </ContainerErrorBoundary>
+                  </WorkspaceProvider>
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/search"
+              element={
+                <ProtectedRoute>
+                  <WorkspaceProvider>
+                    <GlobalSearchScreen />
                   </WorkspaceProvider>
                 </ProtectedRoute>
               }

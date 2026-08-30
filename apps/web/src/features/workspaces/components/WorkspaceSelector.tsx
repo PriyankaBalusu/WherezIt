@@ -43,34 +43,40 @@ export const WorkspaceSelector: React.FC<WorkspaceSelectorProps> = ({
   }
 
   return (
-    <div ref={containerRef} className="workspace-selector" style={{ position: 'relative', display: 'inline-block' }}>
+    <div ref={containerRef} className="workspace-selector" style={{ position: 'relative', width: '100%' }}>
       <button
         type="button"
         onClick={() => setIsOpen(!isOpen)}
         aria-expanded={isOpen}
         aria-haspopup="true"
         aria-label="Select active storage space"
+        className="workspace-selector__button"
         style={{
           display: 'flex',
           alignItems: 'center',
+          justifyContent: 'space-between',
           gap: '0.5rem',
-          backgroundColor: '#1e293b',
-          color: '#f8fafc',
-          border: '1px solid #334155',
+          width: '100%',
+          backgroundColor: '#ffffff',
+          color: '#0f172a',
+          border: '1px solid #cbd5e1',
           borderRadius: '0.5rem',
-          padding: '0.4rem 0.85rem',
+          padding: '0.45rem 0.75rem',
           fontSize: '0.875rem',
           fontWeight: 600,
           cursor: 'pointer',
           transition: 'all 0.15s ease',
-          boxShadow: '0 1px 2px rgba(0, 0, 0, 0.05)',
+          boxShadow: '0 1px 2px rgba(15, 23, 42, 0.05)',
+          boxSizing: 'border-box',
         }}
       >
-        <span style={{ fontSize: '1rem' }}>🏠</span>
-        <span style={{ maxWidth: '160px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-          {activeWorkspace ? activeWorkspace.name : 'Select Storage Space'}
-        </span>
-        <span style={{ fontSize: '0.75rem', opacity: 0.7, marginLeft: '0.25rem' }}>▼</span>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', overflow: 'hidden', minWidth: 0 }}>
+          <span style={{ fontSize: '1rem', flexShrink: 0 }}>🏠</span>
+          <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+            {activeWorkspace ? activeWorkspace.name : 'Select Storage Space'}
+          </span>
+        </div>
+        <span style={{ fontSize: '0.75rem', color: '#64748b', flexShrink: 0, marginLeft: '0.25rem' }}>▼</span>
       </button>
 
       {isOpen && (
@@ -80,17 +86,17 @@ export const WorkspaceSelector: React.FC<WorkspaceSelectorProps> = ({
             position: 'absolute',
             top: 'calc(100% + 0.375rem)',
             left: 0,
-            width: '240px',
+            width: '100%',
+            minWidth: '220px',
             backgroundColor: '#ffffff',
-            borderRadius: '0.75rem',
-            border: '1px solid #e2e8f0',
-            boxShadow: '0 10px 25px -5px rgba(15, 23, 42, 0.15)',
+            borderRadius: '0.5rem',
+            border: '1px solid #cbd5e1',
+            boxShadow: '0 10px 25px -5px rgba(15, 23, 42, 0.12)',
             zIndex: 100,
             overflow: 'hidden',
-            animation: 'fadeIn 0.12s ease-out',
           }}
         >
-          <div style={{ padding: '0.5rem 0.75rem', fontSize: '0.75rem', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+          <div style={{ padding: '0.5rem 0.75rem', fontSize: '0.7rem', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
             Storage Spaces
           </div>
 
@@ -100,60 +106,59 @@ export const WorkspaceSelector: React.FC<WorkspaceSelectorProps> = ({
               return (
                 <button
                   key={ws.id}
+                  type="button"
                   role="menuitem"
                   onClick={() => {
                     onSelectWorkspace(ws.id);
                     setIsOpen(false);
                   }}
                   style={{
-                    width: '100%',
-                    textAlign: 'left',
-                    padding: '0.625rem 0.875rem',
-                    fontSize: '0.875rem',
-                    fontWeight: isSelected ? 700 : 500,
-                    color: isSelected ? '#0284c7' : '#334155',
-                    backgroundColor: isSelected ? '#f0f9ff' : 'transparent',
-                    border: 'none',
-                    cursor: 'pointer',
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'space-between',
-                    transition: 'background-color 0.15s ease',
+                    width: '100%',
+                    padding: '0.5rem 0.75rem',
+                    textAlign: 'left',
+                    backgroundColor: isSelected ? '#f0f9ff' : 'transparent',
+                    color: isSelected ? '#0284c7' : '#334155',
+                    fontWeight: isSelected ? 600 : 400,
+                    border: 'none',
+                    fontSize: '0.85rem',
+                    cursor: 'pointer',
                   }}
                 >
-                  <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1 }}>
                     {ws.name}
                   </span>
-                  {isSelected && <span style={{ color: '#0284c7', fontWeight: 800 }}>✓</span>}
+                  {isSelected && <span style={{ color: '#0284c7', fontSize: '0.85rem' }}>✓</span>}
                 </button>
               );
             })}
           </div>
 
-          <div style={{ borderTop: '1px solid #f1f5f9', padding: '0.375rem' }}>
+          <div style={{ padding: '0.375rem', borderTop: '1px solid #f1f5f9', backgroundColor: '#f8fafc' }}>
             <button
-              role="menuitem"
+              type="button"
               onClick={() => {
                 setIsOpen(false);
                 onCreateWorkspace();
               }}
               style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.375rem',
                 width: '100%',
-                textAlign: 'left',
-                padding: '0.625rem 0.875rem',
-                fontSize: '0.875rem',
-                fontWeight: 700,
+                padding: '0.375rem 0.5rem',
+                fontSize: '0.8rem',
+                fontWeight: 600,
                 color: '#0284c7',
                 backgroundColor: 'transparent',
                 border: 'none',
                 borderRadius: '0.375rem',
                 cursor: 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '0.5rem',
               }}
             >
-              <span style={{ fontSize: '1rem', fontWeight: 800 }}>+</span> Create Storage Space
+              <span>+</span> Create Storage Space
             </button>
           </div>
         </div>

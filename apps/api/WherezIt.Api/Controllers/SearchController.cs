@@ -10,7 +10,7 @@ using WherezIt.Application.Search.Services;
 namespace WherezIt.Api.Controllers;
 
 [ApiController]
-[Route("api/v1/workspaces/{workspaceId}/search")]
+[Route("api/v1")]
 [Authorize]
 public class SearchController : ControllerBase
 {
@@ -21,7 +21,41 @@ public class SearchController : ControllerBase
         _searchService = searchService;
     }
 
-    [HttpGet]
+    /// <summary>
+    /// Global Search across all Storage Spaces authorized for the current user.
+    /// GET /api/v1/search?q={query}
+    /// </summary>
+    [HttpGet("search")]
+    public async Task<IActionResult> GlobalSearch(
+        [FromQuery] string? q,
+        CancellationToken cancellationToken = default)
+    {
+        var identity = GetAuthenticatedIdentity();
+        if (identity == null)
+        {
+            return Unauthorized(new { error = "Firebase UID claim not found in authenticated principal." });
+        }
+
+        try
+        {
+            var results = await _searchService.SearchAuthorizedWorkspacesAsync(identity, q ?? string.Empty, cancellationToken);
+            return Ok(results);
+        }
+        catch (UnauthorizedAccessException)
+        {
+            return Forbid();
+        }
+        catch (ArgumentException ex)
+        {
+            return BadRequest(new { error = ex.Message });
+        }
+    }
+
+    /// <summary>
+    /// Scoped Search for a specific Storage Space.
+    /// GET /api/v1/workspaces/{workspaceId}/search?q={query}
+    /// </summary>
+    [HttpGet("workspaces/{workspaceId}/search")]
     public async Task<IActionResult> Search(
         [FromRoute] Guid workspaceId,
         [FromQuery] string? q,

@@ -1,3 +1,8 @@
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Threading;
+using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
 using WherezIt.Application.Authentication;
 using WherezIt.Application.Users.Services;
@@ -63,7 +68,6 @@ public class WorkspaceService : IWorkspaceService
 
         using var transaction = await _dbContext.Database.BeginTransactionAsync(cancellationToken);
 
-        // Resolve user's inventory namespaces
         var userNamespaceIds = await _dbContext.InventoryNamespaceMembers
             .Where(m => m.UserId == user.Id)
             .Select(m => m.InventoryNamespaceId)
@@ -74,7 +78,6 @@ public class WorkspaceService : IWorkspaceService
 
         if (userNamespaceIds.Count == 0)
         {
-            // Case 0 inventories: create default "My Inventory"
             var newNamespace = new InventoryNamespace
             {
                 Id = Guid.NewGuid(),
@@ -118,7 +121,7 @@ public class WorkspaceService : IWorkspaceService
                 targetNamespaceId = userNamespaceIds[0];
             }
         }
-        else // 2+ inventories
+        else
         {
             if (!request.InventoryNamespaceId.HasValue)
             {
@@ -161,5 +164,73 @@ public class WorkspaceService : IWorkspaceService
             member.Role.ToString(),
             workspace.CreatedAt,
             workspace.InventoryNamespaceId);
+    }
+
+    public async Task<WorkspaceResponseDto> RenameWorkspaceAsync(
+        AuthenticatedIdentity identity,
+        Guid workspaceId,
+        string newName,
+        CancellationToken cancellationToken = default)
+    {
+        var user = await _userService.SyncCurrentUserAsync(identity, cancellationToken);
+
+        var member = await _dbContext.WorkspaceMembers
+            .Include(m => m.Workspace)
+            .FirstOrDefaultAsync(m => m.WorkspaceId == workspaceId && m.UserId == user.Id, cancellationToken);
+
+        if (member == null)
+        {
+            throw new UnauthorizedAccessException("User is not a member of this Storage Space.");
+        }
+
+        var trimmed = newName?.Trim();
+        if (string.IsNullOrWhiteSpace(trimmed))
+        {
+            throw new ArgumentException("Storage space name cannot be empty.");
+        }
+
+        member.Workspace.Name = trimmed;
+        member.Workspace.UpdatedAt = DateTimeOffset.UtcNow;
+
+        await _dbContext.SaveChangesAsync(cancellationToken);
+
+        return new WorkspaceResponseDto(
+            member.Workspace.Id,
+            member.Workspace.Name,
+            member.Role.ToString(),
+            member.Workspace.CreatedAt,
+            member.Workspace.InventoryNamespaceId);
+    }
+
+    public async Task DeleteWorkspaceAsync(
+        AuthenticatedIdentity identity,
+        Guid workspaceId,
+        CancellationToken cancellationToken = default)
+    {
+        var user = await _userService.SyncCurrentUserAsync(identity, cancellationToken);
+
+        var member = await _dbContext.WorkspaceMembers
+            .FirstOrDefaultAsync(m => m.WorkspaceId == workspaceId && m.UserId == user.Id, cancellationToken);
+
+        if (member == null)
+        {
+            throw new UnauthorizedAccessException("User is not authorized to access this Storage Space.");
+        }
+
+        var workspace = await _dbContext.Workspaces.FindAsync(new object[] { workspaceId }, cancellationToken);
+        if (workspace == null) return;
+
+        // Remove workspace membership for user (or delete workspace if empty)
+        _dbContext.WorkspaceMembers.Remove(member);
+
+        var remainingMembers = await _dbContext.WorkspaceMembers
+            .AnyAsync(m => m.WorkspaceId == workspaceId && m.UserId != user.Id, cancellationToken);
+
+        if (!remainingMembers)
+        {
+            _dbContext.Workspaces.Remove(workspace);
+        }
+
+        await _dbContext.SaveChangesAsync(cancellationToken);
     }
 }

@@ -1,4 +1,5 @@
 import { Item, CreateItemPayload, UpdateItemPayload } from '../types/item';
+import { compressImage } from '../../images/utils/compressImage';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || import.meta.env.VITE_API_URL || '/api/v1';
 
@@ -102,5 +103,27 @@ export async function deleteItem(
   if (!res.ok) {
     const err = await res.json().catch(() => ({}));
     throw new Error(err.error || `Failed to delete item: ${res.statusText}`);
+  }
+}
+
+export async function uploadItemImage(
+  workspaceId: string,
+  itemId: string,
+  file: File,
+  token: string
+): Promise<void> {
+  const compressed = await compressImage(file);
+  const formData = new FormData();
+  formData.append('file', compressed.file);
+
+  const res = await fetch(`${API_BASE_URL}/workspaces/${encodeURIComponent(workspaceId)}/items/${encodeURIComponent(itemId)}/images`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${token}` },
+    body: formData,
+  });
+
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.error || `Failed to upload item photo.`);
   }
 }

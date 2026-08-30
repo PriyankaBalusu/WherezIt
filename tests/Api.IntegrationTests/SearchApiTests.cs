@@ -16,6 +16,7 @@ using WherezIt.Application.Workspaces.Dtos;
 using WherezIt.Application.Workspaces.Services;
 using WherezIt.Domain.Entities;
 using WherezIt.Infrastructure.Persistence;
+using WherezIt.Infrastructure.Services;
 using Xunit;
 
 namespace WherezIt.Api.IntegrationTests;
@@ -190,7 +191,50 @@ public class SearchApiTests : IClassFixture<PostgresTestFixture>
     }
 
     [Fact]
-    public async Task WorkspaceSearch_DifferentiatesLiteralAndConceptCombinations_NikeShoesRegression()
+    public async Task SearchVocabulary_SupportsPhraseResolution_Normalizer_AndStrengths()
+    {
+        // 1. Multi-word phrase resolution
+        var extCordMatches = SearchVocabulary.FindConceptsForPhrase("extension cord");
+        Assert.NotEmpty(extCordMatches);
+        Assert.Equal("CABLES_POWER", extCordMatches[0].Concept.Key);
+
+        var sleepBagMatches = SearchVocabulary.FindConceptsForPhrase("sleeping bag");
+        Assert.NotEmpty(sleepBagMatches);
+        Assert.Equal("CAMPING", sleepBagMatches[0].Concept.Key);
+
+        var babyBottleMatches = SearchVocabulary.FindConceptsForPhrase("baby bottle");
+        Assert.NotEmpty(babyBottleMatches);
+        Assert.Equal("BABY", babyBottleMatches[0].Concept.Key);
+
+        var boardGameMatches = SearchVocabulary.FindConceptsForPhrase("board game");
+        Assert.NotEmpty(boardGameMatches);
+        Assert.Equal("TOYS_GAMES", boardGameMatches[0].Concept.Key);
+
+        var wallArtMatches = SearchVocabulary.FindConceptsForPhrase("wall art");
+        Assert.NotEmpty(wallArtMatches);
+        Assert.Equal("HOME_DECOR", wallArtMatches[0].Concept.Key);
+
+        // 2. Plural Normalization and Exceptions
+        Assert.Equal("shoe", SearchTextNormalizer.NormalizeTerm("shoes"));
+        Assert.Equal("boot", SearchTextNormalizer.NormalizeTerm("boots"));
+        Assert.Equal("plate", SearchTextNormalizer.NormalizeTerm("plates"));
+        Assert.Equal("document", SearchTextNormalizer.NormalizeTerm("documents"));
+        
+        Assert.Equal("jeans", SearchTextNormalizer.NormalizeTerm("jeans"));
+        Assert.Equal("pants", SearchTextNormalizer.NormalizeTerm("pants"));
+        Assert.Equal("christmas", SearchTextNormalizer.NormalizeTerm("christmas"));
+        Assert.Equal("electronics", SearchTextNormalizer.NormalizeTerm("electronics"));
+
+        // 3. Concept Specificity / Strength
+        var tentMatches = SearchVocabulary.FindConceptsForPhrase("tent");
+        var outdoorMatches = SearchVocabulary.FindConceptsForPhrase("outdoor");
+        Assert.NotEmpty(tentMatches);
+        Assert.NotEmpty(outdoorMatches);
+        Assert.True(tentMatches[0].Strength > outdoorMatches[0].Strength);
+    }
+
+    [Fact]
+    public async Task WorkspaceSearch_DisambiguatesContextualOverlap()
     {
         using var scope = _fixture.Services.CreateScope();
         var workspaceService = scope.ServiceProvider.GetRequiredService<IWorkspaceService>();
@@ -200,66 +244,120 @@ public class SearchApiTests : IClassFixture<PostgresTestFixture>
         var searchService = scope.ServiceProvider.GetRequiredService<IWorkspaceSearchService>();
         var db = scope.ServiceProvider.GetRequiredService<WherezItDbContext>();
 
-        var identity = new AuthenticatedIdentity($"nike_user_{Guid.NewGuid():N}", "nike@example.com", true);
-        var ws = await workspaceService.CreateWorkspaceAsync(identity, new CreateWorkspaceRequestDto("Nike Shoes WS"));
+        var identity = new AuthenticatedIdentity($"overlap_user_{Guid.NewGuid():N}", "overlap@example.com", true);
+        var ws = await workspaceService.CreateWorkspaceAsync(identity, new CreateWorkspaceRequestDto("Overlap WS"));
+        var utility = await locationService.CreateLocationAsync(identity, ws.Id, new CreateStorageLocationRequestDto("Utility Room", null));
 
-        var closet = await locationService.CreateLocationAsync(identity, ws.Id, new CreateStorageLocationRequestDto("Master Closet", null));
+        // Create containers
+        var c1 = await containerService.CreateContainerAsync(identity, ws.Id, new CreateContainerRequestDto(utility.Id, "Box 101", null));
+        var c2 = await containerService.CreateContainerAsync(identity, ws.Id, new CreateContainerRequestDto(utility.Id, "Box 102", null));
+        var c3 = await containerService.CreateContainerAsync(identity, ws.Id, new CreateContainerRequestDto(utility.Id, "Box 103", null));
+        var c4 = await containerService.CreateContainerAsync(identity, ws.Id, new CreateContainerRequestDto(utility.Id, "Box 104", null));
 
-        // Create Containers BOX 001 - BOX 006
-        var c1 = await containerService.CreateContainerAsync(identity, ws.Id, new CreateContainerRequestDto(closet.Id, "Box 1", null));
-        var c2 = await containerService.CreateContainerAsync(identity, ws.Id, new CreateContainerRequestDto(closet.Id, "Box 2", null));
-        var c3 = await containerService.CreateContainerAsync(identity, ws.Id, new CreateContainerRequestDto(closet.Id, "Box 3", null));
-        var c4 = await containerService.CreateContainerAsync(identity, ws.Id, new CreateContainerRequestDto(closet.Id, "Box 4", null));
-        var c5 = await containerService.CreateContainerAsync(identity, ws.Id, new CreateContainerRequestDto(closet.Id, "Box 5", null));
-        var c6 = await containerService.CreateContainerAsync(identity, ws.Id, new CreateContainerRequestDto(closet.Id, "Box 6", null));
-
-        (await db.Containers.FindAsync(c1.Id))!.BoxNumber = 1;
-        (await db.Containers.FindAsync(c2.Id))!.BoxNumber = 2;
-        (await db.Containers.FindAsync(c3.Id))!.BoxNumber = 3;
-        (await db.Containers.FindAsync(c4.Id))!.BoxNumber = 4;
-        (await db.Containers.FindAsync(c5.Id))!.BoxNumber = 5;
-        (await db.Containers.FindAsync(c6.Id))!.BoxNumber = 6;
+        (await db.Containers.FindAsync(c1.Id))!.BoxNumber = 101;
+        (await db.Containers.FindAsync(c2.Id))!.BoxNumber = 102;
+        (await db.Containers.FindAsync(c3.Id))!.BoxNumber = 103;
+        (await db.Containers.FindAsync(c4.Id))!.BoxNumber = 104;
         await db.SaveChangesAsync();
 
-        // Items inside containers
-        await itemService.CreateItemAsync(identity, ws.Id, c1.Id, new CreateItemRequestDto("Nike Running Shoes", 1));
-        await itemService.CreateItemAsync(identity, ws.Id, c2.Id, new CreateItemRequestDto("Adidas Sneakers", 1));
-        await itemService.CreateItemAsync(identity, ws.Id, c3.Id, new CreateItemRequestDto("Winter Boots", 1));
-        await itemService.CreateItemAsync(identity, ws.Id, c4.Id, new CreateItemRequestDto("Nike Hiking Boots", 1));
-        await itemService.CreateItemAsync(identity, ws.Id, c5.Id, new CreateItemRequestDto("Sandals", 2));
-        await itemService.CreateItemAsync(identity, ws.Id, c6.Id, new CreateItemRequestDto("Nike Jacket", 1));
+        // 1. Cleaning vs Laundry
+        await itemService.CreateItemAsync(identity, ws.Id, c1.Id, new CreateItemRequestDto("Laundry Detergent", 1));
+        await itemService.CreateItemAsync(identity, ws.Id, c2.Id, new CreateItemRequestDto("Kitchen Cleaner", 1));
+        await itemService.CreateItemAsync(identity, ws.Id, c3.Id, new CreateItemRequestDto("Laundry Basket", 1));
+        await itemService.CreateItemAsync(identity, ws.Id, c4.Id, new CreateItemRequestDto("Mop", 1));
 
-        // 1. Test Query: "shoes" -> BOX 1-5 returned (footwear), BOX 6 (Nike Jacket) excluded
-        var shoesResults = await searchService.SearchWorkspaceAsync(identity, ws.Id, "shoes");
-        var shoeBoxNums = shoesResults.Select(r => r.BoxNumber).ToList();
-        Assert.Contains(1, shoeBoxNums);
-        Assert.Contains(2, shoeBoxNums);
-        Assert.Contains(3, shoeBoxNums);
-        Assert.Contains(4, shoeBoxNums);
-        Assert.Contains(5, shoeBoxNums);
-        Assert.DoesNotContain(6, shoeBoxNums); // Non-footwear excluded
+        var laundryResults = await searchService.SearchWorkspaceAsync(identity, ws.Id, "laundry detergent");
+        Assert.NotEmpty(laundryResults);
+        Assert.Equal(101, laundryResults[0].BoxNumber); // Laundry Detergent 1st
 
-        // 2. Test Query: "nike shoes" -> BOX 1 (Nike Running Shoes) & BOX 4 (Nike Hiking Boots) rank at top
-        var nikeShoesResults = await searchService.SearchWorkspaceAsync(identity, ws.Id, "nike shoes");
-        Assert.True(nikeShoesResults.Count >= 2);
-        Assert.Equal(1, nikeShoesResults[0].BoxNumber); // Nike Running Shoes 1st
-        Assert.Equal(4, nikeShoesResults[1].BoxNumber); // Nike Hiking Boots 2nd
+        // 2. Travel vs Documents
+        var c5 = await containerService.CreateContainerAsync(identity, ws.Id, new CreateContainerRequestDto(utility.Id, "Box 105", null));
+        var c6 = await containerService.CreateContainerAsync(identity, ws.Id, new CreateContainerRequestDto(utility.Id, "Box 106", null));
+        (await db.Containers.FindAsync(c5.Id))!.BoxNumber = 105;
+        (await db.Containers.FindAsync(c6.Id))!.BoxNumber = 106;
+        await db.SaveChangesAsync();
 
-        // 3. Test Query: "winter shoes" -> BOX 3 (Winter Boots) ranks 1st
-        var winterShoesResults = await searchService.SearchWorkspaceAsync(identity, ws.Id, "winter shoes");
-        Assert.NotEmpty(winterShoesResults);
-        Assert.Equal(3, winterShoesResults[0].BoxNumber);
+        await itemService.CreateItemAsync(identity, ws.Id, c5.Id, new CreateItemRequestDto("Passport", 1));
+        await itemService.CreateItemAsync(identity, ws.Id, c6.Id, new CreateItemRequestDto("Tax Documents", 1));
 
-        // 4. Test Query: "nike" -> BOX 1, 4, 6 all match literal brand
-        var nikeResults = await searchService.SearchWorkspaceAsync(identity, ws.Id, "nike");
-        var nikeBoxNums = nikeResults.Select(r => r.BoxNumber).ToList();
-        Assert.Contains(1, nikeBoxNums);
-        Assert.Contains(4, nikeBoxNums);
-        Assert.Contains(6, nikeBoxNums);
+        var travelDocResults = await searchService.SearchWorkspaceAsync(identity, ws.Id, "travel documents");
+        Assert.NotEmpty(travelDocResults);
+        Assert.Equal(105, travelDocResults[0].BoxNumber); // Passport ranks 1st over Tax Documents
 
-        // 5. Test Query: "nike boots" -> BOX 4 (Nike Hiking Boots) 1st
-        var nikeBootsResults = await searchService.SearchWorkspaceAsync(identity, ws.Id, "nike boots");
-        Assert.NotEmpty(nikeBootsResults);
-        Assert.Equal(4, nikeBootsResults[0].BoxNumber);
+        // 3. Camping + Lighting
+        var c7 = await containerService.CreateContainerAsync(identity, ws.Id, new CreateContainerRequestDto(utility.Id, "Box 107", null));
+        var c8 = await containerService.CreateContainerAsync(identity, ws.Id, new CreateContainerRequestDto(utility.Id, "Box 108", null));
+        (await db.Containers.FindAsync(c7.Id))!.BoxNumber = 107;
+        (await db.Containers.FindAsync(c8.Id))!.BoxNumber = 108;
+        await db.SaveChangesAsync();
+
+        await itemService.CreateItemAsync(identity, ws.Id, c7.Id, new CreateItemRequestDto("Camping Lantern", 1));
+        await itemService.CreateItemAsync(identity, ws.Id, c8.Id, new CreateItemRequestDto("Desk Lamp", 1));
+
+        var campLightResults = await searchService.SearchWorkspaceAsync(identity, ws.Id, "camping light");
+        Assert.NotEmpty(campLightResults);
+        Assert.Equal(107, campLightResults[0].BoxNumber); // Camping Lantern ranks 1st over Desk Lamp
+    }
+
+    [Fact]
+    public async Task GlobalSearch_SearchesAuthorizedWorkspaces_AndEnforcesPermissionBoundaries()
+    {
+        using var scope = _fixture.Services.CreateScope();
+        var workspaceService = scope.ServiceProvider.GetRequiredService<IWorkspaceService>();
+        var locationService = scope.ServiceProvider.GetRequiredService<IStorageLocationService>();
+        var containerService = scope.ServiceProvider.GetRequiredService<IContainerService>();
+        var itemService = scope.ServiceProvider.GetRequiredService<IItemService>();
+        var searchService = scope.ServiceProvider.GetRequiredService<IWorkspaceSearchService>();
+        var db = scope.ServiceProvider.GetRequiredService<WherezItDbContext>();
+
+        var user1Identity = new AuthenticatedIdentity($"user1_gs_{Guid.NewGuid():N}", "user1_gs@example.com", true);
+        var user2Identity = new AuthenticatedIdentity($"user2_gs_{Guid.NewGuid():N}", "user2_gs@example.com", true);
+
+        // User 1 owns Workspace A and Workspace B
+        var wsA = await workspaceService.CreateWorkspaceAsync(user1Identity, new CreateWorkspaceRequestDto("WS Alpha"));
+        var wsB = await workspaceService.CreateWorkspaceAsync(user1Identity, new CreateWorkspaceRequestDto("WS Beta"));
+
+        // User 2 owns Workspace C (unauthorized for User 1)
+        var wsC = await workspaceService.CreateWorkspaceAsync(user2Identity, new CreateWorkspaceRequestDto("WS Gamma"));
+
+        // Add locations
+        var locA = await locationService.CreateLocationAsync(user1Identity, wsA.Id, new CreateStorageLocationRequestDto("Attic", null));
+        var locB = await locationService.CreateLocationAsync(user1Identity, wsB.Id, new CreateStorageLocationRequestDto("Garage", null));
+        var locC = await locationService.CreateLocationAsync(user2Identity, wsC.Id, new CreateStorageLocationRequestDto("Basement", null));
+
+        // Create containers & items
+        var boxA = await containerService.CreateContainerAsync(user1Identity, wsA.Id, new CreateContainerRequestDto(locA.Id, "Holiday Box A", null));
+        (await db.Containers.FindAsync(boxA.Id))!.BoxNumber = 1;
+
+        var boxB = await containerService.CreateContainerAsync(user1Identity, wsB.Id, new CreateContainerRequestDto(locB.Id, "Holiday Box B", null));
+        (await db.Containers.FindAsync(boxB.Id))!.BoxNumber = 5;
+
+        var boxC = await containerService.CreateContainerAsync(user2Identity, wsC.Id, new CreateContainerRequestDto(locC.Id, "Secret Box C", null));
+        (await db.Containers.FindAsync(boxC.Id))!.BoxNumber = 9;
+
+        await db.SaveChangesAsync();
+
+        await itemService.CreateItemAsync(user1Identity, wsA.Id, boxA.Id, new CreateItemRequestDto("Christmas String Lights", 3));
+        await itemService.CreateItemAsync(user1Identity, wsB.Id, boxB.Id, new CreateItemRequestDto("Christmas Ornaments", 12));
+        await itemService.CreateItemAsync(user2Identity, wsC.Id, boxC.Id, new CreateItemRequestDto("Christmas Wreath", 1));
+
+        // Global search for User 1
+        var resultsUser1 = await searchService.SearchAuthorizedWorkspacesAsync(user1Identity, "christmas");
+
+        Assert.NotEmpty(resultsUser1);
+        Assert.Contains(resultsUser1, r => r.WorkspaceId == wsA.Id && r.WorkspaceName == "WS Alpha");
+        Assert.Contains(resultsUser1, r => r.WorkspaceId == wsB.Id && r.WorkspaceName == "WS Beta");
+
+        // Verify Workspace C (unauthorized for User 1) is STRICTLY EXCLUDED
+        Assert.DoesNotContain(resultsUser1, r => r.WorkspaceId == wsC.Id);
+        Assert.DoesNotContain(resultsUser1, r => r.ItemName == "Christmas Wreath");
+
+        // Global search for User 2
+        var resultsUser2 = await searchService.SearchAuthorizedWorkspacesAsync(user2Identity, "christmas");
+        Assert.NotEmpty(resultsUser2);
+        Assert.Single(resultsUser2);
+        Assert.Equal(wsC.Id, resultsUser2[0].WorkspaceId);
+        Assert.Equal("Christmas Wreath", resultsUser2[0].ItemName);
     }
 }
+

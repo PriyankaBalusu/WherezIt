@@ -11,6 +11,7 @@ export interface Container {
   destinationStorageNodeId?: string | null;
   isPacked?: boolean;
   movingPriority?: string | null;
+  itemCount?: number;
   createdAt: string;
   updatedAt: string;
 }

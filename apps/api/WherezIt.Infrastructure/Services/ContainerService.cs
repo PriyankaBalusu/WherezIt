@@ -66,11 +66,18 @@ public class ContainerService : IContainerService
             query = query.Where(c => c.StorageNodeId == storageNodeId.Value);
         }
 
+        var itemCounts = await _dbContext.Items
+            .AsNoTracking()
+            .Where(i => i.WorkspaceId == workspaceId && !i.IsArchived)
+            .GroupBy(i => i.ContainerId)
+            .Select(g => new { ContainerId = g.Key, Count = g.Sum(x => x.Quantity) })
+            .ToDictionaryAsync(x => x.ContainerId, x => x.Count, cancellationToken);
+
         var containers = await query
             .OrderBy(c => c.BoxNumber)
             .ToListAsync(cancellationToken);
 
-        return containers.Select(MapToDto).ToList();
+        return containers.Select(c => MapToDto(c, itemCounts.GetValueOrDefault(c.Id, 0))).ToList();
     }
 
     public async Task<ContainerResponseDto> GetContainerAsync(
@@ -90,7 +97,33 @@ public class ContainerService : IContainerService
             throw new KeyNotFoundException($"Container '{containerId}' was not found in workspace '{workspaceId}'.");
         }
 
-        return MapToDto(container);
+        var count = await _dbContext.Items
+            .AsNoTracking()
+            .Where(i => i.ContainerId == containerId && !i.IsArchived)
+            .SumAsync(i => (int?)i.Quantity, cancellationToken) ?? 0;
+
+        return MapToDto(container, count);
+    }
+
+    private static ContainerResponseDto MapToDto(Container c, int itemCount = 0)
+    {
+        return new ContainerResponseDto(
+            c.Id,
+            c.WorkspaceId,
+            c.StorageNodeId,
+            c.BoxNumber,
+            BoxIdFormatter.Format(c.BoxNumber),
+            c.Name,
+            c.Description,
+            c.PhysicalLabel,
+            c.IsArchived,
+            c.DestinationStorageNodeId,
+            c.IsPacked,
+            c.MovingPriority,
+            c.CreatedAt,
+            c.UpdatedAt,
+            itemCount
+        );
     }
 
     public async Task<ContainerResponseDto> CreateContainerAsync(

@@ -1,5 +1,13 @@
 import { useQuery } from '@tanstack/react-query';
-import { searchWorkspace, SearchResult } from '../api/searchApi';
+import { searchGlobalWorkspaces, searchWorkspace, SearchResult } from '../api/searchApi';
+
+export function useGlobalSearch(query: string, enabled: boolean = false) {
+  return useQuery<SearchResult[], Error>({
+    queryKey: ['globalSearch', query],
+    queryFn: () => searchGlobalWorkspaces(query),
+    enabled: enabled && Boolean(query.trim()),
+  });
+}
 
 export function useWorkspaceSearch(workspaceId: string, query: string, enabled: boolean = false) {
   return useQuery<SearchResult[], Error>({

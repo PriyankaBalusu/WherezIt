@@ -109,6 +109,11 @@ describe('ItemList UI (ITEM-001)', () => {
       expect(screen.getByPlaceholderText(/e\.g\. Christmas Lights/i)).toBeInTheDocument();
     });
 
+    // Verify Optional Photo UI
+    expect(screen.getByText(/Item Photo/i)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /📷 Take Photo/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /📁 Choose Existing Photo/i })).toBeInTheDocument();
+
     fireEvent.change(screen.getByPlaceholderText(/e\.g\. Christmas Lights/i), {
       target: { value: 'Tape Measure' },
     });
@@ -119,6 +124,74 @@ describe('ItemList UI (ITEM-001)', () => {
         workspaceId,
         containerId,
         { name: 'Tape Measure', quantity: 1, category: undefined },
+        'fake_id_token'
+      );
+    });
+  });
+
+  it('uploads optional photo using returned Item ID when a photo is selected', async () => {
+    vi.spyOn(itemApi, 'getItemsByContainer').mockResolvedValue([]);
+    const createSpy = vi.spyOn(itemApi, 'createItem').mockResolvedValue({
+      id: 'item-with-photo-123',
+      workspaceId,
+      containerId,
+      name: 'Power Drill',
+      quantity: 1,
+      source: 'MANUAL',
+      isVerified: true,
+      isArchived: false,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    });
+    const uploadPhotoSpy = vi.spyOn(itemApi, 'uploadItemImage').mockResolvedValue();
+
+    render(
+      <QueryClientProvider client={queryClient}>
+        <ItemList workspaceId={workspaceId} containerId={containerId} />
+      </QueryClientProvider>
+    );
+
+    await waitFor(() => {
+      expect(screen.getByText('+ Add Item')).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByText('+ Add Item'));
+
+    await waitFor(() => {
+      expect(screen.getByText('Add Manually')).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByText('Add Manually'));
+
+    await waitFor(() => {
+      expect(screen.getByPlaceholderText(/e\.g\. Christmas Lights/i)).toBeInTheDocument();
+    });
+
+    fireEvent.change(screen.getByPlaceholderText(/e\.g\. Christmas Lights/i), {
+      target: { value: 'Power Drill' },
+    });
+
+    // Simulate choosing existing photo
+    const libraryInput = screen.getByLabelText(/choose existing photo/i);
+    const mockFile = new File(['fake-image-bytes'], 'drill.jpg', { type: 'image/jpeg' });
+    fireEvent.change(libraryInput, { target: { files: [mockFile] } });
+
+    expect(screen.getByText('drill.jpg')).toBeInTheDocument();
+    expect(screen.getByText('Remove photo')).toBeInTheDocument();
+
+    fireEvent.submit(screen.getByPlaceholderText(/e\.g\. Christmas Lights/i).closest('form')!);
+
+    await waitFor(() => {
+      expect(createSpy).toHaveBeenCalledWith(
+        workspaceId,
+        containerId,
+        { name: 'Power Drill', quantity: 1, category: undefined },
+        'fake_id_token'
+      );
+      expect(uploadPhotoSpy).toHaveBeenCalledWith(
+        workspaceId,
+        'item-with-photo-123',
+        mockFile,
         'fake_id_token'
       );
     });

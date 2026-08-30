@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Link } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { useStorageLocations } from '../../locations/hooks/useStorageLocations';
 import { useContainers } from '../hooks/useContainers';
 
@@ -9,12 +9,19 @@ interface ContainerListProps {
   onAddBox?: () => void;
 }
 
+type SortOption = 'BOX_NUMBER' | 'NAME' | 'ITEM_COUNT';
+type FilterOption = 'ACTIVE' | 'ALL' | 'ARCHIVED' | 'PACKED' | 'UNPACKED';
+
 export const ContainerList: React.FC<ContainerListProps> = ({
   workspaceId,
   selectedLocationId = null,
   onAddBox,
 }) => {
-  const [includeArchived, setIncludeArchived] = useState(false);
+  const navigate = useNavigate();
+  const [sortBy, setSortBy] = useState<SortOption>('BOX_NUMBER');
+  const [filterBy, setFilterBy] = useState<FilterOption>('ACTIVE');
+
+  const includeArchived = filterBy === 'ALL' || filterBy === 'ARCHIVED';
 
   const { data: locations = [] } = useStorageLocations(workspaceId);
   const { data: containers = [], isLoading, isError, error, refetch } = useContainers(
@@ -22,6 +29,47 @@ export const ContainerList: React.FC<ContainerListProps> = ({
     selectedLocationId || undefined,
     includeArchived
   );
+
+  const selectedLocation = locations.find((l) => l.id === selectedLocationId);
+
+  const getLocationBreadcrumb = (nodeId: string): string => {
+    const segments: string[] = [];
+    let curr: string | null = nodeId;
+    const visited = new Set<string>();
+
+    while (curr && !visited.has(curr)) {
+      visited.add(curr);
+      const loc = locations.find((l) => l.id === curr);
+      if (!loc) break;
+      segments.unshift(loc.name);
+      curr = loc.parentId;
+    }
+
+    return segments.length > 0 ? segments.join(' › ') : 'Unassigned Location';
+  };
+
+  const filteredContainers = containers.filter((c) => {
+    if (filterBy === 'ACTIVE') return !c.isArchived;
+    if (filterBy === 'ARCHIVED') return c.isArchived;
+    if (filterBy === 'PACKED') return !c.isArchived && c.isPacked;
+    if (filterBy === 'UNPACKED') return !c.isArchived && !c.isPacked;
+    return true; // 'ALL': includes active + archived
+  });
+
+  const sortedContainers = [...filteredContainers].sort((a, b) => {
+    if (sortBy === 'NAME') {
+      return (a.name || '').localeCompare(b.name || '');
+    }
+    if (sortBy === 'ITEM_COUNT') {
+      return (b.itemCount ?? 0) - (a.itemCount ?? 0);
+    }
+    return a.boxNumber - b.boxNumber;
+  });
+
+  const totalCount = sortedContainers.length;
+  const sectionTitle = selectedLocation
+    ? `${selectedLocation.name} · ${totalCount === 1 ? '1 box' : `${totalCount} boxes`}`
+    : `All Boxes · ${totalCount === 1 ? '1 box' : totalCount}`;
 
   if (isLoading) {
     return <div style={{ color: '#64748b', padding: '1rem' }}>Loading containers...</div>;
@@ -36,20 +84,88 @@ export const ContainerList: React.FC<ContainerListProps> = ({
     );
   }
 
-  const getLocationName = (nodeId: string) => {
-    return locations.find((l) => l.id === nodeId)?.name || nodeId;
-  };
-
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+      {/* Box Section Heading & Cohesive Box Toolbar */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.75rem' }}>
+        <h2 style={{ fontSize: '1.25rem', fontWeight: 800, color: '#0f172a', margin: 0 }}>
+          {sectionTitle}
+        </h2>
+
+        {/* Toolbar Controls */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
+          {/* Sort Selector */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+            <span style={{ fontSize: '0.8rem', color: '#64748b', fontWeight: 600 }}>Sort:</span>
+            <select
+              aria-label="Sort boxes"
+              value={sortBy}
+              onChange={(e) => setSortBy(e.target.value as SortOption)}
+              style={{
+                padding: '0.35rem 0.5rem',
+                fontSize: '0.8rem',
+                border: '1px solid #cbd5e1',
+                borderRadius: '0.375rem',
+                backgroundColor: '#ffffff',
+                color: '#0f172a',
+                outline: 'none',
+              }}
+            >
+              <option value="BOX_NUMBER">Box #</option>
+              <option value="NAME">Name</option>
+              <option value="ITEM_COUNT">Item Count</option>
+            </select>
+          </div>
+
+          {/* Filter Selector (Includes Archived Options) */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+            <span style={{ fontSize: '0.8rem', color: '#64748b', fontWeight: 600 }}>Filter:</span>
+            <select
+              aria-label="Filter boxes"
+              value={filterBy}
+              onChange={(e) => setFilterBy(e.target.value as FilterOption)}
+              style={{
+                padding: '0.35rem 0.5rem',
+                fontSize: '0.8rem',
+                border: '1px solid #cbd5e1',
+                borderRadius: '0.375rem',
+                backgroundColor: '#ffffff',
+                color: '#0f172a',
+                outline: 'none',
+              }}
+            >
+              <option value="ACTIVE">Active Boxes</option>
+              <option value="ALL">All Boxes (Active + Archived)</option>
+              <option value="ARCHIVED">Archived Only</option>
+              <option value="PACKED">Packed Only</option>
+              <option value="UNPACKED">Unpacked Only</option>
+            </select>
+          </div>
+
+          {/* Add Box Button */}
+          {onAddBox && (
+            <button
+              type="button"
+              className="btn btn-primary btn--md"
+              onClick={onAddBox}
+              style={{ padding: '0.375rem 0.875rem', fontSize: '0.85rem' }}
+            >
+              + Add Box
+            </button>
+          )}
+        </div>
+      </div>
+
       {/* Container List Grid */}
-      {containers.length === 0 ? (
+      {sortedContainers.length === 0 ? (
         <div style={{ textAlign: 'center', padding: '3rem 1.5rem', color: '#64748b', backgroundColor: '#f8fafc', borderRadius: '0.5rem', border: '1px dashed #cbd5e1' }}>
           <h3 style={{ margin: '0 0 0.5rem 0', color: '#0f172a', fontSize: '1.1rem' }}>No boxes here yet</h3>
           <p style={{ margin: '0 0 1.25rem 0', fontSize: '0.875rem' }}>Create a box to start organizing items in this location.</p>
-          <button type="button" className="btn btn-primary btn--md" onClick={onAddBox}>
-            + Add Box
-          </button>
+          {onAddBox && (
+            <button type="button" className="btn btn-primary btn--md" onClick={onAddBox}>
+              + Add Box
+            </button>
+          )}
         </div>
       ) : (
         <div
@@ -59,39 +175,23 @@ export const ContainerList: React.FC<ContainerListProps> = ({
             gap: '1.25rem',
           }}
         >
-          {containers.map((container) => (
-            <Link
-              key={container.id}
-              to={`/workspaces/${workspaceId}/containers/${container.id}`}
-              style={{
-                textDecoration: 'none',
-                color: 'inherit',
-                display: 'block',
-                outline: 'none',
-              }}
-            >
+          {sortedContainers.map((container) => {
+            const breadcrumbPath = getLocationBreadcrumb(container.storageNodeId);
+            const count = container.itemCount ?? 0;
+
+            return (
               <div
-                className="card"
-                style={{
-                  padding: '1.25rem',
-                  border: container.isArchived ? '1px dashed #cbd5e1' : '1px solid #e2e8f0',
-                  borderRadius: '0.75rem',
-                  backgroundColor: container.isArchived ? '#f8fafc' : '#ffffff',
-                  boxShadow: '0 2px 4px rgba(0,0,0,0.04)',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  justifyContent: 'space-between',
-                  minHeight: '165px',
-                  height: '100%',
-                  boxSizing: 'border-box',
-                  cursor: 'pointer',
-                  transition: 'transform 150ms ease, box-shadow 150ms ease, border-color 150ms ease',
-                }}
+                key={container.id}
+                role="link"
+                tabIndex={0}
+                onClick={() => navigate(`/workspaces/${workspaceId}/containers/${container.id}`)}
                 onKeyDown={(e) => {
-                  if (e.key === 'Enter') {
-                    // Navigate automatically via Link
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    navigate(`/workspaces/${workspaceId}/containers/${container.id}`);
                   }
                 }}
+                className="box-card-tile"
               >
                 <div>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.5rem', marginBottom: '0.5rem' }}>
@@ -105,15 +205,15 @@ export const ContainerList: React.FC<ContainerListProps> = ({
                     )}
                   </div>
 
-                  <h4 style={{ margin: '0.125rem 0 0.375rem 0', color: container.isArchived ? '#64748b' : '#0f172a', fontSize: '1.1rem', fontWeight: 700 }}>
+                  <h3 style={{ margin: '0.125rem 0 0.375rem 0', color: container.isArchived ? '#64748b' : '#0f172a', fontSize: '1.15rem', fontWeight: 700 }}>
                     {container.name || 'Unnamed Box'}
-                  </h4>
+                  </h3>
 
                   {container.description && (
                     <p style={{
                       fontSize: '0.85rem',
                       color: container.isArchived ? '#94a3b8' : '#64748b',
-                      margin: '0 0 0.5rem 0',
+                      margin: '0',
                       display: '-webkit-box',
                       WebkitLineClamp: 2,
                       WebkitBoxOrient: 'vertical',
@@ -125,31 +225,25 @@ export const ContainerList: React.FC<ContainerListProps> = ({
                   )}
                 </div>
 
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.8rem', color: '#475569', marginTop: 'auto', paddingTop: '0.5rem', borderTop: '1px solid #f1f5f9' }}>
-                  <span>📍 {getLocationName(container.storageNodeId)}</span>
-                  <span style={{ color: '#0284c7', fontWeight: 600 }}>Open Box →</span>
+                <div className="box-card-tile__divider" />
+
+                {/* Card Footer: Metadata Stack + Arrow */}
+                <div className="box-card-tile__footer">
+                  <div className="box-card-tile__meta">
+                    <span className="box-card-tile__path" title={breadcrumbPath}>
+                      📍 {breadcrumbPath}
+                    </span>
+                    <span className="box-card-tile__items-count">
+                      📦 {count} {count === 1 ? 'item' : 'items'}
+                    </span>
+                  </div>
+                  <span className="box-card-tile__arrow" aria-hidden="true">›</span>
                 </div>
               </div>
-            </Link>
-          ))}
+            );
+          })}
         </div>
       )}
-
-      {/* Show Archived Boxes Toggle Below Grid */}
-      <div style={{ paddingTop: '0.75rem', borderTop: '1px solid #f1f5f9' }}>
-        <label style={{ fontSize: '0.85rem', color: '#64748b', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '0.375rem' }}>
-          <input
-            type="checkbox"
-            checked={includeArchived}
-            onChange={(e) => setIncludeArchived(e.target.checked)}
-          />
-          Show Archived Boxes
-        </label>
-      </div>
     </div>
   );
 };
-
-
-
-

@@ -1,5 +1,8 @@
 import React, { useState } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
+import { useAuth } from '../../auth/useAuth';
 import { useItems, useCreateItem, useArchiveItem, useRestoreItem, useDeleteItem } from '../hooks/useItems';
+import { uploadItemImage } from '../api/itemApi';
 import { AddItemModal } from './AddItemModal';
 import { EditItemModal } from './EditItemModal';
 import { ItemPhotosModal } from './ItemPhotosModal';
@@ -20,8 +23,11 @@ export const ItemList: React.FC<ItemListProps> = ({
   isContainerArchived = false,
   onAddFromPhoto,
 }) => {
+  const { getIdToken } = useAuth();
+  const queryClient = useQueryClient();
   const [isDesktop, setIsDesktop] = useState(() => typeof window !== 'undefined' && window.innerWidth >= 1024);
   const [isContentsMenuOpen, setIsContentsMenuOpen] = useState(false);
+  const [isAddingItem, setIsAddingItem] = useState(false);
   const contentsMenuRef = React.useRef<HTMLDivElement>(null);
 
   React.useEffect(() => {
@@ -69,9 +75,31 @@ export const ItemList: React.FC<ItemListProps> = ({
 
   const defaultLimit = isDesktop ? 10 : 5;
 
-  const handleCreate = async (data: { name: string; category?: string; quantity: number }) => {
+  const handleCreate = async (data: { name: string; category?: string; quantity: number; photoFile?: File | null }) => {
     if (isContainerArchived) return;
-    await createItemMutation.mutateAsync(data);
+    setIsAddingItem(true);
+    try {
+      const newItem = await createItemMutation.mutateAsync({
+        name: data.name,
+        category: data.category,
+        quantity: data.quantity,
+      });
+
+      if (data.photoFile && newItem && newItem.id) {
+        try {
+          const token = await getIdToken();
+          if (token) {
+            await uploadItemImage(workspaceId, newItem.id, data.photoFile, token);
+          }
+        } catch {
+          alert('Item added successfully, but photo upload failed. You can add a photo later using the camera icon.');
+        }
+      }
+    } finally {
+      setIsAddingItem(false);
+      queryClient.invalidateQueries({ queryKey: ['items', workspaceId, containerId] });
+      queryClient.invalidateQueries({ queryKey: ['containers', workspaceId] });
+    }
   };
 
   const handleConfirmArchive = async () => {
@@ -110,9 +138,9 @@ export const ItemList: React.FC<ItemListProps> = ({
   const existingCategories = Array.from(new Set(items?.map((i) => i.category).filter(Boolean) as string[]));
 
   return (
-    <div className="card" style={{ padding: '1.5rem', marginBottom: '1.5rem' }}>
+    <div className="card item-list-card" style={{ marginBottom: '1.5rem' }}>
       {/* Header */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1.25rem' }}>
+      <div className="item-list-header">
         <div>
           <h2 style={{ fontSize: '1.25rem', fontWeight: 800, margin: '0 0 0.25rem 0', color: '#0f172a' }}>
             Contents
@@ -121,7 +149,7 @@ export const ItemList: React.FC<ItemListProps> = ({
             Items stored in this box.
           </p>
         </div>
-        <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', position: 'relative' }} ref={contentsMenuRef}>
+        <div className="item-list-header-actions" ref={contentsMenuRef}>
           {!isContainerArchived && (
             <button
               type="button"
@@ -195,19 +223,9 @@ export const ItemList: React.FC<ItemListProps> = ({
               return (
                 <li
                   key={item.id}
-                  style={{
-                    display: 'flex',
-                    justifyContent: 'space-between',
-                    alignItems: 'center',
-                    flexWrap: 'wrap',
-                    gap: '0.5rem 0.875rem',
-                    padding: '0.875rem 0.5rem',
-                    borderBottom: '1px solid #f1f5f9',
-                    borderRadius: '0.375rem',
-                    transition: 'background-color 150ms ease',
-                  }}
+                  className="item-list-row"
                 >
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.875rem', flex: '1 1 180px', minWidth: 0 }}>
+                  <div className="item-list-item-info">
                     <div
                       style={{
                         width: '38px',
@@ -224,19 +242,19 @@ export const ItemList: React.FC<ItemListProps> = ({
                     >
                       {icon}
                     </div>
-                    <div style={{ minWidth: 0 }}>
+                    <div style={{ minWidth: 0, flex: 1 }}>
                       <div style={{ fontWeight: 700, color: '#0f172a', fontSize: '0.95rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                         {item.name}
                       </div>
                       {item.category && (
-                        <div style={{ fontSize: '0.75rem', color: '#64748b', fontWeight: 500 }}>
+                        <div style={{ fontSize: '0.75rem', color: '#64748b', fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                           {item.category}
                         </div>
                       )}
                     </div>
                   </div>
 
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap', marginLeft: 'auto' }}>
+                  <div className="item-list-item-actions">
                     <span
                       style={{
                         height: '32px',
@@ -388,7 +406,7 @@ export const ItemList: React.FC<ItemListProps> = ({
         isOpen={isAddModalOpen}
         onClose={() => setIsAddModalOpen(false)}
         onSubmit={handleCreate}
-        isSubmitting={createItemMutation.isPending}
+        isSubmitting={isAddingItem || createItemMutation.isPending}
       />
 
       {/* Edit Item Modal */}

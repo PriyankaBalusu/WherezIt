@@ -48,3 +48,48 @@ export async function createWorkspace(
 
   return response.json();
 }
+
+export async function renameWorkspace(
+  workspaceId: string,
+  name: string,
+  getIdToken: () => Promise<string | null>
+): Promise<Workspace> {
+  const token = await getIdToken();
+  if (!token) throw new Error('User is not authenticated.');
+
+  const response = await fetch(`${API_BASE_URL}/workspaces/${encodeURIComponent(workspaceId)}`, {
+    method: 'PUT',
+    headers: {
+      'Authorization': `Bearer ${token}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ name }),
+  });
+
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(errorData.error || `Failed to rename workspace.`);
+  }
+
+  return response.json();
+}
+
+export async function deleteWorkspace(
+  workspaceId: string,
+  getIdToken: () => Promise<string | null>
+): Promise<void> {
+  const token = await getIdToken();
+  if (!token) throw new Error('User is not authenticated.');
+
+  const response = await fetch(`${API_BASE_URL}/workspaces/${encodeURIComponent(workspaceId)}`, {
+    method: 'DELETE',
+    headers: {
+      'Authorization': `Bearer ${token}`,
+    },
+  });
+
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(errorData.error || `Failed to delete workspace.`);
+  }
+}

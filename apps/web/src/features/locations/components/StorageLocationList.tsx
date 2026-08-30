@@ -26,10 +26,10 @@ export const StorageLocationList: React.FC<StorageLocationListProps> = ({
 
   const [actionError, setActionError] = useState<string | null>(null);
   const [activeMenuId, setActiveMenuId] = useState<string | null>(null);
+  const [collapsedNodeIds, setCollapsedNodeIds] = useState<Set<string>>(new Set());
 
   const menuRef = useRef<HTMLDivElement | null>(null);
 
-  // Close menu on outside click
   useEffect(() => {
     const handleOutsideClick = (e: MouseEvent) => {
       if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
@@ -42,7 +42,6 @@ export const StorageLocationList: React.FC<StorageLocationListProps> = ({
     };
   }, []);
 
-  // Close menu on Escape key
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
@@ -56,17 +55,30 @@ export const StorageLocationList: React.FC<StorageLocationListProps> = ({
   }, []);
 
   if (isLoading) {
-    return <div style={{ color: '#64748b', padding: '1rem' }}>Loading storage locations...</div>;
+    return <div style={{ color: '#64748b', padding: '0.75rem 0' }}>Loading storage locations...</div>;
   }
 
   if (isError) {
     return (
-      <div style={{ color: '#dc2626', padding: '1rem', backgroundColor: '#fef2f2', borderRadius: '0.5rem', border: '1px solid #fca5a5' }}>
-        <p>Error loading locations: {(error as Error)?.message}</p>
-        <button onClick={() => refetch()} className="btn-secondary" style={{ marginTop: '0.5rem' }}>Retry</button>
+      <div style={{ color: '#dc2626', padding: '0.75rem', backgroundColor: '#fef2f2', borderRadius: '0.5rem', border: '1px solid #fca5a5' }}>
+        <p style={{ margin: 0, fontSize: '0.85rem' }}>Error loading locations: {(error as Error)?.message}</p>
+        <button onClick={() => refetch()} className="btn-secondary" style={{ marginTop: '0.5rem', fontSize: '0.75rem' }}>Retry</button>
       </div>
     );
   }
+
+  const toggleNodeExpand = (id: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setCollapsedNodeIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) {
+        next.delete(id);
+      } else {
+        next.add(id);
+      }
+      return next;
+    });
+  };
 
   const handleDelete = async (id: string) => {
     setActionError(null);
@@ -94,46 +106,75 @@ export const StorageLocationList: React.FC<StorageLocationListProps> = ({
     if (nodes.length === 0) return null;
 
     return (
-      <ul style={{ listStyleType: 'none', paddingLeft: depth === 0 ? 0 : '1rem', marginTop: '0.25rem', borderLeft: depth > 0 ? '1px dashed #cbd5e1' : 'none' }}>
+      <ul
+        style={{
+          listStyleType: 'none',
+          paddingLeft: depth === 0 ? 0 : '0.875rem',
+          marginTop: '0.25rem',
+          marginBottom: 0,
+          borderLeft: depth > 0 ? '2px solid #e2e8f0' : 'none',
+          marginLeft: depth > 0 ? '0.5rem' : 0,
+        }}
+      >
         {nodes.map((node) => {
           const isSelected = selectedLocationId === node.id;
           const isMenuOpen = activeMenuId === node.id;
+          const children = locations.filter((l) => l.parentId === node.id);
+          const hasChildren = children.length > 0;
+          const isCollapsed = collapsedNodeIds.has(node.id);
 
           return (
-            <li key={node.id} style={{ marginBottom: '0.375rem' }}>
+            <li key={node.id} style={{ marginBottom: '0.25rem' }}>
               <div
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'space-between',
-                  padding: '0.4rem 0.625rem',
-                  borderRadius: '0.375rem',
-                  backgroundColor: isSelected ? '#e0f2fe' : 'transparent',
-                  border: isSelected ? '1px solid #bae6fd' : '1px solid transparent',
-                  transition: 'background-color 150ms ease',
-                }}
+                className={`location-tree-row ${isSelected ? 'location-tree-row--selected' : ''}`}
               >
-                <button
-                  type="button"
-                  onClick={() => onSelectLocation?.(isSelected ? null : node.id)}
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '0.375rem',
-                    background: 'none',
-                    border: 'none',
-                    color: isSelected ? '#0369a1' : '#0f172a',
-                    fontWeight: isSelected ? 700 : 500,
-                    fontSize: '0.9rem',
-                    cursor: 'pointer',
-                    textAlign: 'left',
-                    flex: 1,
-                    padding: 0,
-                  }}
-                >
-                  <span>{depth === 0 ? '🏠' : depth === 1 ? '🗄️' : '📁'}</span>
-                  <span>{node.name}</span>
-                </button>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', flex: 1, minWidth: 0 }}>
+                  {hasChildren ? (
+                    <button
+                      type="button"
+                      aria-label={isCollapsed ? `Expand ${node.name}` : `Collapse ${node.name}`}
+                      onClick={(e) => toggleNodeExpand(node.id, e)}
+                      style={{
+                        background: 'none',
+                        border: 'none',
+                        color: '#64748b',
+                        cursor: 'pointer',
+                        padding: '0 0.25rem',
+                        fontSize: '0.75rem',
+                        userSelect: 'none',
+                      }}
+                    >
+                      {isCollapsed ? '▸' : '▾'}
+                    </button>
+                  ) : (
+                    <span style={{ width: '1rem', display: 'inline-block' }} />
+                  )}
+
+                  <button
+                    type="button"
+                    onClick={() => onSelectLocation?.(isSelected ? null : node.id)}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '0.375rem',
+                      background: 'none',
+                      border: 'none',
+                      color: isSelected ? '#0369a1' : '#0f172a',
+                      fontWeight: isSelected ? 700 : 500,
+                      fontSize: '0.9rem',
+                      cursor: 'pointer',
+                      textAlign: 'left',
+                      flex: 1,
+                      padding: 0,
+                      overflow: 'hidden',
+                      textOverflow: 'ellipsis',
+                      whiteSpace: 'nowrap',
+                    }}
+                  >
+                    <span>{depth === 0 ? '🏠' : depth === 1 ? '🗄️' : '📁'}</span>
+                    <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{node.name}</span>
+                  </button>
+                </div>
 
                 <div style={{ position: 'relative' }}>
                   <button
@@ -149,7 +190,7 @@ export const StorageLocationList: React.FC<StorageLocationListProps> = ({
                       color: '#64748b',
                       cursor: 'pointer',
                       padding: '0.25rem',
-                      fontSize: '1rem',
+                      fontSize: '0.9rem',
                     }}
                   >
                     ⋯
@@ -200,7 +241,7 @@ export const StorageLocationList: React.FC<StorageLocationListProps> = ({
                           }}
                           style={{ display: 'block', width: '100%', padding: '0.375rem 0.75rem', border: 'none', background: 'none', textAlign: 'left', fontSize: '0.8rem', color: '#334155', cursor: 'pointer' }}
                         >
-                          Move to Root
+                          Make Root Location
                         </button>
                       )}
                       <button
@@ -211,14 +252,14 @@ export const StorageLocationList: React.FC<StorageLocationListProps> = ({
                         }}
                         style={{ display: 'block', width: '100%', padding: '0.375rem 0.75rem', border: 'none', background: 'none', textAlign: 'left', fontSize: '0.8rem', color: '#dc2626', cursor: 'pointer' }}
                       >
-                        Delete
+                        Delete Location
                       </button>
                     </div>
                   )}
                 </div>
               </div>
 
-              {renderTree(node.id, depth + 1)}
+              {hasChildren && !isCollapsed && renderTree(node.id, depth + 1)}
             </li>
           );
         })}
@@ -227,24 +268,19 @@ export const StorageLocationList: React.FC<StorageLocationListProps> = ({
   };
 
   return (
-    <div className="card" style={{ padding: '1rem' }}>
+    <div>
       {actionError && (
-        <div style={{ color: '#dc2626', marginBottom: '1rem', padding: '0.5rem 0.75rem', backgroundColor: '#fef2f2', borderRadius: '0.375rem', border: '1px solid #fca5a5', fontSize: '0.8rem' }}>
+        <div style={{ color: '#dc2626', fontSize: '0.8rem', marginBottom: '0.5rem', padding: '0.375rem 0.5rem', backgroundColor: '#fef2f2', borderRadius: '0.25rem' }}>
           {actionError}
         </div>
       )}
-
-      {/* Hierarchy Tree */}
       {locations.length === 0 ? (
-        <div style={{ textAlign: 'center', padding: '1.5rem', color: '#64748b', backgroundColor: '#f8fafc', borderRadius: '0.5rem', border: '1px dashed #cbd5e1', fontSize: '0.85rem' }}>
-          No storage locations yet.
+        <div style={{ color: '#64748b', fontSize: '0.85rem', fontStyle: 'italic', padding: '0.5rem 0' }}>
+          No locations added yet. Click "+ Add Location" to create one.
         </div>
       ) : (
-        <div>
-          {renderTree(null, 0)}
-        </div>
+        renderTree(null, 0)
       )}
     </div>
   );
 };
-
