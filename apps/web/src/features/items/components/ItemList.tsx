@@ -5,6 +5,7 @@ import { EditItemModal } from './EditItemModal';
 import { ItemPhotosModal } from './ItemPhotosModal';
 import { AddContentsChooserModal } from './AddContentsChooserModal';
 import { Item } from '../types/item';
+import { getItemIconAndStyle } from '../utils/getItemIcon';
 
 interface ItemListProps {
   workspaceId: string;
@@ -189,17 +190,7 @@ export const ItemList: React.FC<ItemListProps> = ({
         <>
           <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
             {(isExpanded ? activeItems : activeItems.slice(0, defaultLimit)).map((item) => {
-              const nameLower = (item.name + ' ' + (item.category || '')).toLowerCase();
-              let icon = '📦';
-              let bg = '#f1f5f9';
-              let border = '#e2e8f0';
-              if (nameLower.includes('ornament')) { icon = '🔴'; bg = '#fef2f2'; border = '#fca5a5'; }
-              else if (nameLower.includes('light') || nameLower.includes('lamp')) { icon = '💡'; bg = '#fffbeb'; border = '#fde68a'; }
-              else if (nameLower.includes('cord') || nameLower.includes('cable') || nameLower.includes('plug')) { icon = '🔌'; bg = '#fff7ed'; border = '#ffedd5'; }
-              else if (nameLower.includes('star')) { icon = '⭐'; bg = '#fefce8'; border = '#fef08a'; }
-              else if (nameLower.includes('sandal') || nameLower.includes('shoe') || nameLower.includes('apparel')) { icon = '🩴'; bg = '#fdf4ff'; border = '#f5d0fe'; }
-              else if (nameLower.includes('book')) { icon = '📚'; bg = '#f0fdf4'; border = '#bbf7d0'; }
-              else if (nameLower.includes('kitchen') || nameLower.includes('dish')) { icon = '🍳'; bg = '#fff1f2'; border = '#fecdd3'; }
+              const { icon, bg, border } = getItemIconAndStyle(item.name, item.category);
 
               return (
                 <li

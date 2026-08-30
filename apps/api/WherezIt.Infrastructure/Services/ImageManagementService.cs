@@ -237,19 +237,12 @@ public class ImageManagementService : IImageManagementService
             throw new KeyNotFoundException($"Container '{containerId}' was not found in workspace '{workspaceId}'.");
         }
 
-        var captureImageIds = await _dbContext.InventoryCaptures
-            .AsNoTracking()
-            .Where(ic => ic.WorkspaceId == workspaceId && ic.ContainerId == containerId)
-            .Select(ic => ic.ImageAssetId)
-            .ToListAsync(cancellationToken);
-
         var referenceImages = await _dbContext.ImageAssets
             .AsNoTracking()
             .Where(img => img.WorkspaceId == workspaceId &&
                           img.ContainerId == containerId &&
                           img.Status == "READY" &&
-                          img.ImagePurpose == "REFERENCE" &&
-                          !captureImageIds.Contains(img.Id))
+                          img.ImagePurpose == "REFERENCE")
             .OrderByDescending(img => img.CreatedAt)
             .ToListAsync(cancellationToken);
 
@@ -281,25 +274,31 @@ public class ImageManagementService : IImageManagementService
             throw new KeyNotFoundException($"Image '{imageId}' was not found for container '{containerId}' in workspace '{workspaceId}'.");
         }
 
-        var isAiCaptureImage = await _dbContext.InventoryCaptures
+        var isUsedInAiCapture = await _dbContext.InventoryCaptures
             .AnyAsync(ic => ic.ImageAssetId == imageId, cancellationToken);
 
-        if (isAiCaptureImage)
+        if (isUsedInAiCapture)
         {
-            throw new InvalidOperationException("Cannot delete an AI capture image via reference photo endpoint.");
+            // Disassociate from container reference gallery while preserving ImageAsset and InventoryCapture audit history
+            asset.ContainerId = null;
+            asset.UpdatedAt = DateTimeOffset.UtcNow;
+            await _dbContext.SaveChangesAsync(cancellationToken);
         }
+        else
+        {
+            // Standalone reference photo: delete storage object and asset entity
+            try
+            {
+                await _storage.DeleteObjectAsync(asset.ObjectPath, cancellationToken);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Failed to delete storage object at path {ObjectPath} during reference image deletion.", asset.ObjectPath);
+            }
 
-        try
-        {
-            await _storage.DeleteObjectAsync(asset.ObjectPath, cancellationToken);
+            _dbContext.ImageAssets.Remove(asset);
+            await _dbContext.SaveChangesAsync(cancellationToken);
         }
-        catch (Exception ex)
-        {
-            _logger.LogWarning(ex, "Failed to delete storage object at path {ObjectPath} during reference image deletion.", asset.ObjectPath);
-        }
-
-        _dbContext.ImageAssets.Remove(asset);
-        await _dbContext.SaveChangesAsync(cancellationToken);
     }
 
     public async Task<ImageUploadResponseDto> UploadContainerPhysicalLabelImageAsync(

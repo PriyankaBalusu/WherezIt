@@ -444,14 +444,6 @@ export const ContainerDetailScreen: React.FC = () => {
                   </span>
                 </>
               )}
-              {container.movingPriority && (
-                <>
-                  <span className="box-header-card__meta-sep">•</span>
-                  <span style={{ fontSize: '0.8rem', padding: '0.15rem 0.4rem', borderRadius: '0.25rem', backgroundColor: '#e0f2fe', color: '#0369a1', fontWeight: 'bold' }}>
-                    {container.movingPriority === 'HIGH' ? 'Open first' : container.movingPriority === 'LOW' ? 'Can wait' : 'Normal'}
-                  </span>
-                </>
-              )}
             </div>
           </div>
           <div className="box-header-card__actions" ref={menuRef}>

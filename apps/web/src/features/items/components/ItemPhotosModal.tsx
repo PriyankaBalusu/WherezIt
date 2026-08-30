@@ -259,19 +259,19 @@ export const ItemPhotosModal: React.FC<ItemPhotosModalProps> = ({
               type="button"
               className="btn-primary"
               disabled={isUploading}
-              onClick={() => libraryInputRef.current?.click()}
-              style={{ padding: '0.5rem 0.875rem', fontSize: '0.85rem' }}
-            >
-              + Add Photo
-            </button>
-            <button
-              type="button"
-              className="btn-secondary mobile-only-inline"
-              disabled={isUploading}
               onClick={() => cameraInputRef.current?.click()}
               style={{ padding: '0.5rem 0.875rem', fontSize: '0.85rem' }}
             >
-              📷 Camera
+              📷 Take Photo
+            </button>
+            <button
+              type="button"
+              className="btn-secondary"
+              disabled={isUploading}
+              onClick={() => libraryInputRef.current?.click()}
+              style={{ padding: '0.5rem 0.875rem', fontSize: '0.85rem' }}
+            >
+              📁 Choose Photo
             </button>
           </div>
 

@@ -218,4 +218,23 @@ describe('ContainerDetailScreen Regression Suite', () => {
     const btn = await screen.findByText('+ Add Existing Code or Label');
     expect(btn).toBeInTheDocument();
   });
+
+  it('renders Packed badge but excludes moving-specific priority indicators from standard Box Detail header', async () => {
+    mockPhysicalLabel = null;
+    mockLabelImage = null;
+    render(
+      <QueryClientProvider client={queryClient}>
+        <MemoryRouter initialEntries={['/workspaces/ws-123/containers/cont-123']}>
+          <Routes>
+            <Route path="/workspaces/:workspaceId/containers/:containerId" element={<ContainerDetailScreen />} />
+          </Routes>
+        </MemoryRouter>
+      </QueryClientProvider>
+    );
+
+    expect(await screen.findByText('Holiday Decorations')).toBeInTheDocument();
+    expect(screen.getByText('Packed')).toBeInTheDocument();
+    expect(screen.queryByText('Open first')).not.toBeInTheDocument();
+    expect(screen.queryByText('Can wait')).not.toBeInTheDocument();
+  });
 });

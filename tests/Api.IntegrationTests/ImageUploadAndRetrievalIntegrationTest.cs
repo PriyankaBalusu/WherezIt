@@ -202,14 +202,24 @@ public class ImageUploadAndRetrievalIntegrationTest : IClassFixture<PostgresTest
         db.InventoryCaptures.Add(capture);
         await db.SaveChangesAsync();
 
-        // 3. List reference photos -> includes refPhoto1, EXCLUDES aiPhoto
+        // 3. List reference photos -> includes BOTH refPhoto1 AND aiPhoto
         var refPhotos = await imageService.GetContainerReferenceImagesAsync(userA, wsA.Id, containerA.Id);
-        Assert.Single(refPhotos);
-        Assert.Equal(refPhoto1.Id, refPhotos[0].Id);
+        Assert.Equal(2, refPhotos.Count);
 
-        // 4. Attempt to delete AI capture photo via reference delete endpoint -> InvalidOperationException
-        await Assert.ThrowsAsync<InvalidOperationException>(() =>
-            imageService.DeleteContainerReferenceImageAsync(userA, wsA.Id, containerA.Id, aiPhoto.Id));
+        // 4. Deleting AI capture photo via reference delete endpoint -> removes from container gallery but preserves InventoryCapture audit history
+        await imageService.DeleteContainerReferenceImageAsync(userA, wsA.Id, containerA.Id, aiPhoto.Id);
+        var remainingPhotos = await imageService.GetContainerReferenceImagesAsync(userA, wsA.Id, containerA.Id);
+        Assert.Single(remainingPhotos);
+        Assert.Equal(refPhoto1.Id, remainingPhotos[0].Id);
+
+        // Verify InventoryCapture and ImageAsset audit history remain intact
+        var captureInDb = await db.InventoryCaptures.FindAsync(capture.Id);
+        Assert.NotNull(captureInDb);
+        Assert.Equal(aiPhoto.Id, captureInDb!.ImageAssetId);
+
+        var aiPhotoAssetInDb = await db.ImageAssets.FindAsync(aiPhoto.Id);
+        Assert.NotNull(aiPhotoAssetInDb);
+        Assert.Null(aiPhotoAssetInDb!.ContainerId);
 
         // 5. User B (unauthorized) attempt to list or delete reference photo -> UnauthorizedAccessException
         await Assert.ThrowsAsync<UnauthorizedAccessException>(() =>
@@ -357,5 +367,46 @@ public class ImageUploadAndRetrievalIntegrationTest : IClassFixture<PostgresTest
 
         await Assert.ThrowsAsync<UnauthorizedAccessException>(() =>
             imageService.DeleteContainerPhysicalLabelImageAsync(userB, wsA.Id, containerA.Id));
+    }
+
+    [Fact]
+    public async Task AiCaptureImage_AppearsInContainerReferenceImages()
+    {
+        using var scope = _fixture.Services.CreateScope();
+        var workspaceService = scope.ServiceProvider.GetRequiredService<IWorkspaceService>();
+        var locationService = scope.ServiceProvider.GetRequiredService<IStorageLocationService>();
+        var containerService = scope.ServiceProvider.GetRequiredService<IContainerService>();
+        var imageService = scope.ServiceProvider.GetRequiredService<IImageManagementService>();
+        var db = scope.ServiceProvider.GetRequiredService<WherezItDbContext>();
+
+        var user = new AuthenticatedIdentity($"ai_ref_{Guid.NewGuid():N}", "ai_ref@example.com", true);
+        var ws = await workspaceService.CreateWorkspaceAsync(user, new CreateWorkspaceRequestDto("AI Ref WS"));
+        var loc = await locationService.CreateLocationAsync(user, ws.Id, new CreateStorageLocationRequestDto("Bay AI", null));
+        var container = await containerService.CreateContainerAsync(user, ws.Id, new CreateContainerRequestDto(loc.Id, "Bin AI", null));
+
+        var sampleBytes = new byte[] { 0xFF, 0xD8, 0xFF, 0xE0, 0x00, 0x10, 0x4A, 0x46, 0x49, 0x46, 0x00, 0x01 };
+        using var uploadStream = new MemoryStream(sampleBytes);
+
+        var uploadResult = await imageService.UploadContainerImageAsync(
+            user, ws.Id, container.Id, uploadStream, "image/jpeg", sampleBytes.Length);
+
+        // Create an InventoryCapture linking to this image
+        var capture = new InventoryCapture
+        {
+            Id = Guid.NewGuid(),
+            WorkspaceId = ws.Id,
+            ContainerId = container.Id,
+            ImageAssetId = uploadResult.Id,
+            Status = "CONFIRMED",
+            CreatedAt = DateTimeOffset.UtcNow,
+            UpdatedAt = DateTimeOffset.UtcNow
+        };
+        db.InventoryCaptures.Add(capture);
+        await db.SaveChangesAsync();
+
+        // Verify GetContainerReferenceImagesAsync returns the image even though it's linked to an InventoryCapture
+        var images = await imageService.GetContainerReferenceImagesAsync(user, ws.Id, container.Id);
+        Assert.Single(images);
+        Assert.Equal(uploadResult.Id, images[0].Id);
     }
 }

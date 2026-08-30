@@ -74,17 +74,18 @@ export const ContainerList: React.FC<ContainerListProps> = ({
                 className="card"
                 style={{
                   padding: '1.25rem',
-                  border: '1px solid #e2e8f0',
+                  border: container.isArchived ? '1px dashed #cbd5e1' : '1px solid #e2e8f0',
                   borderRadius: '0.75rem',
                   backgroundColor: container.isArchived ? '#f8fafc' : '#ffffff',
                   boxShadow: '0 2px 4px rgba(0,0,0,0.04)',
-                  opacity: container.isArchived ? 0.75 : 1,
                   display: 'flex',
                   flexDirection: 'column',
-                  gap: '0.75rem',
+                  justifyContent: 'space-between',
+                  minHeight: '165px',
+                  height: '100%',
+                  boxSizing: 'border-box',
                   cursor: 'pointer',
                   transition: 'transform 150ms ease, box-shadow 150ms ease, border-color 150ms ease',
-                  minHeight: '130px',
                 }}
                 onKeyDown={(e) => {
                   if (e.key === 'Enter') {
@@ -92,19 +93,33 @@ export const ContainerList: React.FC<ContainerListProps> = ({
                   }
                 }}
               >
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.5rem' }}>
-                  <span className="badge badge-boxid">
-                    {container.boxId}
-                  </span>
-                </div>
-
                 <div>
-                  <h4 style={{ margin: '0.125rem 0', color: '#0f172a', fontSize: '1.1rem', fontWeight: 700 }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.5rem', marginBottom: '0.5rem' }}>
+                    <span className="badge badge-boxid">
+                      {container.boxId}
+                    </span>
+                    {container.isArchived && (
+                      <span className="badge badge-archived" style={{ backgroundColor: '#f1f5f9', color: '#64748b', border: '1px solid #cbd5e1', fontSize: '0.75rem', fontWeight: 600 }}>
+                        Archived
+                      </span>
+                    )}
+                  </div>
+
+                  <h4 style={{ margin: '0.125rem 0 0.375rem 0', color: container.isArchived ? '#64748b' : '#0f172a', fontSize: '1.1rem', fontWeight: 700 }}>
                     {container.name || 'Unnamed Box'}
                   </h4>
 
                   {container.description && (
-                    <p style={{ fontSize: '0.85rem', color: '#64748b', margin: '0 0 0.5rem 0', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                    <p style={{
+                      fontSize: '0.85rem',
+                      color: container.isArchived ? '#94a3b8' : '#64748b',
+                      margin: '0 0 0.5rem 0',
+                      display: '-webkit-box',
+                      WebkitLineClamp: 2,
+                      WebkitBoxOrient: 'vertical',
+                      overflow: 'hidden',
+                      textOverflow: 'ellipsis',
+                    }}>
                       {container.description}
                     </p>
                   )}
