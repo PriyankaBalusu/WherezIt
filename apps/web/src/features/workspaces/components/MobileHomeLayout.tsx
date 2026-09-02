@@ -48,7 +48,12 @@ export const MobileHomeLayout: React.FC<MobileHomeLayoutProps> = ({
   const [isAllLocationsView, setIsAllLocationsView] = useState(false);
   const [filterBy, setFilterBy] = useState<'active' | 'all' | 'archived'>('active');
   const [sortBy, setSortBy] = useState<'number' | 'name' | 'items'>('number');
-  const [visibleCount, setVisibleCount] = useState<number>(4);
+  const [isExpanded, setIsExpanded] = useState(false);
+
+  // Reset expanded state back to 10-box preview whenever filtering/context changes
+  React.useEffect(() => {
+    setIsExpanded(false);
+  }, [activeWorkspace.id, selectedLocationId, filterBy, sortBy]);
 
   const selectedLocation = locations.find((l) => l.id === selectedLocationId);
 
@@ -159,8 +164,8 @@ export const MobileHomeLayout: React.FC<MobileHomeLayoutProps> = ({
   }, [containers, filterBy, sortBy, selectedLocationId, locations]);
 
   const visibleBoxes = useMemo(() => {
-    return filteredContainers.slice(0, visibleCount);
-  }, [filteredContainers, visibleCount]);
+    return isExpanded ? filteredContainers : filteredContainers.slice(0, 9);
+  }, [filteredContainers, isExpanded]);
 
   // Top-level root locations for Home Preview
   const topLocations = useMemo(() => {
@@ -598,13 +603,15 @@ export const MobileHomeLayout: React.FC<MobileHomeLayoutProps> = ({
               );
             })}
 
-            {visibleCount < filteredContainers.length && (
+            {filteredContainers.length > 9 && (
               <button
                 type="button"
                 className="mobile-show-more-btn"
-                onClick={() => setVisibleCount((prev) => prev + 4)}
+                onClick={() => setIsExpanded((prev) => !prev)}
               >
-                Show more ({filteredContainers.length - visibleCount} remaining)
+                {!isExpanded
+                  ? `View all boxes (${filteredContainers.length - 9} more) →`
+                  : 'Show fewer'}
               </button>
             )}
           </div>

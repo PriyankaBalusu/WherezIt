@@ -113,15 +113,15 @@ app.MapHealthChecks("/health/ready").DisableRateLimiting();
 
 app.MapControllers();
 
-// Development-only demo seed CLI
-if (app.Environment.IsDevelopment() && args.Contains("--seed-demo"))
+// Development-only Bug 4 preview seed CLI
+if (app.Environment.IsDevelopment() && args.Contains("--seed-bug4"))
 {
-    var index = Array.IndexOf(args, "--seed-demo");
+    var index = Array.IndexOf(args, "--seed-bug4");
 
     if (index + 2 >= args.Length)
     {
         Console.Error.WriteLine(
-            "Usage: dotnet run -- --seed-demo <firebaseUid> <email>");
+            "Usage: dotnet run -- --seed-bug4 <firebaseUid> <email>");
         return;
     }
 
@@ -129,14 +129,105 @@ if (app.Environment.IsDevelopment() && args.Contains("--seed-demo"))
     var email = args[index + 2];
 
     using var scope = app.Services.CreateScope();
+    var seedService = scope.ServiceProvider.GetRequiredService<IBug4SeedService>();
+    var result = await seedService.SeedBug4DataAsync(firebaseUid, email);
 
-    var seedService =
-        scope.ServiceProvider.GetRequiredService<IDemoSeedService>();
+    Console.WriteLine($"Bug 4 seed completed: Created {result.ContainersCreated}, Skipped {result.ContainersSkipped}. Workspace '{result.WorkspaceName}' ({result.WorkspaceId}). {result.Message}");
+    return;
+}
 
-    var result =
-        await seedService.SeedDemoDataAsync(firebaseUid, email);
+// Development-only Bug 4 seed cleanup CLI
+if (app.Environment.IsDevelopment() && args.Contains("--cleanup-bug4"))
+{
+    var index = Array.IndexOf(args, "--cleanup-bug4");
 
-    Console.WriteLine($"Demo seed completed: {result.Message}");
+    if (index + 2 >= args.Length)
+    {
+        Console.Error.WriteLine(
+            "Usage: dotnet run -- --cleanup-bug4 <firebaseUid> <email>");
+        return;
+    }
+
+    var firebaseUid = args[index + 1];
+    var email = args[index + 2];
+
+    using var scope = app.Services.CreateScope();
+    var seedService = scope.ServiceProvider.GetRequiredService<IBug4SeedService>();
+    var result = await seedService.CleanupBug4DataAsync(firebaseUid, email);
+
+    Console.WriteLine($"Bug 4 cleanup completed: Removed {result.ContainersRemoved} seed containers from Workspace ({result.WorkspaceId}). {result.Message}");
+    return;
+}
+
+// Large Demo Data Seeder CLI
+var allowDemoSeed = string.Equals(Environment.GetEnvironmentVariable("WHEREZIT_ALLOW_DEMO_SEED"), "true", StringComparison.OrdinalIgnoreCase);
+
+if (args.Contains("--seed-demo-data"))
+{
+    if (!app.Environment.IsDevelopment() && !allowDemoSeed)
+    {
+        Console.Error.WriteLine("Demo data seeding is restricted to Development environment or requires WHEREZIT_ALLOW_DEMO_SEED=true.");
+        return;
+    }
+
+    var index = Array.IndexOf(args, "--seed-demo-data");
+    if (index + 2 >= args.Length)
+    {
+        Console.Error.WriteLine("Usage: dotnet run -- --seed-demo-data <firebaseUid> <email>");
+        return;
+    }
+
+    var firebaseUid = args[index + 1];
+    var email = args[index + 2];
+
+    using var scope = app.Services.CreateScope();
+    var demoSeedService = scope.ServiceProvider.GetRequiredService<WherezIt.Application.Seed.Services.IDemoDataSeedService>();
+    var result = await demoSeedService.SeedDemoDataAsync(firebaseUid, email);
+
+    Console.WriteLine("Demo Seed Complete");
+    Console.WriteLine($"User: {firebaseUid} ({email})");
+    Console.WriteLine($"Demo image directory: {result.ResolvedImageDirectory}");
+    Console.WriteLine($"Storage Spaces: Created {result.WorkspacesCreated}, Skipped {result.WorkspacesSkipped}");
+    Console.WriteLine($"Locations: Created {result.LocationsCreated}");
+    Console.WriteLine($"Boxes: Created {result.BoxesCreated}");
+    Console.WriteLine($"Items: Created {result.ItemsCreated}");
+    Console.WriteLine($"Reference Photos: Created {result.ReferencePhotosCreated}");
+    Console.WriteLine($"Item Photos: Created {result.ItemPhotosCreated}");
+    Console.WriteLine($"Moving-state boxes: Packed {result.PackedBoxes}, Open-first {result.OpenFirstBoxes}, Temporary-location {result.TemporaryLocationBoxes}");
+    Console.WriteLine($"Errors: {result.Errors}");
+    Console.WriteLine(result.Message);
+    return;
+}
+
+if (args.Contains("--cleanup-demo-data"))
+{
+    if (!app.Environment.IsDevelopment() && !allowDemoSeed)
+    {
+        Console.Error.WriteLine("Demo data cleanup is restricted to Development environment or requires WHEREZIT_ALLOW_DEMO_SEED=true.");
+        return;
+    }
+
+    var index = Array.IndexOf(args, "--cleanup-demo-data");
+    if (index + 1 >= args.Length)
+    {
+        Console.Error.WriteLine("Usage: dotnet run -- --cleanup-demo-data <firebaseUid>");
+        return;
+    }
+
+    var firebaseUid = args[index + 1];
+
+    using var scope = app.Services.CreateScope();
+    var demoSeedService = scope.ServiceProvider.GetRequiredService<WherezIt.Application.Seed.Services.IDemoDataSeedService>();
+    var result = await demoSeedService.CleanupDemoDataAsync(firebaseUid);
+
+    Console.WriteLine("Demo Cleanup Complete");
+    Console.WriteLine($"User: {firebaseUid}");
+    Console.WriteLine($"Storage Spaces Removed: {result.WorkspacesRemoved}");
+    Console.WriteLine($"Locations Removed: {result.LocationsRemoved}");
+    Console.WriteLine($"Boxes Removed: {result.BoxesRemoved}");
+    Console.WriteLine($"Items Removed: {result.ItemsRemoved}");
+    Console.WriteLine($"Image Assets Removed: {result.ImageAssetsRemoved}");
+    Console.WriteLine(result.Message);
     return;
 }
 

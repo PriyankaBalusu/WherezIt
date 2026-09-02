@@ -31,6 +31,7 @@ export function useCreateStorageLocation(workspaceId: string) {
     mutationFn: (data: CreateStorageLocationRequest) => createLocation(workspaceId, data, getIdToken),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['locations', workspaceId] });
+      queryClient.invalidateQueries({ queryKey: ['workspace-audits'] });
     },
   });
 }
@@ -44,6 +45,7 @@ export function useRenameStorageLocation(workspaceId: string) {
       renameLocation(workspaceId, locationId, data, getIdToken),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['locations', workspaceId] });
+      queryClient.invalidateQueries({ queryKey: ['workspace-audits'] });
     },
   });
 }
@@ -56,6 +58,7 @@ export function useDeleteStorageLocation(workspaceId: string) {
     mutationFn: (locationId: string) => deleteLocation(workspaceId, locationId, getIdToken),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['locations', workspaceId] });
+      queryClient.invalidateQueries({ queryKey: ['workspace-audits'] });
     },
   });
 }

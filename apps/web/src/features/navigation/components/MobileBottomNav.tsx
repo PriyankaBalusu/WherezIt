@@ -27,7 +27,7 @@ export const MobileBottomNav: React.FC = () => {
       </NavLink>
 
       <NavLink
-        to="/move?workflow=MOVE_BOXES"
+        to="/move"
         className={({ isActive }) => `mobile-bottom-nav-item ${isActive ? 'active' : ''}`}
       >
         <span className="mobile-bottom-nav-icon">🚚</span>

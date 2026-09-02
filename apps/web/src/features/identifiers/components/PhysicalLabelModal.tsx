@@ -121,6 +121,7 @@ export const PhysicalLabelModal: React.FC<PhysicalLabelModalProps> = ({
             <input
               id="physical-label-input"
               type="text"
+              maxLength={100}
               placeholder="e.g. Christmas Box, Blue Tote, Kitchen #2"
               value={label}
               onChange={(e) => {

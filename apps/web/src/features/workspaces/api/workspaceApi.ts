@@ -2,6 +2,17 @@ import { Workspace, CreateWorkspaceRequest } from '../types/workspace';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || import.meta.env.VITE_API_URL || '/api/v1';
 
+export interface WorkspaceAudit {
+  id: string;
+  workspaceId: string;
+  workspaceName: string;
+  inventoryNamespaceId: string;
+  eventType: 'WORKSPACE_CREATED' | 'WORKSPACE_DELETED';
+  actorUserId: string;
+  occurredAt: string;
+  detailsJson?: string | null;
+}
+
 export async function fetchWorkspaces(getIdToken: () => Promise<string | null>): Promise<Workspace[]> {
   const token = await getIdToken();
   if (!token) {
@@ -92,4 +103,43 @@ export async function deleteWorkspace(
     const errorData = await response.json().catch(() => ({}));
     throw new Error(errorData.error || `Failed to delete workspace.`);
   }
+}
+
+export async function leaveWorkspace(
+  workspaceId: string,
+  getIdToken: () => Promise<string | null>
+): Promise<void> {
+  const token = await getIdToken();
+  if (!token) throw new Error('User is not authenticated.');
+
+  const response = await fetch(`${API_BASE_URL}/workspaces/${encodeURIComponent(workspaceId)}/leave`, {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${token}`,
+    },
+  });
+
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(errorData.error || `Failed to leave workspace.`);
+  }
+}
+
+export async function fetchWorkspaceAudits(getIdToken: () => Promise<string | null>): Promise<WorkspaceAudit[]> {
+  const token = await getIdToken();
+  if (!token) throw new Error('User is not authenticated.');
+
+  const response = await fetch(`${API_BASE_URL}/workspaces/audits`, {
+    method: 'GET',
+    headers: {
+      'Authorization': `Bearer ${token}`,
+      'Content-Type': 'application/json',
+    },
+  });
+
+  if (!response.ok) {
+    throw new Error(`Failed to fetch workspace lifecycle activity.`);
+  }
+
+  return response.json();
 }

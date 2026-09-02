@@ -177,6 +177,26 @@ public class ContainerService : IContainerService
             }
         }
 
+        string? normName = null;
+        if (!string.IsNullOrWhiteSpace(request.Name))
+        {
+            normName = request.Name.Trim();
+            if (normName.Length > 100)
+            {
+                throw new ArgumentException("Container name must be 100 characters or fewer.", nameof(request));
+            }
+        }
+
+        string? normDesc = null;
+        if (!string.IsNullOrWhiteSpace(request.Description))
+        {
+            normDesc = request.Description.Trim();
+            if (normDesc.Length > 500)
+            {
+                throw new ArgumentException("Description must be 500 characters or fewer.", nameof(request));
+            }
+        }
+
         var workspace = await _dbContext.Workspaces
             .AsNoTracking()
             .FirstOrDefaultAsync(w => w.Id == workspaceId, cancellationToken);
@@ -196,8 +216,8 @@ public class ContainerService : IContainerService
             InventoryNamespaceId = workspace.InventoryNamespaceId,
             StorageNodeId = request.StorageNodeId,
             BoxNumber = boxNumber,
-            Name = request.Name?.Trim(),
-            Description = request.Description?.Trim(),
+            Name = normName,
+            Description = normDesc,
             PhysicalLabel = normPhysicalLabel,
             DestinationStorageNodeId = request.DestinationStorageNodeId,
             IsPacked = request.IsPacked ?? false,
@@ -282,9 +302,23 @@ public class ContainerService : IContainerService
 
         if (request.Name != null)
         {
-            container.Name = request.Name.Trim();
+            var normName = request.Name.Trim();
+            if (normName.Length > 100)
+            {
+                throw new ArgumentException("Container name must be 100 characters or fewer.", nameof(request));
+            }
+            container.Name = string.IsNullOrEmpty(normName) ? null : normName;
         }
-        container.Description = request.Description?.Trim();
+
+        if (request.Description != null)
+        {
+            var normDesc = request.Description.Trim();
+            if (normDesc.Length > 500)
+            {
+                throw new ArgumentException("Description must be 500 characters or fewer.", nameof(request));
+            }
+            container.Description = string.IsNullOrEmpty(normDesc) ? null : normDesc;
+        }
         if (request.DestinationStorageNodeId.HasValue || request.DestinationStorageNodeId == null)
         {
             container.DestinationStorageNodeId = request.DestinationStorageNodeId;

@@ -13,4 +13,6 @@ public interface IWorkspaceService
     Task<WorkspaceResponseDto> CreateWorkspaceAsync(AuthenticatedIdentity identity, CreateWorkspaceRequestDto request, CancellationToken cancellationToken = default);
     Task<WorkspaceResponseDto> RenameWorkspaceAsync(AuthenticatedIdentity identity, Guid workspaceId, string newName, CancellationToken cancellationToken = default);
     Task DeleteWorkspaceAsync(AuthenticatedIdentity identity, Guid workspaceId, CancellationToken cancellationToken = default);
+    Task LeaveWorkspaceAsync(AuthenticatedIdentity identity, Guid workspaceId, CancellationToken cancellationToken = default);
+    Task<List<WorkspaceAuditResponseDto>> GetWorkspaceAuditsAsync(AuthenticatedIdentity identity, CancellationToken cancellationToken = default);
 }

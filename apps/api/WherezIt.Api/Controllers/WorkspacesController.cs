@@ -94,10 +94,43 @@ public class WorkspacesController : ControllerBase
             await _workspaceService.DeleteWorkspaceAsync(identity, workspaceId, cancellationToken);
             return NoContent();
         }
+        catch (UnauthorizedAccessException ex)
+        {
+            return Forbid(ex.Message);
+        }
+    }
+
+    [HttpPost("{workspaceId}/leave")]
+    public async Task<IActionResult> LeaveWorkspace(
+        [FromRoute] Guid workspaceId,
+        CancellationToken cancellationToken)
+    {
+        var identity = GetAuthenticatedIdentity();
+        if (identity == null) return Unauthorized();
+
+        try
+        {
+            await _workspaceService.LeaveWorkspaceAsync(identity, workspaceId, cancellationToken);
+            return NoContent();
+        }
         catch (UnauthorizedAccessException)
         {
             return Forbid();
         }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { error = ex.Message });
+        }
+    }
+
+    [HttpGet("audits")]
+    public async Task<IActionResult> GetWorkspaceAudits(CancellationToken cancellationToken)
+    {
+        var identity = GetAuthenticatedIdentity();
+        if (identity == null) return Unauthorized();
+
+        var audits = await _workspaceService.GetWorkspaceAuditsAsync(identity, cancellationToken);
+        return Ok(audits);
     }
 
     private AuthenticatedIdentity? GetAuthenticatedIdentity()

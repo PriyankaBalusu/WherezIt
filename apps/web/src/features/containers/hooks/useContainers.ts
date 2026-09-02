@@ -54,6 +54,7 @@ export function useUpdateContainer(workspaceId: string) {
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: ['containers', workspaceId] });
       queryClient.invalidateQueries({ queryKey: ['container', workspaceId, variables.containerId] });
+      queryClient.invalidateQueries({ queryKey: ['boxHistory', workspaceId, variables.containerId] });
     },
   });
 }
@@ -71,6 +72,7 @@ export function useArchiveContainer(workspaceId: string) {
       });
       queryClient.invalidateQueries({ queryKey: ['containers', workspaceId] });
       queryClient.invalidateQueries({ queryKey: ['container', workspaceId, containerId] });
+      queryClient.invalidateQueries({ queryKey: ['boxHistory', workspaceId, containerId] });
     },
   });
 }
@@ -88,6 +90,7 @@ export function useRestoreContainer(workspaceId: string) {
       });
       queryClient.invalidateQueries({ queryKey: ['containers', workspaceId] });
       queryClient.invalidateQueries({ queryKey: ['container', workspaceId, containerId] });
+      queryClient.invalidateQueries({ queryKey: ['boxHistory', workspaceId, containerId] });
     },
   });
 }

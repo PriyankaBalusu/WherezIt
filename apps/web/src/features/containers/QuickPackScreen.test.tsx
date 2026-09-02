@@ -1051,5 +1051,88 @@ describe('QuickPackScreen Phase 2 (Landing, Pack a Box, Move Boxes)', () => {
         );
       });
     });
+
+    it('Moving Assistant renders theme-aware CSS variables and supports dark-mode layout', async () => {
+      document.documentElement.setAttribute('data-theme', 'dark');
+
+      render(
+        <MemoryRouter initialEntries={['/move?workflow=MOVE_BOXES']}>
+          <Routes>
+            <Route path="/move" element={<QuickPackScreen />} />
+          </Routes>
+        </MemoryRouter>
+      );
+
+      // 1. Discovery Filters panel uses theme-aware background/border variables
+      const discoveryFiltersTitle = screen.getByText('Discovery Filters');
+      const discoveryPanel = discoveryFiltersTitle.parentElement;
+      expect(discoveryPanel?.style.backgroundColor).toContain('var(--color-bg-subtle');
+      expect(discoveryPanel?.style.border).toContain('var(--color-border');
+
+      // 2. Filter controls use theme-aware ThemedSelect trigger class
+      const workspaceSelect = screen.getByRole('button', { name: /Storage Space/i });
+      expect(workspaceSelect).toHaveClass('themed-select-trigger');
+
+      // 3. Search input uses theme-aware class
+      const searchInput = screen.getByPlaceholderText(/Search boxes/i);
+      expect(searchInput).toHaveClass('quickpack-input');
+
+      // 4. Selected Boxes panel renders with quickpack-summary-card theme class
+      const selectedSummaryTitle = screen.getByText(/Selected Boxes/i);
+      const selectedSummaryCard = selectedSummaryTitle.parentElement;
+      expect(selectedSummaryCard).toHaveClass('quickpack-summary-card');
+
+      // Reset root attribute
+      document.documentElement.removeAttribute('data-theme');
+    });
+
+    it('Light mode fallback variables remain preserved', () => {
+      document.documentElement.setAttribute('data-theme', 'light');
+
+      render(
+        <MemoryRouter initialEntries={['/move?workflow=MOVE_BOXES']}>
+          <Routes>
+            <Route path="/move" element={<QuickPackScreen />} />
+          </Routes>
+        </MemoryRouter>
+      );
+
+      const discoveryFiltersTitle = screen.getByText('Discovery Filters');
+      const discoveryPanel = discoveryFiltersTitle.parentElement;
+      expect(discoveryPanel?.style.backgroundColor).toContain('#f8fafc');
+
+      document.documentElement.removeAttribute('data-theme');
+    });
+
+    it('Unpack box cards render theme-aware classes and badges in light and dark mode', async () => {
+      document.documentElement.setAttribute('data-theme', 'dark');
+
+      render(
+        <MemoryRouter initialEntries={['/quick-pack?workflow=UNPACK']}>
+          <Routes>
+            <Route path="/quick-pack" element={<QuickPackScreen />} />
+          </Routes>
+        </MemoryRouter>
+      );
+
+      // Verify Unpack renders
+      expect(screen.getByText('Unpack')).toBeInTheDocument();
+
+      // Verify unpack choice row box card has theme class
+      const boxCardTitle = screen.getByText('Kitchen Appliances');
+      const boxCard = boxCardTitle.closest('.unpack-choice-row');
+      expect(boxCard).toBeInTheDocument();
+      expect(boxCard).toHaveClass('unpack-choice-row');
+
+      // Verify badges remain rendered
+      expect(screen.getByText('Packed')).toBeInTheDocument();
+      expect(screen.getByText('Open first')).toBeInTheDocument();
+
+      // Verify search input remains functional with theme class
+      const searchInput = screen.getByPlaceholderText(/e\.g\. BOX 004/i);
+      expect(searchInput).toHaveClass('quickpack-input');
+
+      document.documentElement.removeAttribute('data-theme');
+    });
   });
 });

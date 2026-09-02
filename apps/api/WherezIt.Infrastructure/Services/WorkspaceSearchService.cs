@@ -225,7 +225,13 @@ public class WorkspaceSearchService : IWorkspaceSearchService
                     continue;
 
                 string phrase3 = $"{tokens[i]} {tokens[i + 1]} {tokens[i + 2]}";
+                string collapsed3 = $"{tokens[i]}{tokens[i + 1]}{tokens[i + 2]}";
                 var matches = SearchVocabulary.FindConceptsForPhrase(phrase3);
+                if (matches.Count == 0)
+                {
+                    matches = SearchVocabulary.FindConceptsForPhrase(collapsed3);
+                }
+
                 if (matches.Count > 0)
                 {
                     foreach (var m in matches)
@@ -245,7 +251,14 @@ public class WorkspaceSearchService : IWorkspaceSearchService
                     continue;
 
                 string phrase2 = $"{tokens[i]} {tokens[i + 1]}";
+                string collapsed2 = $"{tokens[i]}{tokens[i + 1]}";
+
                 var matches = SearchVocabulary.FindConceptsForPhrase(phrase2);
+                if (matches.Count == 0)
+                {
+                    matches = SearchVocabulary.FindConceptsForPhrase(collapsed2);
+                }
+
                 if (matches.Count > 0)
                 {
                     foreach (var m in matches)
@@ -264,6 +277,13 @@ public class WorkspaceSearchService : IWorkspaceSearchService
             if (consumedIndices.Contains(i)) continue;
 
             string token = tokens[i];
+
+            // Exclude single-character letter noise tokens in multi-token queries
+            if (tokens.Count > 1 && token.Length == 1 && !char.IsDigit(token[0]))
+            {
+                continue;
+            }
+
             var matches = SearchVocabulary.FindConceptsForPhrase(token);
             if (matches.Count > 0)
             {
@@ -398,6 +418,32 @@ public class WorkspaceSearchService : IWorkspaceSearchService
         return bestTerm;
     }
 
+    private static string CollapseString(string input)
+    {
+        if (string.IsNullOrWhiteSpace(input)) return string.Empty;
+        var sb = new System.Text.StringBuilder(input.Length);
+        foreach (char c in input)
+        {
+            if (char.IsLetterOrDigit(c))
+            {
+                sb.Append(char.ToLowerInvariant(c));
+            }
+        }
+        return sb.ToString();
+    }
+
+    private static bool IsTokenMatch(string text, string token)
+    {
+        if (string.IsNullOrEmpty(text) || string.IsNullOrEmpty(token)) return false;
+        if (token.Length > 1)
+        {
+            return text.Contains(token);
+        }
+
+        var words = text.Split(new[] { ' ', '-', '_', '/', '.', ',' }, StringSplitOptions.RemoveEmptyEntries);
+        return words.Any(w => w.Equals(token, StringComparison.OrdinalIgnoreCase));
+    }
+
     private static double ScoreContainer(Container container, SearchQueryContext context)
     {
         // 1. Exact Box Number Match (Weight: VERY HIGH - 100)
@@ -422,6 +468,23 @@ public class WorkspaceSearchService : IWorkspaceSearchService
             return 85;
         }
 
+        string collapsedCName = CollapseString(cName);
+        string collapsedCLabel = CollapseString(cLabel);
+        string collapsedCleaned = CollapseString(context.CleanedQuery);
+        string collapsedRaw = CollapseString(context.RawQuery);
+
+        if (!string.IsNullOrEmpty(collapsedCleaned))
+        {
+            if (!string.IsNullOrEmpty(collapsedCName) && (collapsedCName == collapsedCleaned || collapsedCName == collapsedRaw))
+            {
+                return 90;
+            }
+            if (!string.IsNullOrEmpty(collapsedCLabel) && (collapsedCLabel == collapsedCleaned || collapsedCLabel == collapsedRaw))
+            {
+                return 85;
+            }
+        }
+
         if (boxDisplay.Equals(context.RawQuery, StringComparison.OrdinalIgnoreCase))
         {
             return 95;
@@ -435,12 +498,12 @@ public class WorkspaceSearchService : IWorkspaceSearchService
             bool compMatched = false;
             double compScore = 0;
 
-            if (cName.Contains(component.Token))
+            if (IsTokenMatch(cName, component.Token))
             {
                 compScore += cName.Equals(component.Token) ? 40 : 30;
                 compMatched = true;
             }
-            else if (cLabel.Contains(component.Token))
+            else if (IsTokenMatch(cLabel, component.Token))
             {
                 compScore += 25;
                 compMatched = true;
@@ -462,12 +525,12 @@ public class WorkspaceSearchService : IWorkspaceSearchService
 
             if (!compMatched)
             {
-                if (locName.Contains(component.Token))
+                if (IsTokenMatch(locName, component.Token))
                 {
                     compScore += 15;
                     compMatched = true;
                 }
-                else if (cDesc.Contains(component.Token))
+                else if (IsTokenMatch(cDesc, component.Token))
                 {
                     compScore += 10;
                     compMatched = true;
@@ -533,6 +596,25 @@ public class WorkspaceSearchService : IWorkspaceSearchService
             return CalculateScoreWithContextBoost(80, item, context);
         }
 
+        string collapsedIName = CollapseString(iName);
+        string collapsedCleaned = CollapseString(context.CleanedQuery);
+        string collapsedRaw = CollapseString(context.RawQuery);
+
+        if (!string.IsNullOrEmpty(collapsedCleaned))
+        {
+            if (!string.IsNullOrEmpty(collapsedIName) && (collapsedIName == collapsedCleaned || collapsedIName == collapsedRaw))
+            {
+                hasIndependentItemMatch = true;
+                return CalculateScoreWithContextBoost(95, item, context);
+            }
+
+            if (!string.IsNullOrEmpty(collapsedIName) && collapsedCleaned.Length >= 2 && collapsedIName.StartsWith(collapsedCleaned))
+            {
+                hasIndependentItemMatch = true;
+                return CalculateScoreWithContextBoost(80, item, context);
+            }
+        }
+
         double rawScore = 0;
         int matchedItemComponents = 0;
         var itemWords = iName.Split(new[] { ' ', '-', '_', '/', '.' }, StringSplitOptions.RemoveEmptyEntries);
@@ -543,7 +625,7 @@ public class WorkspaceSearchService : IWorkspaceSearchService
             double compScore = 0;
 
             // Direct literal match in item name
-            if (iName.Contains(component.Token))
+            if (IsTokenMatch(iName, component.Token))
             {
                 compScore += iName.Equals(component.Token) ? 40 : 30;
                 compMatchedOnItem = true;
@@ -592,7 +674,7 @@ public class WorkspaceSearchService : IWorkspaceSearchService
         {
             foreach (var component in context.Components)
             {
-                if (!string.IsNullOrEmpty(locName) && locName.Contains(component.Token))
+                if (!string.IsNullOrEmpty(locName) && IsTokenMatch(locName, component.Token))
                 {
                     hasLocationIntentMatch = true;
                     rawScore += 30;
@@ -637,8 +719,8 @@ public class WorkspaceSearchService : IWorkspaceSearchService
 
         foreach (var component in context.Components)
         {
-            if ((!string.IsNullOrEmpty(cName) && cName.Contains(component.Token)) ||
-                (!string.IsNullOrEmpty(cLabel) && cLabel.Contains(component.Token)))
+            if ((!string.IsNullOrEmpty(cName) && IsTokenMatch(cName, component.Token)) ||
+                (!string.IsNullOrEmpty(cLabel) && IsTokenMatch(cLabel, component.Token)))
             {
                 contextBoost += 15;
             }
@@ -650,11 +732,11 @@ public class WorkspaceSearchService : IWorkspaceSearchService
                     contextBoost += 15;
                 }
             }
-            else if (!string.IsNullOrEmpty(locName) && locName.Contains(component.Token))
+            else if (!string.IsNullOrEmpty(locName) && IsTokenMatch(locName, component.Token))
             {
                 contextBoost += 10;
             }
-            else if (!string.IsNullOrEmpty(cDesc) && cDesc.Contains(component.Token))
+            else if (!string.IsNullOrEmpty(cDesc) && IsTokenMatch(cDesc, component.Token))
             {
                 contextBoost += 10;
             }
@@ -671,6 +753,10 @@ public class WorkspaceSearchService : IWorkspaceSearchService
         string t = target.Trim().ToLowerInvariant();
 
         if (t.Contains(q)) return true;
+
+        string collapsedQ = CollapseString(q);
+        string collapsedT = CollapseString(t);
+        if (!string.IsNullOrEmpty(collapsedQ) && !string.IsNullOrEmpty(collapsedT) && collapsedT.Contains(collapsedQ)) return true;
 
         var tokens = t.Split(new[] { ' ', '-', '_', '/', '.', ',' }, StringSplitOptions.RemoveEmptyEntries);
         foreach (var token in tokens)

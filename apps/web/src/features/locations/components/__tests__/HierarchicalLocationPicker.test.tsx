@@ -80,4 +80,33 @@ describe('HierarchicalLocationPicker Component', () => {
 
     expect(handleSelect).toHaveBeenCalledWith('loc-1');
   });
+
+  it('renders only one canonical All Locations control at root and excludes duplicate button/header', () => {
+    const handleSelect = vi.fn();
+
+    render(
+      <HierarchicalLocationPicker
+        locations={mockLocations}
+        selectedLocationId={null}
+        onSelectLocation={handleSelect}
+        title="Filter by Location"
+        allowAll={true}
+        buttonLabel="All Locations"
+      />
+    );
+
+    // Open modal
+    fireEvent.click(screen.getByRole('button', { name: /^All Locations$/i }));
+
+    // 1. Verify "Select All Locations" button is NO LONGER rendered
+    expect(screen.queryByRole('button', { name: /Select All Locations/i })).toBeNull();
+
+    // 2. Verify exactly one visible "All Locations" control exists (the selectable row)
+    const allLocationsElements = screen.getAllByText(/All Locations/i);
+    expect(allLocationsElements.length).toBe(1);
+
+    // 3. Verify selecting "All Locations" row calls onSelectLocation(null)
+    fireEvent.click(allLocationsElements[0]);
+    expect(handleSelect).toHaveBeenCalledWith(null);
+  });
 });

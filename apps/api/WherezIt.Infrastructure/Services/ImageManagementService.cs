@@ -166,6 +166,18 @@ public class ImageManagementService : IImageManagementService
         asset.Status = "READY";
         asset.UpdatedAt = DateTimeOffset.UtcNow;
 
+        _dbContext.ActivityHistories.Add(new ActivityHistory
+        {
+            Id = Guid.NewGuid(),
+            WorkspaceId = workspaceId,
+            ActorUserId = identity.FirebaseUid,
+            ActivityType = "PHOTO_ADDED",
+            ContainerId = containerId,
+            PreviousLocationDisplay = string.Empty,
+            DestinationLocationDisplay = string.Empty,
+            OccurredAt = DateTimeOffset.UtcNow
+        });
+
         try
         {
             await _dbContext.SaveChangesAsync(cancellationToken);
@@ -282,7 +294,6 @@ public class ImageManagementService : IImageManagementService
             // Disassociate from container reference gallery while preserving ImageAsset and InventoryCapture audit history
             asset.ContainerId = null;
             asset.UpdatedAt = DateTimeOffset.UtcNow;
-            await _dbContext.SaveChangesAsync(cancellationToken);
         }
         else
         {
@@ -297,8 +308,21 @@ public class ImageManagementService : IImageManagementService
             }
 
             _dbContext.ImageAssets.Remove(asset);
-            await _dbContext.SaveChangesAsync(cancellationToken);
         }
+
+        _dbContext.ActivityHistories.Add(new ActivityHistory
+        {
+            Id = Guid.NewGuid(),
+            WorkspaceId = workspaceId,
+            ActorUserId = identity.FirebaseUid,
+            ActivityType = "PHOTO_REMOVED",
+            ContainerId = containerId,
+            PreviousLocationDisplay = string.Empty,
+            DestinationLocationDisplay = string.Empty,
+            OccurredAt = DateTimeOffset.UtcNow
+        });
+
+        await _dbContext.SaveChangesAsync(cancellationToken);
     }
 
     public async Task<ImageUploadResponseDto> UploadContainerPhysicalLabelImageAsync(

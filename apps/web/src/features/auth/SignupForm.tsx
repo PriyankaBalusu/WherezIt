@@ -5,18 +5,8 @@ import { z } from 'zod';
 import { useAuth } from './useAuth';
 import { Link, useNavigate } from 'react-router-dom';
 
-const signupSchema = z
-  .object({
-    email: z.string().email('Please enter a valid email address'),
-    password: z.string().min(6, 'Password must be at least 6 characters'),
-    confirmPassword: z.string().min(6, 'Confirm password must be at least 6 characters'),
-  })
-  .refine((data) => data.password === data.confirmPassword, {
-    message: 'Passwords do not match',
-    path: ['confirmPassword'],
-  });
-
-type SignupFormData = z.infer<typeof signupSchema>;
+import { signupSchema, SignupFormData } from './utils/authValidation';
+import { PasswordRequirementsChecklist } from './components/PasswordRequirementsChecklist';
 
 export const SignupForm: React.FC = () => {
   const { signUp, error, clearError } = useAuth();
@@ -28,10 +18,14 @@ export const SignupForm: React.FC = () => {
   const {
     register,
     handleSubmit,
+    watch,
     formState: { errors },
   } = useForm<SignupFormData>({
+    mode: 'onTouched',
     resolver: zodResolver(signupSchema),
   });
+
+  const passwordValue = watch('password') || '';
 
   const onSubmit = async (data: SignupFormData) => {
     setSubmitting(true);
@@ -192,6 +186,7 @@ export const SignupForm: React.FC = () => {
                     {showPassword ? '🙈' : '👁️'}
                   </button>
                 </div>
+                <PasswordRequirementsChecklist password={passwordValue} />
                 {errors.password && <span className="field-error" style={{ color: 'var(--color-danger, #dc2626)', fontSize: '0.8rem', marginTop: '0.25rem', display: 'block' }}>{errors.password.message}</span>}
               </div>
 

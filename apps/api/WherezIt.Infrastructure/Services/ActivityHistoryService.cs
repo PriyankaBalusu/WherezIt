@@ -28,9 +28,20 @@ public class ActivityHistoryService : IActivityHistoryService
         AuthenticatedIdentity identity,
         Guid workspaceId,
         Guid containerId,
+        int page = 1,
+        int pageSize = 10,
         CancellationToken cancellationToken = default)
     {
-        await _authorizationService.RequireWorkspaceMembershipAsync(identity, workspaceId, cancellationToken);
+        var container = await _dbContext.Containers
+            .AsNoTracking()
+            .FirstOrDefaultAsync(c => c.Id == containerId, cancellationToken);
+
+        if (container == null)
+        {
+            throw new KeyNotFoundException($"Container '{containerId}' was not found.");
+        }
+
+        await _authorizationService.RequireWorkspaceMembershipAsync(identity, container.WorkspaceId, cancellationToken);
 
         var rawHistoryList = await _dbContext.ActivityHistories
             .AsNoTracking()
@@ -39,6 +50,62 @@ public class ActivityHistoryService : IActivityHistoryService
             .ThenByDescending(a => a.Id)
             .ToListAsync(cancellationToken);
 
+        var mapped = ProcessAndMapHistoryList(rawHistoryList);
+        return ApplyPagination(mapped, page, pageSize);
+    }
+
+    public async Task<List<ActivityHistoryDto>> GetWorkspaceHistoryAsync(
+        AuthenticatedIdentity identity,
+        Guid workspaceId,
+        int page = 1,
+        int pageSize = 10,
+        CancellationToken cancellationToken = default)
+    {
+        await _authorizationService.RequireWorkspaceMembershipAsync(identity, workspaceId, cancellationToken);
+
+        var rawHistoryList = await _dbContext.ActivityHistories
+            .AsNoTracking()
+            .Where(a => a.WorkspaceId == workspaceId)
+            .OrderByDescending(a => a.OccurredAt)
+            .ThenByDescending(a => a.Id)
+            .ToListAsync(cancellationToken);
+
+        var mapped = ProcessAndMapHistoryList(rawHistoryList);
+        return ApplyPagination(mapped, page, pageSize);
+    }
+
+    public async Task<List<ActivityHistoryDto>> GetLocationHistoryAsync(
+        AuthenticatedIdentity identity,
+        Guid workspaceId,
+        Guid locationId,
+        int page = 1,
+        int pageSize = 10,
+        CancellationToken cancellationToken = default)
+    {
+        var location = await _dbContext.StorageNodes
+            .AsNoTracking()
+            .FirstOrDefaultAsync(s => s.Id == locationId, cancellationToken);
+
+        if (location == null)
+        {
+            throw new KeyNotFoundException($"Storage location '{locationId}' was not found.");
+        }
+
+        await _authorizationService.RequireWorkspaceMembershipAsync(identity, location.WorkspaceId, cancellationToken);
+
+        var rawHistoryList = await _dbContext.ActivityHistories
+            .AsNoTracking()
+            .Where(a => a.PreviousStorageNodeId == locationId || a.DestinationStorageNodeId == locationId)
+            .OrderByDescending(a => a.OccurredAt)
+            .ThenByDescending(a => a.Id)
+            .ToListAsync(cancellationToken);
+
+        var mapped = ProcessAndMapHistoryList(rawHistoryList);
+        return ApplyPagination(mapped, page, pageSize);
+    }
+
+    private static List<ActivityHistoryDto> ProcessAndMapHistoryList(List<ActivityHistory> rawHistoryList)
+    {
         var result = new List<ActivityHistoryDto>();
         var processedTransferPairs = new HashSet<Guid>();
 
@@ -49,7 +116,6 @@ public class ActivityHistoryService : IActivityHistoryService
                 continue;
             }
 
-            // Deduplicate paired TRANSFERRED_OUT / TRANSFERRED_IN events for the same transfer operation
             if (history.ActivityType == "TRANSFERRED_OUT" || history.ActivityType == "TRANSFERRED_IN")
             {
                 var paired = rawHistoryList.FirstOrDefault(other =>
@@ -80,6 +146,18 @@ public class ActivityHistoryService : IActivityHistoryService
         }
 
         return result;
+    }
+
+    private static List<ActivityHistoryDto> ApplyPagination(List<ActivityHistoryDto> list, int page, int pageSize)
+    {
+        if (pageSize <= 0)
+        {
+            return list;
+        }
+
+        int normalizedPage = Math.Max(1, page);
+        int skip = (normalizedPage - 1) * pageSize;
+        return list.Skip(skip).Take(pageSize).ToList();
     }
 
     private static (string Title, string Description) MapToPresentation(ActivityHistory history)

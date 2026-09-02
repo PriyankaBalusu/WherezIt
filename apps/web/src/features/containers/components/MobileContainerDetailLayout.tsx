@@ -21,7 +21,9 @@ export interface MobileContainerDetailLayoutProps {
   onArchiveBox: () => void;
   onDeleteBox: () => void;
   onTriggerPhotoUpload: () => void;
-  onTriggerReferencePhotoUpload: () => void;
+  onTriggerReferencePhotoUpload?: () => void;
+  onTriggerReferenceCameraUpload?: () => void;
+  onTriggerReferenceLibraryUpload?: () => void;
   onOpenBoxLabel: () => void;
   onOpenQr: () => void;
   onOpenBarcode: () => void;
@@ -66,6 +68,8 @@ export const MobileContainerDetailLayout: React.FC<MobileContainerDetailLayoutPr
   onDeleteBox,
   onTriggerPhotoUpload,
   onTriggerReferencePhotoUpload,
+  onTriggerReferenceCameraUpload,
+  onTriggerReferenceLibraryUpload,
   onOpenBoxLabel,
   onOpenQr,
   onOpenBarcode,
@@ -205,6 +209,7 @@ export const MobileContainerDetailLayout: React.FC<MobileContainerDetailLayoutPr
               <label className="box-header-form__label">Box Name</label>
               <input
                 type="text"
+                maxLength={100}
                 value={editName}
                 onChange={(e) => onSetEditName?.(e.target.value)}
                 className="box-header-form__input"
@@ -215,6 +220,7 @@ export const MobileContainerDetailLayout: React.FC<MobileContainerDetailLayoutPr
               <label className="box-header-form__label">Description</label>
               <input
                 type="text"
+                maxLength={500}
                 value={editDesc}
                 onChange={(e) => onSetEditDesc?.(e.target.value)}
                 className="box-header-form__input"
@@ -328,14 +334,26 @@ export const MobileContainerDetailLayout: React.FC<MobileContainerDetailLayoutPr
                 <p className="mobile-section-subtitle">Reference photos of this box.</p>
               </div>
               {!container.isArchived && (
-                <button
-                  type="button"
-                  className="btn btn-secondary btn--sm"
-                  disabled={isUploadingReference}
-                  onClick={onTriggerReferencePhotoUpload}
-                >
-                  {isUploadingReference ? 'Uploading...' : '+ Add Photo'}
-                </button>
+                <div style={{ display: 'flex', gap: '0.375rem', flexWrap: 'wrap' }}>
+                  <button
+                    type="button"
+                    className="btn btn-secondary btn--sm"
+                    disabled={isUploadingReference}
+                    onClick={onTriggerReferenceCameraUpload || onTriggerReferencePhotoUpload}
+                    style={{ fontSize: '0.8rem', padding: '0.35rem 0.6rem' }}
+                  >
+                    📷 Take Photo
+                  </button>
+                  <button
+                    type="button"
+                    className="btn btn-secondary btn--sm"
+                    disabled={isUploadingReference}
+                    onClick={onTriggerReferenceLibraryUpload || onTriggerReferencePhotoUpload}
+                    style={{ fontSize: '0.8rem', padding: '0.35rem 0.6rem' }}
+                  >
+                    📁 Choose Photo
+                  </button>
+                </div>
               )}
             </div>
 
@@ -484,7 +502,7 @@ export const MobileContainerDetailLayout: React.FC<MobileContainerDetailLayoutPr
 
         {activeTab === 'history' && (
           <div id="panel-history" role="tabpanel" aria-labelledby="tab-history" className="mobile-history-wrapper">
-            <BoxHistoryTimeline workspaceId={workspaceId} containerId={containerId} />
+            <BoxHistoryTimeline workspaceId={container.workspaceId} containerId={container.id} />
           </div>
         )}
       </div>

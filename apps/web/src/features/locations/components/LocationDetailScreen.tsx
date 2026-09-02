@@ -4,6 +4,9 @@ import { useStorageLocations } from '../hooks/useStorageLocations';
 import { useContainers } from '../../containers/hooks/useContainers';
 import { useWorkspaceContext } from '../../workspaces/context/WorkspaceContext';
 import { getStorageSpaceDisplayName } from '../../workspaces/utils/formatWorkspaceName';
+import { useLocationHistory } from '../../containers/hooks/useBoxHistory';
+import { RecentActivitySection } from '../../containers/components/RecentActivitySection';
+import { ActivityHistoryModal } from '../../containers/components/ActivityHistoryModal';
 
 export const LocationDetailScreen: React.FC = () => {
   const { workspaceId, locationId } = useParams<{ workspaceId: string; locationId: string }>();
@@ -196,6 +199,64 @@ export const LocationDetailScreen: React.FC = () => {
           </div>
         )}
       </div>
+
+      {/* Location Activity History */}
+      <LocationHistorySection workspaceId={workspaceId!} locationId={locationId!} locationName={currentLocation.name} />
     </div>
+  );
+};
+
+const LocationHistorySection: React.FC<{ workspaceId: string; locationId: string; locationName: string }> = ({
+  workspaceId,
+  locationId,
+  locationName,
+}) => {
+  const [page, setPage] = React.useState(1);
+  const [isModalOpen, setIsModalOpen] = React.useState(false);
+  const [allModalItems, setAllModalItems] = React.useState<any[]>([]);
+
+  const { data: initialItems = [], isLoading, isError } = useLocationHistory(workspaceId, locationId, 1, 10);
+  const { data: modalPageItems = [], isLoading: isModalLoading } = useLocationHistory(workspaceId, locationId, page, 20);
+
+  React.useEffect(() => {
+    if (modalPageItems.length > 0) {
+      setAllModalItems((prev) => {
+        const existingIds = new Set(prev.map((i) => i.id));
+        const newItems = modalPageItems.filter((i) => !existingIds.has(i.id));
+        return [...prev, ...newItems];
+      });
+    }
+  }, [modalPageItems]);
+
+  const handleOpenModal = () => {
+    setIsModalOpen(true);
+    if (allModalItems.length === 0 && initialItems.length > 0) {
+      setAllModalItems(initialItems);
+    }
+  };
+
+  return (
+    <>
+      <RecentActivitySection
+        title="Recent Activity"
+        subtitle={`Recent activity for location ${locationName}.`}
+        items={initialItems}
+        isLoading={isLoading}
+        isError={isError}
+        onViewAll={handleOpenModal}
+        hasMore={initialItems.length >= 10}
+        emptyText="No activity recorded yet."
+      />
+
+      <ActivityHistoryModal
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+        title={`${locationName} Activity History`}
+        items={allModalItems.length > 0 ? allModalItems : initialItems}
+        isLoading={isModalLoading}
+        hasMore={modalPageItems.length >= 20}
+        onLoadMore={() => setPage((p) => p + 1)}
+      />
+    </>
   );
 };

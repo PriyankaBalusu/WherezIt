@@ -224,8 +224,8 @@
 
 .quickpack-priority-pill--selected {
   border-color: var(--color-primary, #0284c7);
-  background-color: #e0f2fe;
-  color: #0369a1;
+  background-color: var(--color-primary-light, #e0f2fe);
+  color: var(--color-primary-text, #0369a1);
 }
 
 /* Checkbox */
@@ -249,7 +249,7 @@
 
 /* Summary Box */
 .quickpack-summary-card {
-  background-color: var(--color-bg, #f8fafc);
+  background-color: var(--color-bg-subtle, #f8fafc);
   border: 1px solid var(--color-border, #e2e8f0);
   border-radius: var(--radius-md, 0.5rem);
   padding: 1rem 1.25rem;
@@ -316,3 +316,66 @@
     width: 100%;
   }
 }
+
+/* Dark Mode Overrides for Moving Assistant */
+[data-theme='dark'] .quickpack-card {
+  background-color: var(--color-surface, #1e293b);
+  border-color: var(--color-border, #334155);
+}
+
+[data-theme='dark'] .quickpack-photo-box {
+  background-color: var(--color-bg, #0f172a);
+  border-color: var(--color-border-strong, #334155);
+}
+
+[data-theme='dark'] .quickpack-select,
+[data-theme='dark'] .quickpack-input {
+  background-color: var(--color-input-bg, #0f172a);
+  border-color: var(--color-input-border, #334155);
+  color: var(--color-input-text, #f8fafc);
+}
+
+[data-theme='dark'] .quickpack-priority-pill {
+  background-color: var(--color-surface, #1e293b);
+  border-color: var(--color-border-strong, #334155);
+  color: var(--color-text, #f8fafc);
+}
+
+[data-theme='dark'] .quickpack-priority-pill:hover {
+  background-color: var(--color-surface-raised, #334155);
+  border-color: var(--color-primary, #38bdf8);
+}
+
+[data-theme='dark'] .quickpack-priority-pill--selected {
+  background-color: var(--color-primary-light, rgba(56, 189, 248, 0.15));
+  border-color: var(--color-primary, #38bdf8);
+  color: var(--color-primary-text, #38bdf8);
+}
+
+[data-theme='dark'] .quickpack-summary-card {
+  background-color: var(--color-surface-dark-card, #1e293b);
+  border-color: var(--color-border, #334155);
+}
+
+/* Unpack choice row card styling */
+.unpack-choice-row {
+  background-color: var(--color-card-bg, #ffffff);
+  border: 1px solid var(--color-card-border, #e2e8f0);
+}
+
+.unpack-choice-row:hover {
+  border-color: var(--color-primary, #0284c7);
+  background-color: var(--color-dropdown-hover, #f8fafc);
+}
+
+[data-theme='dark'] .unpack-choice-row {
+  background-color: var(--color-surface, #1e293b);
+  border-color: var(--color-border, #334155);
+}
+
+[data-theme='dark'] .unpack-choice-row:hover {
+  background-color: var(--color-surface-raised, #334155);
+  border-color: var(--color-primary, #38bdf8);
+}
+
+

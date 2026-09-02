@@ -36,6 +36,7 @@ export function useDeleteContainerImage(workspaceId: string, containerId: string
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['containerImages', workspaceId, containerId] });
+      queryClient.invalidateQueries({ queryKey: ['boxHistory', workspaceId, containerId] });
     },
   });
 }
@@ -52,6 +53,7 @@ export function useUploadContainerImage(workspaceId: string, containerId: string
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['containerImages', workspaceId, containerId] });
+      queryClient.invalidateQueries({ queryKey: ['boxHistory', workspaceId, containerId] });
     },
   });
 }

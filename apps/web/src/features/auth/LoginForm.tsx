@@ -5,12 +5,7 @@ import { z } from 'zod';
 import { useAuth } from './useAuth';
 import { Link, useNavigate } from 'react-router-dom';
 
-const loginSchema = z.object({
-  email: z.string().email('Please enter a valid email address'),
-  password: z.string().min(6, 'Password must be at least 6 characters'),
-});
-
-type LoginFormData = z.infer<typeof loginSchema>;
+import { loginSchema, LoginFormData } from './utils/authValidation';
 
 export const LoginForm: React.FC = () => {
   const { signIn, error, clearError } = useAuth();
@@ -23,6 +18,7 @@ export const LoginForm: React.FC = () => {
     handleSubmit,
     formState: { errors },
   } = useForm<LoginFormData>({
+    mode: 'onTouched',
     resolver: zodResolver(loginSchema),
   });
 

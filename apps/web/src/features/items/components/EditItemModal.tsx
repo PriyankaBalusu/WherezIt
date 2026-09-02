@@ -53,10 +53,24 @@ export const EditItemModal: React.FC<EditItemModalProps> = ({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!name.trim()) {
+    const trimmedName = name.trim();
+    const trimmedCat = category.trim();
+
+    if (!trimmedName) {
       setErrorMessage('Item name is required.');
       return;
     }
+
+    if (trimmedName.length > 100) {
+      setErrorMessage('Item name must be 100 characters or fewer.');
+      return;
+    }
+
+    if (trimmedCat.length > 50) {
+      setErrorMessage('Category must be 50 characters or fewer.');
+      return;
+    }
+
     if (quantity < 1) {
       setErrorMessage('Quantity must be at least 1.');
       return;
@@ -66,9 +80,9 @@ export const EditItemModal: React.FC<EditItemModalProps> = ({
       await updateMutation.mutateAsync({
         itemId: item.id,
         payload: {
-          name: name.trim(),
+          name: trimmedName,
           quantity,
-          category: category.trim() || undefined,
+          category: trimmedCat || undefined,
         },
       });
       onClose();
@@ -183,6 +197,7 @@ export const EditItemModal: React.FC<EditItemModalProps> = ({
               <input
                 id="edit-item-name"
                 type="text"
+                maxLength={100}
                 value={name}
                 onChange={(e) => {
                   setName(e.target.value);
@@ -241,6 +256,7 @@ export const EditItemModal: React.FC<EditItemModalProps> = ({
             <input
               id="edit-item-category"
               type="text"
+              maxLength={50}
               placeholder="e.g. Holiday Decor, Electronics"
               value={category}
               onChange={(e) => setCategory(e.target.value)}

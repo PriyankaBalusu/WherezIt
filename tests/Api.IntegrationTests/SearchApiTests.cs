@@ -489,5 +489,73 @@ public class SearchApiTests : IClassFixture<PostgresTestFixture>
         Assert.DoesNotContain(results, r => r.ResultType == "ITEM" && r.ItemId == hairDryer.Id);
         Assert.DoesNotContain(results, r => r.ResultType == "ITEM" && r.ItemId == coffeeMug.Id);
     }
+
+    [Fact]
+    public async Task WorkspaceSearch_HyphenAndSpacingVariants_ReturnRelevantResultsWithoutSingleCharacterNoise()
+    {
+        using var scope = _fixture.Services.CreateScope();
+        var workspaceService = scope.ServiceProvider.GetRequiredService<IWorkspaceService>();
+        var locationService = scope.ServiceProvider.GetRequiredService<IStorageLocationService>();
+        var containerService = scope.ServiceProvider.GetRequiredService<IContainerService>();
+        var itemService = scope.ServiceProvider.GetRequiredService<IItemService>();
+        var searchService = scope.ServiceProvider.GetRequiredService<IWorkspaceSearchService>();
+
+        var identity = new AuthenticatedIdentity($"tshirt_user_{Guid.NewGuid():N}", "tshirt@example.com", true);
+        var ws = await workspaceService.CreateWorkspaceAsync(identity, new CreateWorkspaceRequestDto("T-Shirt WS"));
+        var loc = await locationService.CreateLocationAsync(identity, ws.Id, new CreateStorageLocationRequestDto("Closet", null));
+        var box = await containerService.CreateContainerAsync(identity, ws.Id, new CreateContainerRequestDto(loc.Id, "Clothes Box", null));
+
+        // Create stored items
+        var tShirt = await itemService.CreateItemAsync(identity, ws.Id, box.Id, new CreateItemRequestDto("T-shirt", 1));
+        var waterBottle = await itemService.CreateItemAsync(identity, ws.Id, box.Id, new CreateItemRequestDto("Water Bottle", 1)); // Contains 't'
+        var winterCoat = await itemService.CreateItemAsync(identity, ws.Id, box.Id, new CreateItemRequestDto("Winter Coat", 1));   // Contains 't'
+
+        // 1. Search "T-shirt" returns T-shirt
+        var res1 = await searchService.SearchWorkspaceAsync(identity, ws.Id, "T-shirt");
+        Assert.Contains(res1, r => r.ResultType == "ITEM" && r.ItemId == tShirt.Id);
+
+        // 2. Search "t shirt" returns T-shirt, but excludes unrelated items containing only the letter 't'
+        var res2 = await searchService.SearchWorkspaceAsync(identity, ws.Id, "t shirt");
+        Assert.Contains(res2, r => r.ResultType == "ITEM" && r.ItemId == tShirt.Id);
+        Assert.DoesNotContain(res2, r => r.ItemId == waterBottle.Id);
+        Assert.DoesNotContain(res2, r => r.ItemId == winterCoat.Id);
+
+        // 3. Search "tshirt" returns T-shirt
+        var res3 = await searchService.SearchWorkspaceAsync(identity, ws.Id, "tshirt");
+        Assert.Contains(res3, r => r.ResultType == "ITEM" && r.ItemId == tShirt.Id);
+
+        // 4. Search "T Shirt" (case-insensitive phrase) returns T-shirt
+        var res4 = await searchService.SearchWorkspaceAsync(identity, ws.Id, "T Shirt");
+        Assert.Contains(res4, r => r.ResultType == "ITEM" && r.ItemId == tShirt.Id);
+    }
+
+    [Fact]
+    public async Task WorkspaceSearch_PreservesMultiWordRelevanceAndLegitimateIdentifiers()
+    {
+        using var scope = _fixture.Services.CreateScope();
+        var workspaceService = scope.ServiceProvider.GetRequiredService<IWorkspaceService>();
+        var locationService = scope.ServiceProvider.GetRequiredService<IStorageLocationService>();
+        var containerService = scope.ServiceProvider.GetRequiredService<IContainerService>();
+        var itemService = scope.ServiceProvider.GetRequiredService<IItemService>();
+        var searchService = scope.ServiceProvider.GetRequiredService<IWorkspaceSearchService>();
+
+        var identity = new AuthenticatedIdentity($"ident_user_{Guid.NewGuid():N}", "ident@example.com", true);
+        var ws = await workspaceService.CreateWorkspaceAsync(identity, new CreateWorkspaceRequestDto("Ident WS"));
+        var shelfA = await locationService.CreateLocationAsync(identity, ws.Id, new CreateStorageLocationRequestDto("Shelf A", null));
+        var box2 = await containerService.CreateContainerAsync(identity, ws.Id, new CreateContainerRequestDto(shelfA.Id, "Storage Box 2", null));
+
+        var xmasDecor = await itemService.CreateItemAsync(identity, ws.Id, box2.Id, new CreateItemRequestDto("Christmas Decor", 1));
+
+        // 5. Multi-word query "christmas decor" preserves relevance
+        var resMulti = await searchService.SearchWorkspaceAsync(identity, ws.Id, "christmas decor");
+        Assert.Contains(resMulti, r => r.ResultType == "ITEM" && r.ItemId == xmasDecor.Id);
+
+        // 6. Legitimate identifiers like "Box 2" or "Shelf A" remain functional
+        var resBox2 = await searchService.SearchWorkspaceAsync(identity, ws.Id, "Box 2");
+        Assert.NotEmpty(resBox2);
+
+        var resShelfA = await searchService.SearchWorkspaceAsync(identity, ws.Id, "Shelf A");
+        Assert.NotEmpty(resShelfA);
+    }
 }
 

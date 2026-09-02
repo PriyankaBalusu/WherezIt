@@ -1,3 +1,5 @@
+using System;
+
 namespace WherezIt.Application.Workspaces.Dtos;
 
 public record WorkspaceResponseDto(
@@ -5,5 +7,7 @@ public record WorkspaceResponseDto(
     string Name,
     string Role,
     DateTimeOffset CreatedAt,
-    Guid InventoryNamespaceId
+    Guid InventoryNamespaceId,
+    int MemberCount = 1,
+    int OwnerCount = 1
 );

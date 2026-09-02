@@ -101,4 +101,125 @@ public class ActivityHistoryIntegrationTests : IClassFixture<PostgresTestFixture
         Assert.Equal("Item added", addedEvent.Title);
         Assert.Equal("Tape Measure · Qty 2", addedEvent.Description);
     }
+
+    [Fact]
+    public async Task GetContainerHistory_AuthorizedUser_CanReadTransferredContainerHistory()
+    {
+        using var scope = _fixture.Services.CreateScope();
+        var workspaceService = scope.ServiceProvider.GetRequiredService<IWorkspaceService>();
+        var locationService = scope.ServiceProvider.GetRequiredService<IStorageLocationService>();
+        var containerService = scope.ServiceProvider.GetRequiredService<IContainerService>();
+        var historyService = scope.ServiceProvider.GetRequiredService<IActivityHistoryService>();
+
+        var user = new AuthenticatedIdentity("user-history-auth-1", "histauth1@example.com", true);
+        var ws = await workspaceService.CreateWorkspaceAsync(user, new CreateWorkspaceRequestDto("WS Auth Test"));
+        var loc = await locationService.CreateLocationAsync(user, ws.Id, new CreateStorageLocationRequestDto("Loc A", null));
+        var container = await containerService.CreateContainerAsync(user, ws.Id, new CreateContainerRequestDto(loc.Id, "Box Auth Test", null));
+
+        var history = await historyService.GetContainerHistoryAsync(user, ws.Id, container.Id);
+        Assert.NotEmpty(history);
+        Assert.Contains(history, h => h.ActivityType == "CONTAINER_CREATED");
+    }
+
+    [Fact]
+    public async Task GetContainerHistory_UnauthorizedRouteWorkspaceMismatch_PreventsHistoryLeak()
+    {
+        using var scope = _fixture.Services.CreateScope();
+        var workspaceService = scope.ServiceProvider.GetRequiredService<IWorkspaceService>();
+        var locationService = scope.ServiceProvider.GetRequiredService<IStorageLocationService>();
+        var containerService = scope.ServiceProvider.GetRequiredService<IContainerService>();
+        var historyService = scope.ServiceProvider.GetRequiredService<IActivityHistoryService>();
+
+        var ownerA = new AuthenticatedIdentity("user-owner-a", "ownera@example.com", true);
+        var ownerB = new AuthenticatedIdentity("user-owner-b", "ownerb@example.com", true);
+
+        var wsA = await workspaceService.CreateWorkspaceAsync(ownerA, new CreateWorkspaceRequestDto("WS A"));
+        var wsB = await workspaceService.CreateWorkspaceAsync(ownerB, new CreateWorkspaceRequestDto("WS B"));
+
+        var locB = await locationService.CreateLocationAsync(ownerB, wsB.Id, new CreateStorageLocationRequestDto("Loc B", null));
+        var containerB = await containerService.CreateContainerAsync(ownerB, wsB.Id, new CreateContainerRequestDto(locB.Id, "Box In WS B", null));
+
+        // ownerA is authorized for wsA, but NOT wsB.
+        // Attempting to request containerB's history by pairing wsA.Id with containerB.Id must throw UnauthorizedAccessException.
+        await Assert.ThrowsAsync<UnauthorizedAccessException>(() =>
+            historyService.GetContainerHistoryAsync(ownerA, wsA.Id, containerB.Id));
+    }
+
+    [Fact]
+    public async Task GetContainerHistory_NonExistentContainer_ThrowsKeyNotFoundException()
+    {
+        using var scope = _fixture.Services.CreateScope();
+        var workspaceService = scope.ServiceProvider.GetRequiredService<IWorkspaceService>();
+        var historyService = scope.ServiceProvider.GetRequiredService<IActivityHistoryService>();
+
+        var user = new AuthenticatedIdentity("user-not-found-test", "notfound@example.com", true);
+        var ws = await workspaceService.CreateWorkspaceAsync(user, new CreateWorkspaceRequestDto("WS NF"));
+
+        await Assert.ThrowsAsync<KeyNotFoundException>(() =>
+            historyService.GetContainerHistoryAsync(user, ws.Id, Guid.NewGuid()));
+    }
+
+    [Fact]
+    public async Task GetWorkspaceHistory_AuthorizedUser_ReturnsWorkspaceEventsAndPaginates()
+    {
+        using var scope = _fixture.Services.CreateScope();
+        var workspaceService = scope.ServiceProvider.GetRequiredService<IWorkspaceService>();
+        var locationService = scope.ServiceProvider.GetRequiredService<IStorageLocationService>();
+        var containerService = scope.ServiceProvider.GetRequiredService<IContainerService>();
+        var historyService = scope.ServiceProvider.GetRequiredService<IActivityHistoryService>();
+
+        var user = new AuthenticatedIdentity("user-ws-hist-1", "wshist1@example.com", true);
+        var ws = await workspaceService.CreateWorkspaceAsync(user, new CreateWorkspaceRequestDto("WS History Test"));
+        var loc = await locationService.CreateLocationAsync(user, ws.Id, new CreateStorageLocationRequestDto("Attic", null));
+        var box = await containerService.CreateContainerAsync(user, ws.Id, new CreateContainerRequestDto(loc.Id, "Attic Box", null));
+
+        var history = await historyService.GetWorkspaceHistoryAsync(user, ws.Id, page: 1, pageSize: 10);
+        Assert.NotEmpty(history);
+        Assert.All(history, h => Assert.Equal(ws.Id, h.WorkspaceId));
+    }
+
+    [Fact]
+    public async Task GetWorkspaceHistory_UnauthorizedUser_ThrowsUnauthorizedAccessException()
+    {
+        using var scope = _fixture.Services.CreateScope();
+        var workspaceService = scope.ServiceProvider.GetRequiredService<IWorkspaceService>();
+        var historyService = scope.ServiceProvider.GetRequiredService<IActivityHistoryService>();
+
+        var userA = new AuthenticatedIdentity("user-ws-a", "wsa@example.com", true);
+        var userB = new AuthenticatedIdentity("user-ws-b", "wsb@example.com", true);
+
+        var wsA = await workspaceService.CreateWorkspaceAsync(userA, new CreateWorkspaceRequestDto("WS A Private"));
+
+        await Assert.ThrowsAsync<UnauthorizedAccessException>(() =>
+            historyService.GetWorkspaceHistoryAsync(userB, wsA.Id, page: 1, pageSize: 10));
+    }
+
+    [Fact]
+    public async Task GetLocationHistory_FiltersByExplicitLocationAndEnforcesAuthorization()
+    {
+        using var scope = _fixture.Services.CreateScope();
+        var workspaceService = scope.ServiceProvider.GetRequiredService<IWorkspaceService>();
+        var locationService = scope.ServiceProvider.GetRequiredService<IStorageLocationService>();
+        var containerService = scope.ServiceProvider.GetRequiredService<IContainerService>();
+        var moveService = scope.ServiceProvider.GetRequiredService<IContainerMoveService>();
+        var historyService = scope.ServiceProvider.GetRequiredService<IActivityHistoryService>();
+
+        var user = new AuthenticatedIdentity("user-loc-hist-1", "lochist1@example.com", true);
+        var userOther = new AuthenticatedIdentity("user-loc-other", "locother@example.com", true);
+
+        var ws = await workspaceService.CreateWorkspaceAsync(user, new CreateWorkspaceRequestDto("Loc History WS"));
+        var garage = await locationService.CreateLocationAsync(user, ws.Id, new CreateStorageLocationRequestDto("Garage", null));
+        var basement = await locationService.CreateLocationAsync(user, ws.Id, new CreateStorageLocationRequestDto("Basement", null));
+
+        var box = await containerService.CreateContainerAsync(user, ws.Id, new CreateContainerRequestDto(garage.Id, "Move Box", null));
+        await moveService.MoveContainerAsync(user, ws.Id, box.Id, new CreateContainerRequestDto(basement.Id, "Move Box", null));
+
+        // Garage location history should contain the event where PreviousStorageNodeId or DestinationStorageNodeId == garage.Id
+        var garageHistory = await historyService.GetLocationHistoryAsync(user, ws.Id, garage.Id);
+        Assert.NotEmpty(garageHistory);
+
+        // Unauthorized user cannot read location history
+        await Assert.ThrowsAsync<UnauthorizedAccessException>(() =>
+            historyService.GetLocationHistoryAsync(userOther, ws.Id, garage.Id));
+    }
 }

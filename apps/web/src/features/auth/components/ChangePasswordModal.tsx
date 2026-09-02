@@ -7,6 +7,8 @@ import {
 } from 'firebase/auth';
 import { useAuth } from '../useAuth';
 import { auth } from '../../../config/firebase';
+import { validateNewPassword } from '../utils/authValidation';
+import { PasswordRequirementsChecklist } from './PasswordRequirementsChecklist';
 
 interface ChangePasswordModalProps {
   isOpen: boolean;
@@ -28,10 +30,13 @@ export const ChangePasswordModal: React.FC<ChangePasswordModalProps> = ({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSendingReset, setIsSendingReset] = useState(false);
 
+  const [touched, setTouched] = useState<{ currentPassword?: boolean; newPassword?: boolean; confirmPassword?: boolean }>({});
+
   const resetState = () => {
     setCurrentPassword('');
     setNewPassword('');
     setConfirmPassword('');
+    setTouched({});
     setError(null);
     setSuccessMessage(null);
     setResetEmailMessage(null);
@@ -63,26 +68,31 @@ export const ChangePasswordModal: React.FC<ChangePasswordModalProps> = ({
     onClose();
   };
 
+  const currentPasswordError = touched.currentPassword && !currentPassword ? 'Current password is required.' : null;
+  const newPasswordError = touched.newPassword && (!newPassword ? 'New password is required.' : !validateNewPassword(newPassword) ? 'Please complete all password requirements.' : null);
+  const confirmPasswordError = touched.confirmPassword && (!confirmPassword ? 'Confirm password is required.' : newPassword !== confirmPassword ? 'Passwords do not match' : null);
+
   const handleUpdatePassword = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
     setSuccessMessage(null);
     setResetEmailMessage(null);
+    setTouched({ currentPassword: true, newPassword: true, confirmPassword: true });
 
     if (!currentPassword) {
-      setError('Please enter your current password.');
+      setError('Current password is required.');
       return;
     }
     if (!newPassword) {
-      setError('Please enter a new password.');
+      setError('New password is required.');
       return;
     }
-    if (newPassword.length < 6) {
-      setError('Password must be at least 6 characters long.');
+    if (!validateNewPassword(newPassword)) {
+      setError('Please complete all password requirements.');
       return;
     }
     if (newPassword !== confirmPassword) {
-      setError('New passwords do not match.');
+      setError('Passwords do not match');
       return;
     }
 
@@ -246,6 +256,7 @@ export const ChangePasswordModal: React.FC<ChangePasswordModalProps> = ({
                 required
                 value={currentPassword}
                 onChange={(e) => setCurrentPassword(e.target.value)}
+                onBlur={() => setTouched((prev) => ({ ...prev, currentPassword: true }))}
                 style={{
                   width: '100%',
                   padding: '0.625rem 0.75rem',
@@ -256,6 +267,11 @@ export const ChangePasswordModal: React.FC<ChangePasswordModalProps> = ({
                   boxSizing: 'border-box',
                 }}
               />
+              {currentPasswordError && (
+                <span className="field-error" style={{ color: 'var(--color-danger, #dc2626)', fontSize: '0.8rem', marginTop: '0.25rem', display: 'block' }}>
+                  {currentPasswordError}
+                </span>
+              )}
             </div>
 
             <div style={{ marginBottom: '1rem' }}>
@@ -270,6 +286,7 @@ export const ChangePasswordModal: React.FC<ChangePasswordModalProps> = ({
                 required
                 value={newPassword}
                 onChange={(e) => setNewPassword(e.target.value)}
+                onBlur={() => setTouched((prev) => ({ ...prev, newPassword: true }))}
                 style={{
                   width: '100%',
                   padding: '0.625rem 0.75rem',
@@ -280,6 +297,12 @@ export const ChangePasswordModal: React.FC<ChangePasswordModalProps> = ({
                   boxSizing: 'border-box',
                 }}
               />
+              <PasswordRequirementsChecklist password={newPassword} />
+              {newPasswordError && (
+                <span className="field-error" style={{ color: 'var(--color-danger, #dc2626)', fontSize: '0.8rem', marginTop: '0.25rem', display: 'block' }}>
+                  {newPasswordError}
+                </span>
+              )}
             </div>
 
             <div style={{ marginBottom: '1.25rem' }}>
@@ -294,6 +317,7 @@ export const ChangePasswordModal: React.FC<ChangePasswordModalProps> = ({
                 required
                 value={confirmPassword}
                 onChange={(e) => setConfirmPassword(e.target.value)}
+                onBlur={() => setTouched((prev) => ({ ...prev, confirmPassword: true }))}
                 style={{
                   width: '100%',
                   padding: '0.625rem 0.75rem',
@@ -304,6 +328,11 @@ export const ChangePasswordModal: React.FC<ChangePasswordModalProps> = ({
                   boxSizing: 'border-box',
                 }}
               />
+              {confirmPasswordError && (
+                <span className="field-error" style={{ color: 'var(--color-danger, #dc2626)', fontSize: '0.8rem', marginTop: '0.25rem', display: 'block' }}>
+                  {confirmPasswordError}
+                </span>
+              )}
             </div>
 
             <div style={{ marginBottom: '1.5rem' }}>

@@ -13,6 +13,7 @@ import { useQueryClient, useQueries } from '@tanstack/react-query';
 import { HierarchicalLocationPicker } from '../locations/components/HierarchicalLocationPicker';
 import { fetchContainers } from './api/containerApi';
 import { fetchLocations } from '../locations/api/locationApi';
+import { ThemedSelect } from '../../components/ui/ThemedSelect';
 import './QuickPackScreen.css';
 
 type SaveState = 'IDLE' | 'CREATING_BOX' | 'BOX_CREATED' | 'UPLOADING_CAPTURE' | 'COMPLETE' | 'PARTIAL_SUCCESS' | 'ERROR';
@@ -884,7 +885,7 @@ export const QuickPackScreen: React.FC = () => {
           <div className="quickpack-card" style={{ display: 'flex', flexDirection: 'column', justifyContent: 'space-between', minHeight: '200px' }}>
             <div>
               <h3 style={{ fontSize: '1.25rem', fontWeight: 800, margin: '0 0 0.5rem 0' }}>📦 Pack a Box</h3>
-              <p style={{ color: '#64748b', fontSize: '0.9rem', margin: 0 }}>
+              <p style={{ color: 'var(--color-text-muted, #64748b)', fontSize: '0.9rem', margin: 0 }}>
                 Create a box and record what's inside.
               </p>
             </div>
@@ -904,7 +905,7 @@ export const QuickPackScreen: React.FC = () => {
           <div className="quickpack-card" style={{ display: 'flex', flexDirection: 'column', justifyContent: 'space-between', minHeight: '200px' }}>
             <div>
               <h3 style={{ fontSize: '1.25rem', fontWeight: 800, margin: '0 0 0.5rem 0' }}>🚚 Move Boxes</h3>
-              <p style={{ color: '#64748b', fontSize: '0.9rem', margin: 0 }}>
+              <p style={{ color: 'var(--color-text-muted, #64748b)', fontSize: '0.9rem', margin: 0 }}>
                 Move existing boxes to another location.
               </p>
             </div>
@@ -924,7 +925,7 @@ export const QuickPackScreen: React.FC = () => {
           <div className="quickpack-card" style={{ display: 'flex', flexDirection: 'column', justifyContent: 'space-between', minHeight: '200px' }}>
             <div>
               <h3 style={{ fontSize: '1.25rem', fontWeight: 800, margin: '0 0 0.5rem 0' }}>🔓 Unpack</h3>
-              <p style={{ color: '#64748b', fontSize: '0.9rem', margin: 0 }}>
+              <p style={{ color: 'var(--color-text-muted, #64748b)', fontSize: '0.9rem', margin: 0 }}>
                 Find arriving boxes and mark them unpacked.
               </p>
             </div>
@@ -1048,19 +1049,19 @@ export const QuickPackScreen: React.FC = () => {
                     <label htmlFor="new-location-parent" className="quickpack-label">
                       Belongs inside (Optional)
                     </label>
-                    <select
+                    <ThemedSelect
                       id="new-location-parent"
-                      className="quickpack-select"
                       value={newLocationParentId}
-                      onChange={(e) => setNewLocationParentId(e.target.value)}
-                    >
-                      <option value="">-- No parent / Root location --</option>
-                      {locations.map((loc) => (
-                        <option key={loc.id} value={loc.id}>
-                          {loc.name}
-                        </option>
-                      ))}
-                    </select>
+                      onChange={(val) => setNewLocationParentId(val)}
+                      options={[
+                        { value: '', label: '-- No parent / Root location --' },
+                        ...(locations || []).map((loc) => ({
+                          value: loc.id,
+                          label: loc.name,
+                        })),
+                      ]}
+                      aria-label="Belongs inside (Optional)"
+                    />
                   </div>
 
                   <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'flex-end' }}>
@@ -1087,22 +1088,20 @@ export const QuickPackScreen: React.FC = () => {
                       <label htmlFor="quickpack-pack-workspace" className="quickpack-label">
                         Storage Space
                       </label>
-                      <select
+                      <ThemedSelect
                         id="quickpack-pack-workspace"
-                        className="quickpack-select"
                         value={effectivePackWorkspaceId}
-                        onChange={(e) => {
-                          setSelectedPackWorkspaceId(e.target.value);
+                        onChange={(val) => {
+                          setSelectedPackWorkspaceId(val);
                           setStorageNodeId('');
                           setDestinationStorageNodeId('');
                         }}
-                      >
-                        {workspacesList.map((ws) => (
-                          <option key={ws.id} value={ws.id}>
-                            {ws.name}
-                          </option>
-                        ))}
-                      </select>
+                        options={workspacesList.map((ws) => ({
+                          value: ws.id,
+                          label: ws.name,
+                        }))}
+                        aria-label="Storage Space"
+                      />
                     </div>
                   )}
                   <div className="quickpack-field-group">
@@ -1171,23 +1170,20 @@ export const QuickPackScreen: React.FC = () => {
                         </span>
                       </div>
                     ) : (
-                      <select
+                      <ThemedSelect
                         id="quickpack-current-location"
-                        className="quickpack-select"
                         value={storageNodeId}
-                        onChange={(e) => {
-                          setStorageNodeId(e.target.value);
+                        onChange={(val) => {
+                          setStorageNodeId(val);
                           setError(null);
                         }}
-                        required
-                      >
-                        <option value="">-- Select Current Location --</option>
-                        {locations?.map((loc) => (
-                          <option key={loc.id} value={loc.id}>
-                            {getLocationPathString(loc.id, locations) || loc.name}
-                          </option>
-                        ))}
-                      </select>
+                        options={(locations || []).map((loc) => ({
+                          value: loc.id,
+                          label: getLocationPathString(loc.id, locations) || loc.name,
+                        }))}
+                        placeholder="-- Select Current Location --"
+                        aria-label="Current location *"
+                      />
                     )}
                   </div>
 
@@ -1195,19 +1191,20 @@ export const QuickPackScreen: React.FC = () => {
                     <label htmlFor="quickpack-destination-location" className="quickpack-label">
                       Where will it go?
                     </label>
-                    <select
+                    <ThemedSelect
                       id="quickpack-destination-location"
-                      className="quickpack-select"
                       value={destinationStorageNodeId}
-                      onChange={(e) => setDestinationStorageNodeId(e.target.value)}
-                    >
-                      <option value="">-- I don't know yet --</option>
-                      {locations?.map((loc) => (
-                        <option key={loc.id} value={loc.id}>
-                          {getLocationPathString(loc.id, locations) || loc.name}
-                        </option>
-                      ))}
-                    </select>
+                      onChange={(val) => setDestinationStorageNodeId(val)}
+                      options={[
+                        { value: '', label: "-- I don't know yet --" },
+                        ...(locations || []).map((loc) => ({
+                          value: loc.id,
+                          label: getLocationPathString(loc.id, locations) || loc.name,
+                        })),
+                      ]}
+                      placeholder="-- I don't know yet --"
+                      aria-label="Where will it go?"
+                    />
                   </div>
 
                   <div className="quickpack-actions-row">
@@ -1725,7 +1722,7 @@ export const QuickPackScreen: React.FC = () => {
                 </div>
 
                 {unpackShowScanner && (
-                  <div style={{ marginBottom: '1.5rem', border: '1px solid #cbd5e1', borderRadius: '0.5rem', padding: '1rem', backgroundColor: '#f8fafc' }}>
+                  <div style={{ marginBottom: '1.5rem', border: '1px solid var(--color-border, #cbd5e1)', borderRadius: '0.5rem', padding: '1rem', backgroundColor: 'var(--color-bg-subtle, #f8fafc)' }}>
                     <CodeScanner onResolve={handleUnpackScannerResolve} buttonText="📷 Scan Box Code" />
                   </div>
                 )}
@@ -1744,13 +1741,13 @@ export const QuickPackScreen: React.FC = () => {
                 </div>
 
                 {/* Selectable packed boxes list */}
-                <div className="quickpack-field-group" style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', maxHeight: '320px', overflowY: 'auto', border: '1px solid #e2e8f0', borderRadius: '0.5rem', padding: '0.5rem' }}>
+                <div className="quickpack-field-group" style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', maxHeight: '320px', overflowY: 'auto', border: '1px solid var(--color-border, #e2e8f0)', borderRadius: '0.5rem', padding: '0.5rem', backgroundColor: 'var(--color-surface, #ffffff)' }}>
                   {filteredUnpackBoxes.length === 0 ? (
-                    <div style={{ textAlign: 'center', padding: '2rem 0', color: '#94a3b8' }}>
+                    <div style={{ textAlign: 'center', padding: '2rem 0', color: 'var(--color-text-muted, #94a3b8)' }}>
                       {unpackAvailableBoxes.length === 0 ? (
                         <div>
-                          <p style={{ fontWeight: 600, margin: '0 0 0.5rem 0', color: '#64748b' }}>No packed boxes here.</p>
-                          <p style={{ fontSize: '0.85rem', color: '#94a3b8', margin: 0 }}>Scan a box from another Storage Space or choose another Storage Space.</p>
+                          <p style={{ fontWeight: 600, margin: '0 0 0.5rem 0', color: 'var(--color-text-muted, #64748b)' }}>No packed boxes here.</p>
+                          <p style={{ fontSize: '0.85rem', color: 'var(--color-text-muted, #94a3b8)', margin: 0 }}>Scan a box from another Storage Space or choose another Storage Space.</p>
                         </div>
                       ) : (
                         'No matching packed boxes found.'
@@ -1771,8 +1768,6 @@ export const QuickPackScreen: React.FC = () => {
                           }}
                           style={{
                             padding: '0.75rem 1rem',
-                            backgroundColor: '#ffffff',
-                            border: '1px solid #e2e8f0',
                             borderRadius: '0.5rem',
                             cursor: 'pointer',
                             display: 'flex',
@@ -1783,22 +1778,22 @@ export const QuickPackScreen: React.FC = () => {
                           className="unpack-choice-row"
                         >
                           <div>
-                            <div style={{ fontWeight: 800, fontSize: '0.95rem', color: '#0f172a' }}>
+                            <div style={{ fontWeight: 800, fontSize: '0.95rem', color: 'var(--color-text, #0f172a)' }}>
                               {box.boxId || `BOX ${String(box.boxNumber).padStart(3, '0')}`}
                             </div>
-                            <div style={{ fontSize: '0.9rem', color: '#475569', marginTop: '0.125rem' }}>
+                            <div style={{ fontSize: '0.9rem', color: 'var(--color-text-muted, #475569)', marginTop: '0.125rem' }}>
                               {box.name || 'Unnamed Box'}
                             </div>
-                            <div style={{ fontSize: '0.8rem', color: '#64748b', marginTop: '0.25rem' }}>
+                            <div style={{ fontSize: '0.8rem', color: 'var(--color-text-muted, #64748b)', marginTop: '0.25rem' }}>
                               📍 {locationDisplay}
                             </div>
                           </div>
                           <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '0.375rem' }}>
-                            <span style={{ fontSize: '0.7rem', fontWeight: 700, color: '#0284c7', backgroundColor: '#e0f2fe', padding: '0.15rem 0.4rem', borderRadius: '0.25rem' }}>
+                            <span style={{ fontSize: '0.7rem', fontWeight: 700, color: 'var(--color-primary-text, #0284c7)', backgroundColor: 'var(--color-primary-light, #e0f2fe)', padding: '0.15rem 0.4rem', borderRadius: '0.25rem' }}>
                               Packed
                             </span>
                             {box.movingPriority && (
-                              <span style={{ fontSize: '0.7rem', fontWeight: 700, color: box.movingPriority === 'HIGH' ? '#15803d' : box.movingPriority === 'MEDIUM' ? '#b45309' : '#4b5563', backgroundColor: box.movingPriority === 'HIGH' ? '#dcfce7' : box.movingPriority === 'MEDIUM' ? '#fef3c7' : '#f3f4f6', padding: '0.15rem 0.4rem', borderRadius: '0.25rem' }}>
+                              <span style={{ fontSize: '0.7rem', fontWeight: 700, color: box.movingPriority === 'HIGH' ? 'var(--color-success, #15803d)' : box.movingPriority === 'MEDIUM' ? 'var(--color-warning, #b45309)' : 'var(--color-text-muted, #4b5563)', backgroundColor: box.movingPriority === 'HIGH' ? 'var(--color-success-bg, #dcfce7)' : box.movingPriority === 'MEDIUM' ? 'var(--color-warning-bg, #fef3c7)' : 'var(--color-bg-subtle, #f3f4f6)', padding: '0.15rem 0.4rem', borderRadius: '0.25rem' }}>
                                 {box.movingPriority === 'HIGH' ? 'Open first' : box.movingPriority === 'MEDIUM' ? 'Normal' : 'Can wait'}
                               </span>
                             )}
@@ -1818,37 +1813,37 @@ export const QuickPackScreen: React.FC = () => {
                   Ready to unpack this box?
                 </h3>
 
-                <div className="quickpack-review-summary" style={{ border: '1px solid #e2e8f0', borderRadius: '0.5rem', padding: '1rem', backgroundColor: '#f8fafc', marginBottom: '1.5rem' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', borderBottom: '1px solid #e2e8f0', paddingBottom: '0.75rem', marginBottom: '0.75rem' }}>
+                <div className="quickpack-review-summary" style={{ border: '1px solid var(--color-border, #e2e8f0)', borderRadius: '0.5rem', padding: '1rem', backgroundColor: 'var(--color-bg-subtle, #f8fafc)', marginBottom: '1.5rem' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', borderBottom: '1px solid var(--color-border, #e2e8f0)', paddingBottom: '0.75rem', marginBottom: '0.75rem' }}>
                     <div>
-                      <h4 style={{ margin: '0 0 0.25rem 0', fontSize: '1.1rem', fontWeight: 800, color: '#0f172a' }}>
+                      <h4 style={{ margin: '0 0 0.25rem 0', fontSize: '1.1rem', fontWeight: 800, color: 'var(--color-text, #0f172a)' }}>
                         {unpackSelectedBox.boxId || `BOX ${String(unpackSelectedBox.boxNumber).padStart(3, '0')}`}
                       </h4>
-                      <p style={{ margin: 0, fontSize: '0.95rem', color: '#475569' }}>
+                      <p style={{ margin: 0, fontSize: '0.95rem', color: 'var(--color-text-muted, #475569)' }}>
                         {unpackSelectedBox.name || 'Unnamed Box'}
                       </p>
                     </div>
-                    <span style={{ fontSize: '0.75rem', fontWeight: 700, color: '#0284c7', backgroundColor: '#e0f2fe', padding: '0.2rem 0.5rem', borderRadius: '0.25rem' }}>
+                    <span style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--color-primary-text, #0284c7)', backgroundColor: 'var(--color-primary-light, #e0f2fe)', padding: '0.2rem 0.5rem', borderRadius: '0.25rem' }}>
                       Packed
                     </span>
                   </div>
 
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '0.75rem', fontSize: '0.9rem' }}>
                     <div>
-                      <span style={{ color: '#64748b', display: 'block', marginBottom: '0.125rem' }}>Current location</span>
-                      <strong style={{ color: '#0f172a' }}>
+                      <span style={{ color: 'var(--color-text-muted, #64748b)', display: 'block', marginBottom: '0.125rem' }}>Current location</span>
+                      <strong style={{ color: 'var(--color-text, #0f172a)' }}>
                         {workspacesList.find((w) => w.id.toLowerCase() === unpackSelectedBox.workspaceId?.toLowerCase())?.name || 'Unknown Space'} / {locations.find((l) => l.id === unpackSelectedBox.storageNodeId)?.name || 'Unknown Location'}
                       </strong>
                     </div>
 
                     <div>
-                      <span style={{ color: '#64748b', display: 'block', marginBottom: '0.125rem' }}>Moving priority</span>
+                      <span style={{ color: 'var(--color-text-muted, #64748b)', display: 'block', marginBottom: '0.125rem' }}>Moving priority</span>
                       {unpackSelectedBox.movingPriority ? (
-                        <span style={{ fontSize: '0.75rem', fontWeight: 700, color: unpackSelectedBox.movingPriority === 'HIGH' ? '#15803d' : unpackSelectedBox.movingPriority === 'MEDIUM' ? '#b45309' : '#4b5563', backgroundColor: unpackSelectedBox.movingPriority === 'HIGH' ? '#dcfce7' : unpackSelectedBox.movingPriority === 'MEDIUM' ? '#fef3c7' : '#f3f4f6', padding: '0.15rem 0.4rem', borderRadius: '0.25rem', display: 'inline-block', marginTop: '0.125rem' }}>
+                        <span style={{ fontSize: '0.75rem', fontWeight: 700, color: unpackSelectedBox.movingPriority === 'HIGH' ? 'var(--color-success, #15803d)' : unpackSelectedBox.movingPriority === 'MEDIUM' ? 'var(--color-warning, #b45309)' : 'var(--color-text-muted, #4b5563)', backgroundColor: unpackSelectedBox.movingPriority === 'HIGH' ? 'var(--color-success-bg, #dcfce7)' : unpackSelectedBox.movingPriority === 'MEDIUM' ? 'var(--color-warning-bg, #fef3c7)' : 'var(--color-bg-subtle, #f3f4f6)', padding: '0.15rem 0.4rem', borderRadius: '0.25rem', display: 'inline-block', marginTop: '0.125rem' }}>
                           {unpackSelectedBox.movingPriority === 'HIGH' ? 'Open first' : unpackSelectedBox.movingPriority === 'MEDIUM' ? 'Normal' : 'Can wait'}
                         </span>
                       ) : (
-                        <span style={{ color: '#94a3b8', fontStyle: 'italic' }}>No priority</span>
+                        <span style={{ color: 'var(--color-text-muted, #94a3b8)', fontStyle: 'italic' }}>No priority</span>
                       )}
                     </div>
                   </div>
@@ -2018,7 +2013,7 @@ export const QuickPackScreen: React.FC = () => {
             </div>
 
             {showScanner && (
-              <div style={{ marginBottom: '1.25rem', border: '1px solid #cbd5e1', borderRadius: '0.5rem', padding: '1rem', backgroundColor: '#f8fafc' }}>
+              <div style={{ marginBottom: '1.25rem', border: '1px solid var(--color-border, #cbd5e1)', borderRadius: '0.5rem', padding: '1rem', backgroundColor: 'var(--color-bg-subtle, #f8fafc)' }}>
                 <CodeScanner onResolve={handleScannerResolve} buttonText="📷 Scan Box Code" />
               </div>
             )}
@@ -2037,36 +2032,35 @@ export const QuickPackScreen: React.FC = () => {
             </div>
 
             {/* Discovery Filters: Storage Space & Hierarchical Location */}
-            <div className="quickpack-field-group" style={{ backgroundColor: '#f8fafc', padding: '0.875rem', borderRadius: '0.5rem', border: '1px solid #e2e8f0' }}>
-              <span style={{ fontSize: '0.8rem', fontWeight: 800, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.05em', display: 'block', marginBottom: '0.5rem' }}>
+            <div className="quickpack-field-group" style={{ backgroundColor: 'var(--color-bg-subtle, #f8fafc)', padding: '0.875rem', borderRadius: '0.5rem', border: '1px solid var(--color-border, #e2e8f0)' }}>
+              <span style={{ fontSize: '0.8rem', fontWeight: 800, color: 'var(--color-text-muted, #475569)', textTransform: 'uppercase', letterSpacing: '0.05em', display: 'block', marginBottom: '0.5rem' }}>
                 Discovery Filters
               </span>
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '0.75rem' }}>
                 <div>
-                  <label htmlFor="move-filter-workspace" style={{ fontSize: '0.8rem', fontWeight: 700, color: '#64748b', display: 'block', marginBottom: '0.25rem' }}>
+                  <label htmlFor="move-filter-workspace" style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--color-text-muted, #64748b)', display: 'block', marginBottom: '0.25rem' }}>
                     Storage Space
                   </label>
-                  <select
+                  <ThemedSelect
                     id="move-filter-workspace"
-                    className="quickpack-select"
                     value={filterWorkspaceId}
-                    onChange={(e) => {
-                      setFilterWorkspaceId(e.target.value);
+                    onChange={(val) => {
+                      setFilterWorkspaceId(val);
                       setFilterLocationId(null);
                     }}
-                    style={{ fontSize: '0.85rem', padding: '0.45rem 0.6rem' }}
-                  >
-                    <option value="all">All Storage Spaces</option>
-                    {workspacesList.map((ws) => (
-                      <option key={ws.id} value={ws.id}>
-                        {ws.name}
-                      </option>
-                    ))}
-                  </select>
+                    options={[
+                      { value: 'all', label: 'All Storage Spaces' },
+                      ...workspacesList.map((ws) => ({
+                        value: ws.id,
+                        label: ws.name,
+                      })),
+                    ]}
+                    aria-label="Storage Space"
+                  />
                 </div>
 
                 <div>
-                  <label style={{ fontSize: '0.8rem', fontWeight: 700, color: '#64748b', display: 'block', marginBottom: '0.25rem' }}>
+                  <label style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--color-text-muted, #64748b)', display: 'block', marginBottom: '0.25rem' }}>
                     Location (Includes Sublocations)
                   </label>
                   <HierarchicalLocationPicker
@@ -2082,9 +2076,9 @@ export const QuickPackScreen: React.FC = () => {
             </div>
 
             {/* Accessible boxes multi-select list */}
-            <div className="quickpack-field-group" style={{ maxHeight: '320px', overflowY: 'auto', border: '1px solid #e2e8f0', borderRadius: '0.5rem', padding: '0.5rem' }}>
+            <div className="quickpack-field-group" style={{ maxHeight: '320px', overflowY: 'auto', border: '1px solid var(--color-border, #e2e8f0)', borderRadius: '0.5rem', padding: '0.5rem', backgroundColor: 'var(--color-surface, #ffffff)' }}>
               {filteredMoveStep1Containers.length === 0 ? (
-                <div style={{ textAlign: 'center', padding: '2rem 0', color: '#94a3b8' }}>
+                <div style={{ textAlign: 'center', padding: '2rem 0', color: 'var(--color-text-muted, #94a3b8)' }}>
                   No matching boxes found. Try clearing filters or search terms.
                 </div>
               ) : (
@@ -2100,10 +2094,10 @@ export const QuickPackScreen: React.FC = () => {
                         alignItems: 'flex-start',
                         gap: '0.75rem',
                         padding: '0.75rem',
-                        borderBottom: '1px solid #f1f5f9',
+                        borderBottom: '1px solid var(--color-border-subtle, #f1f5f9)',
                         cursor: 'pointer',
                         borderRadius: '0.375rem',
-                        backgroundColor: isChecked ? '#f0f9ff' : '#ffffff',
+                        backgroundColor: isChecked ? 'var(--color-primary-light, #f0f9ff)' : 'var(--color-card-bg, #ffffff)',
                         transition: 'background-color 150ms ease',
                       }}
                     >
@@ -2116,17 +2110,17 @@ export const QuickPackScreen: React.FC = () => {
                       />
                       <div style={{ display: 'flex', flexDirection: 'column', flex: 1, minWidth: 0 }}>
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', flexWrap: 'wrap', gap: '0.35rem' }}>
-                          <span style={{ fontWeight: 800, fontSize: '0.9rem', color: '#0f172a' }}>
+                          <span style={{ fontWeight: 800, fontSize: '0.9rem', color: 'var(--color-text, #0f172a)' }}>
                             {box.boxId || `BOX ${String(box.boxNumber).padStart(3, '0')}`}
                           </span>
-                          <span style={{ fontSize: '0.75rem', fontWeight: 700, color: '#0284c7', backgroundColor: '#e0f2fe', padding: '0.15rem 0.4rem', borderRadius: '0.25rem' }}>
+                          <span style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--color-primary-text, #0284c7)', backgroundColor: 'var(--color-primary-light, #e0f2fe)', padding: '0.15rem 0.4rem', borderRadius: '0.25rem' }}>
                             {box.workspaceName}
                           </span>
                         </div>
-                        <div style={{ fontSize: '0.85rem', fontWeight: 600, color: '#334155', marginTop: '0.15rem' }}>
+                        <div style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--color-text, #334155)', marginTop: '0.15rem' }}>
                           {box.name || 'Unnamed Box'}
                         </div>
-                        <div style={{ fontSize: '0.8rem', color: '#64748b', marginTop: '0.25rem' }}>
+                        <div style={{ fontSize: '0.8rem', color: 'var(--color-text-muted, #64748b)', marginTop: '0.25rem' }}>
                           📍 {boxLoc}
                         </div>
                       </div>
@@ -2137,10 +2131,10 @@ export const QuickPackScreen: React.FC = () => {
             </div>
 
             {/* Selected Boxes Summary block */}
-            <div className="quickpack-summary-card" style={{ marginTop: '1.25rem', backgroundColor: '#f8fafc' }}>
+            <div className="quickpack-summary-card" style={{ marginTop: '1.25rem' }}>
               <div className="quickpack-summary-title">Selected Boxes ({selectedBoxes.length})</div>
               {selectedBoxes.length === 0 ? (
-                <p style={{ color: '#94a3b8', fontSize: '0.9rem', margin: 0 }}>No boxes selected yet.</p>
+                <p style={{ color: 'var(--color-text-muted, #94a3b8)', fontSize: '0.9rem', margin: 0 }}>No boxes selected yet.</p>
               ) : (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
                   {selectedBoxes.map((box) => {
@@ -2155,19 +2149,19 @@ export const QuickPackScreen: React.FC = () => {
                           justifyContent: 'space-between',
                           alignItems: 'center',
                           padding: '0.5rem 0.75rem',
-                          backgroundColor: '#ffffff',
+                          backgroundColor: 'var(--color-card-bg, #ffffff)',
                           borderRadius: '0.375rem',
-                          border: '1px solid #e2e8f0',
+                          border: '1px solid var(--color-card-border, #e2e8f0)',
                         }}
                       >
                         <div>
-                          <span style={{ fontWeight: 800, fontSize: '0.85rem', color: '#0f172a', marginRight: '0.5rem' }}>
+                          <span style={{ fontWeight: 800, fontSize: '0.85rem', color: 'var(--color-text, #0f172a)', marginRight: '0.5rem' }}>
                             {box.boxId || `BOX ${String(box.boxNumber).padStart(3, '0')}`}
                           </span>
-                          <span style={{ fontSize: '0.85rem', color: '#475569' }}>
+                          <span style={{ fontSize: '0.85rem', color: 'var(--color-text, #475569)' }}>
                             {box.name || 'Unnamed Box'}
                           </span>
-                          <div style={{ fontSize: '0.75rem', color: '#64748b', marginTop: '0.125rem' }}>
+                          <div style={{ fontSize: '0.75rem', color: 'var(--color-text-muted, #64748b)', marginTop: '0.125rem' }}>
                             {wsName} / 📍 {boxLoc}
                           </div>
                         </div>
@@ -2213,15 +2207,15 @@ export const QuickPackScreen: React.FC = () => {
             </h3>
 
             {/* Read-Only Source Banner */}
-            <div style={{ backgroundColor: '#f0f9ff', border: '1px solid #bae6fd', borderRadius: '0.5rem', padding: '1rem', marginBottom: '1.5rem' }}>
-              <span style={{ fontSize: '0.75rem', fontWeight: 800, color: '#0369a1', textTransform: 'uppercase', letterSpacing: '0.05em', display: 'block', marginBottom: '0.35rem' }}>
+            <div style={{ backgroundColor: 'var(--color-primary-light, #f0f9ff)', border: '1px solid var(--color-primary, #bae6fd)', borderRadius: '0.5rem', padding: '1rem', marginBottom: '1.5rem' }}>
+              <span style={{ fontSize: '0.75rem', fontWeight: 800, color: 'var(--color-primary-text, #0369a1)', textTransform: 'uppercase', letterSpacing: '0.05em', display: 'block', marginBottom: '0.35rem' }}>
                 Source (FROM)
               </span>
               {selectedBoxes.map((box) => {
                 const wsName = (box as any).workspaceName || workspacesList.find((w) => w.id.toLowerCase() === box.workspaceId.toLowerCase())?.name || 'Workspace';
                 const sourceLoc = getLocationPathString(box.storageNodeId, locationsByWorkspaceMap.get(box.workspaceId) || []);
                 return (
-                  <div key={box.id} style={{ fontSize: '0.9rem', color: '#0f172a', fontWeight: 600, marginTop: '0.25rem' }}>
+                  <div key={box.id} style={{ fontSize: '0.9rem', color: 'var(--color-text, #0f172a)', fontWeight: 600, marginTop: '0.25rem' }}>
                     <strong>{box.boxId || `BOX ${String(box.boxNumber).padStart(3, '0')}`}</strong> ({box.name || 'Unnamed Box'}) in <strong>{wsName}</strong> / 📍 {sourceLoc}
                   </div>
                 );
@@ -2234,9 +2228,9 @@ export const QuickPackScreen: React.FC = () => {
                 style={{
                   marginBottom: '1.5rem',
                   padding: '1rem',
-                  border: '1px solid #cbd5e1',
+                  border: '1px solid var(--color-border, #cbd5e1)',
                   borderRadius: '0.5rem',
-                  backgroundColor: '#f8fafc',
+                  backgroundColor: 'var(--color-bg-subtle, #f8fafc)',
                 }}
               >
                 <h4 style={{ margin: '0 0 0.75rem 0', fontSize: '1rem', fontWeight: 700 }}>
@@ -2267,19 +2261,19 @@ export const QuickPackScreen: React.FC = () => {
                   <label htmlFor="new-location-parent-move" className="quickpack-label">
                     Belongs inside (Optional)
                   </label>
-                  <select
+                  <ThemedSelect
                     id="new-location-parent-move"
-                    className="quickpack-select"
                     value={newLocationParentId}
-                    onChange={(e) => setNewLocationParentId(e.target.value)}
-                  >
-                    <option value="">-- No parent / Root location --</option>
-                    {destinationLocations.map((loc) => (
-                      <option key={loc.id} value={loc.id}>
-                        {loc.name}
-                      </option>
-                    ))}
-                  </select>
+                    onChange={(val) => setNewLocationParentId(val)}
+                    options={[
+                      { value: '', label: '-- No parent / Root location --' },
+                      ...(destinationLocations || []).map((loc) => ({
+                        value: loc.id,
+                        label: loc.name,
+                      })),
+                    ]}
+                    aria-label="Belongs inside (Optional)"
+                  />
                 </div>
 
                 <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'flex-end' }}>
@@ -2312,7 +2306,7 @@ export const QuickPackScreen: React.FC = () => {
                       style={{
                         border: 'none',
                         background: 'none',
-                        color: '#0284c7',
+                        color: 'var(--color-primary-text, #0284c7)',
                         cursor: 'pointer',
                         fontWeight: 600,
                         padding: 0,
@@ -2323,26 +2317,23 @@ export const QuickPackScreen: React.FC = () => {
                     </button>
                   </div>
 
-                  <select
+                  <ThemedSelect
                     id="quickpack-move-dest-workspace"
-                    className="quickpack-select"
                     value={destinationWorkspaceId}
-                    onChange={(e) => handleDestinationWorkspaceChange(e.target.value)}
-                    required
-                  >
-                    <option value="">-- Select Storage Space --</option>
-                    {(compatibleDestinationWorkspaces || workspacesList).map((ws) => (
-                      <option key={ws.id} value={ws.id}>
-                        {ws.name}
-                      </option>
-                    ))}
-                  </select>
+                    onChange={(val) => handleDestinationWorkspaceChange(val)}
+                    options={(compatibleDestinationWorkspaces || workspacesList).map((ws) => ({
+                      value: ws.id,
+                      label: ws.name,
+                    }))}
+                    placeholder="-- Select Storage Space --"
+                    aria-label="Destination Storage Space *"
+                  />
                 </div>
 
                 {/* Destination Location Selector (Hierarchical Picker) */}
                 <div className="quickpack-field-group">
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: '0.35rem' }}>
-                    <label style={{ fontSize: '0.875rem', fontWeight: 700, color: '#334155' }}>
+                    <label style={{ fontSize: '0.875rem', fontWeight: 700, color: 'var(--color-text, #334155)' }}>
                       Destination Storage Location *
                     </label>
                     {destinationWorkspaceId && (
@@ -2351,7 +2342,7 @@ export const QuickPackScreen: React.FC = () => {
                         style={{
                           border: 'none',
                           background: 'none',
-                          color: '#0284c7',
+                          color: 'var(--color-primary-text, #0284c7)',
                           cursor: 'pointer',
                           fontWeight: 600,
                           padding: 0,
@@ -2365,8 +2356,8 @@ export const QuickPackScreen: React.FC = () => {
 
                   {destinationWorkspaceId ? (
                     destinationLocations.length === 0 ? (
-                      <div style={{ marginTop: '0.5rem', marginBottom: '1.25rem', padding: '1rem', border: '1px dashed #cbd5e1', borderRadius: '0.5rem', backgroundColor: '#f8fafc', display: 'flex', flexDirection: 'column', gap: '0.5rem', alignItems: 'center' }}>
-                        <span style={{ fontSize: '0.875rem', color: '#64748b' }}>No locations in this Storage Space yet.</span>
+                      <div style={{ marginTop: '0.5rem', marginBottom: '1.25rem', padding: '1rem', border: '1px dashed var(--color-border, #cbd5e1)', borderRadius: '0.5rem', backgroundColor: 'var(--color-bg-subtle, #f8fafc)', display: 'flex', flexDirection: 'column', gap: '0.5rem', alignItems: 'center' }}>
+                        <span style={{ fontSize: '0.875rem', color: 'var(--color-text-muted, #64748b)' }}>No locations in this Storage Space yet.</span>
                         <button
                           type="button"
                           className="btn btn-secondary btn--sm"
@@ -2391,7 +2382,7 @@ export const QuickPackScreen: React.FC = () => {
                       />
                     )
                   ) : (
-                    <div style={{ padding: '0.65rem 0.85rem', backgroundColor: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '0.5rem', fontSize: '0.85rem', color: '#94a3b8' }}>
+                    <div style={{ padding: '0.65rem 0.85rem', backgroundColor: 'var(--color-bg-subtle, #f8fafc)', border: '1px solid var(--color-border, #e2e8f0)', borderRadius: '0.5rem', fontSize: '0.85rem', color: 'var(--color-text-muted, #94a3b8)' }}>
                       Select a Destination Storage Space first.
                     </div>
                   )}
@@ -2475,9 +2466,9 @@ export const QuickPackScreen: React.FC = () => {
               </div>
             )}
 
-            <div style={{ marginBottom: '1rem', fontWeight: 700, fontSize: '0.95rem', color: '#475569' }}>
+            <div style={{ marginBottom: '1rem', fontWeight: 700, fontSize: '0.95rem', color: 'var(--color-text-muted, #475569)' }}>
               Moving {selectedBoxes.length} box(es) to:{' '}
-              <strong style={{ color: '#0f172a' }}>
+              <strong style={{ color: 'var(--color-text, #0f172a)' }}>
                 {workspaceContext.workspaces.find((w) => w.id.toLowerCase() === destinationWorkspaceId?.toLowerCase())?.name || 'Unknown Space'} /{' '}
                 {getLocationPathString(moveDestinationId, destinationLocations)}
               </strong>
@@ -2509,53 +2500,53 @@ export const QuickPackScreen: React.FC = () => {
                     className="quickpack-summary-card"
                     style={{
                       marginTop: 0,
-                      backgroundColor: '#ffffff',
-                      border: '1px solid #e2e8f0',
+                      backgroundColor: 'var(--color-card-bg, #ffffff)',
+                      border: '1px solid var(--color-card-border, #e2e8f0)',
                       padding: '1.25rem',
                     }}
                   >
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', flexWrap: 'wrap', gap: '0.5rem' }}>
-                      <span style={{ fontWeight: 800, color: '#0f172a', fontSize: '1rem' }}>
+                      <span style={{ fontWeight: 800, color: 'var(--color-text, #0f172a)', fontSize: '1rem' }}>
                         {box.boxId || `BOX ${String(box.boxNumber).padStart(3, '0')}`} — {box.name || 'Unnamed Box'}
                       </span>
 
                       {/* Execution outcomes */}
                       <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
                         {outcomes.moveStatus === 'IN_PROGRESS' && (
-                          <span style={{ fontSize: '0.75rem', fontWeight: 700, color: '#0284c7', backgroundColor: '#e0f2fe', padding: '0.15rem 0.4rem', borderRadius: '0.25rem' }}>
+                          <span style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--color-primary-text, #0284c7)', backgroundColor: 'var(--color-primary-light, #e0f2fe)', padding: '0.15rem 0.4rem', borderRadius: '0.25rem' }}>
                             Moving...
                           </span>
                         )}
                         {outcomes.moveStatus === 'SUCCESS' && (
-                          <span style={{ fontSize: '0.75rem', fontWeight: 700, color: '#16a34a', backgroundColor: '#dcfce7', padding: '0.15rem 0.4rem', borderRadius: '0.25rem' }}>
+                          <span style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--color-success, #16a34a)', backgroundColor: 'var(--color-success-bg, #dcfce7)', padding: '0.15rem 0.4rem', borderRadius: '0.25rem' }}>
                             Moved successfully
                           </span>
                         )}
                         {outcomes.moveStatus === 'NOT_NEEDED' && (
-                          <span style={{ fontSize: '0.75rem', fontWeight: 700, color: '#475569', backgroundColor: '#f1f5f9', padding: '0.15rem 0.4rem', borderRadius: '0.25rem' }}>
+                          <span style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--color-text-muted, #475569)', backgroundColor: 'var(--color-bg-subtle, #f1f5f9)', padding: '0.15rem 0.4rem', borderRadius: '0.25rem' }}>
                             Already in {destLoc}
                           </span>
                         )}
                         {outcomes.moveStatus === 'FAILED' && (
-                          <span style={{ fontSize: '0.75rem', fontWeight: 700, color: '#dc2626', backgroundColor: '#fee2e2', padding: '0.15rem 0.4rem', borderRadius: '0.25rem' }}>
+                          <span style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--color-danger, #dc2626)', backgroundColor: 'var(--color-danger-bg, #fee2e2)', padding: '0.15rem 0.4rem', borderRadius: '0.25rem' }}>
                             Couldn't be moved
                           </span>
                         )}
 
                         {outcomes.priorityStatus === 'IN_PROGRESS' && (
-                          <span style={{ fontSize: '0.75rem', fontWeight: 700, color: '#0284c7', backgroundColor: '#e0f2fe', padding: '0.15rem 0.4rem', borderRadius: '0.25rem' }}>
+                          <span style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--color-primary-text, #0284c7)', backgroundColor: 'var(--color-primary-light, #e0f2fe)', padding: '0.15rem 0.4rem', borderRadius: '0.25rem' }}>
                             Updating Priority...
                           </span>
                         )}
                         {outcomes.priorityStatus === 'FAILED' && (
-                          <span style={{ fontSize: '0.75rem', fontWeight: 700, color: '#dc2626', backgroundColor: '#fee2e2', padding: '0.15rem 0.4rem', borderRadius: '0.25rem' }}>
+                          <span style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--color-danger, #dc2626)', backgroundColor: 'var(--color-danger-bg, #fee2e2)', padding: '0.15rem 0.4rem', borderRadius: '0.25rem' }}>
                             Priority failed
                           </span>
                         )}
                       </div>
                     </div>
 
-                    <div style={{ fontSize: '0.85rem', color: '#64748b', marginTop: '0.375rem' }}>
+                    <div style={{ fontSize: '0.85rem', color: 'var(--color-text-muted, #64748b)', marginTop: '0.375rem' }}>
                       {sourceWorkspaceName} / {sourceLoc} → {destWorkspaceName} / {destLoc}
                     </div>
 

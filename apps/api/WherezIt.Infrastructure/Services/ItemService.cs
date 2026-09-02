@@ -88,6 +88,12 @@ public class ItemService : IItemService
             throw new ArgumentException("Item name cannot be empty.", nameof(request));
         }
 
+        var trimmedName = request.Name.Trim();
+        if (trimmedName.Length > 100)
+        {
+            throw new ArgumentException("Item name must be 100 characters or fewer.", nameof(request));
+        }
+
         if (request.Quantity < 1)
         {
             throw new ArgumentException("Item quantity must be greater than or equal to 1.", nameof(request));
@@ -113,7 +119,7 @@ public class ItemService : IItemService
             Id = Guid.NewGuid(),
             WorkspaceId = workspaceId,
             ContainerId = containerId,
-            Name = request.Name.Trim(),
+            Name = trimmedName,
             Quantity = request.Quantity,
             Category = NormalizeCategory(request.Category),
             Source = "MANUAL",
@@ -166,7 +172,12 @@ public class ItemService : IItemService
             {
                 throw new ArgumentException("Item name cannot be empty.", nameof(request));
             }
-            item.Name = request.Name.Trim();
+            var trimmedUpdateName = request.Name.Trim();
+            if (trimmedUpdateName.Length > 100)
+            {
+                throw new ArgumentException("Item name must be 100 characters or fewer.", nameof(request));
+            }
+            item.Name = trimmedUpdateName;
         }
 
         if (request.Quantity.HasValue)

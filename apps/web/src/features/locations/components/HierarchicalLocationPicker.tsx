@@ -96,35 +96,35 @@ export const HierarchicalLocationPicker: React.FC<HierarchicalLocationPickerProp
             </div>
 
             {/* Navigation Breadcrumb */}
-            <div className="hl-picker-nav-crumbs">
-              {getNavCrumbs().map((crumb, idx, arr) => (
-                <React.Fragment key={crumb.id || 'root'}>
-                  <button
-                    type="button"
-                    className={`hl-crumb-btn ${idx === arr.length - 1 ? 'active' : ''}`}
-                    onClick={() => setCurrentParentId(crumb.id)}
-                  >
-                    {crumb.name}
-                  </button>
-                  {idx < arr.length - 1 && <span className="hl-crumb-sep">›</span>}
-                </React.Fragment>
-              ))}
-            </div>
+            {currentParentId !== null && (
+              <div className="hl-picker-nav-crumbs">
+                {getNavCrumbs().map((crumb, idx, arr) => (
+                  <React.Fragment key={crumb.id || 'root'}>
+                    <button
+                      type="button"
+                      className={`hl-crumb-btn ${idx === arr.length - 1 ? 'active' : ''}`}
+                      onClick={() => setCurrentParentId(crumb.id)}
+                    >
+                      {crumb.name}
+                    </button>
+                    {idx < arr.length - 1 && <span className="hl-crumb-sep">›</span>}
+                  </React.Fragment>
+                ))}
+              </div>
+            )}
 
             {/* Select current level button */}
-            <div className="hl-picker-actions">
-              <button
-                type="button"
-                className="btn btn-primary btn--sm hl-select-level-btn"
-                onClick={() => handleSelectCurrentNode(currentParentId)}
-              >
-                {currentParentId
-                  ? `Select "${currentParent?.name}" (includes sublocations)`
-                  : allowAll
-                  ? `Select All Locations`
-                  : `Select Top Level`}
-              </button>
-            </div>
+            {currentParentId !== null && (
+              <div className="hl-picker-actions">
+                <button
+                  type="button"
+                  className="btn btn-primary btn--sm hl-select-level-btn"
+                  onClick={() => handleSelectCurrentNode(currentParentId)}
+                >
+                  {`Select "${currentParent?.name}" (includes sublocations)`}
+                </button>
+              </div>
+            )}
 
             {/* Child locations list */}
             <div className="hl-picker-node-list">

@@ -88,8 +88,21 @@ export const AddItemModal: React.FC<AddItemModalProps> = ({
     e.preventDefault();
     setFormError(null);
 
-    if (!name.trim()) {
+    const trimmedName = name.trim();
+    const trimmedCat = category.trim();
+
+    if (!trimmedName) {
       setFormError('Item name cannot be empty.');
+      return;
+    }
+
+    if (trimmedName.length > 100) {
+      setFormError('Item name must be 100 characters or fewer.');
+      return;
+    }
+
+    if (trimmedCat.length > 50) {
+      setFormError('Category must be 50 characters or fewer.');
       return;
     }
 
@@ -100,8 +113,8 @@ export const AddItemModal: React.FC<AddItemModalProps> = ({
 
     try {
       await onSubmit({
-        name: name.trim(),
-        category: category.trim() ? category.trim() : undefined,
+        name: trimmedName,
+        category: trimmedCat ? trimmedCat : undefined,
         quantity,
         photoFile: selectedPhotoFile,
       });
@@ -151,32 +164,29 @@ export const AddItemModal: React.FC<AddItemModalProps> = ({
 
       <div
         style={{
-          backgroundColor: '#fff',
-          borderRadius: '0.5rem',
+          backgroundColor: '#ffffff',
+          borderRadius: '0.75rem',
           padding: '1.5rem',
           maxWidth: '440px',
           width: '100%',
-          boxShadow: '0 10px 25px rgba(0,0,0,0.2)',
-          boxSizing: 'border-box',
+          boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1)',
         }}
       >
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem' }}>
-          <h3 id="add-item-modal-title" style={{ margin: 0, fontSize: '1.25rem', color: '#0f172a', fontWeight: 700 }}>
-            Add Item Manually
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+          <h3 id="add-item-modal-title" style={{ margin: 0, fontSize: '1.125rem', fontWeight: 700, color: '#0f172a' }}>
+            Add Item to Box
           </h3>
           <button
             type="button"
             onClick={handleClose}
-            disabled={isSubmitting}
-            style={{ border: 'none', background: 'none', fontSize: '1.5rem', cursor: isSubmitting ? 'not-allowed' : 'pointer', color: '#94a3b8' }}
-            aria-label="Close modal"
+            style={{ background: 'none', border: 'none', fontSize: '1.25rem', color: '#64748b', cursor: 'pointer' }}
           >
-            &times;
+            ✕
           </button>
         </div>
 
         {formError && (
-          <div role="alert" style={{ backgroundColor: '#fef2f2', border: '1px solid #fca5a5', color: '#dc2626', padding: '0.75rem 1rem', borderRadius: '0.375rem', marginBottom: '1rem', fontSize: '0.875rem' }}>
+          <div role="alert" style={{ backgroundColor: '#fef2f2', color: '#991b1b', borderLeft: '4px solid #ef4444', padding: '0.625rem 0.875rem', borderRadius: '0.375rem', marginBottom: '1rem', fontSize: '0.875rem' }}>
             {formError}
           </div>
         )}
@@ -188,6 +198,7 @@ export const AddItemModal: React.FC<AddItemModalProps> = ({
             </label>
             <input
               type="text"
+              maxLength={100}
               placeholder="e.g. Christmas Lights"
               value={name}
               onChange={(e) => setName(e.target.value)}
@@ -203,6 +214,7 @@ export const AddItemModal: React.FC<AddItemModalProps> = ({
             </label>
             <input
               type="text"
+              maxLength={50}
               placeholder="e.g. Holiday Decor"
               value={category}
               onChange={(e) => setCategory(e.target.value)}

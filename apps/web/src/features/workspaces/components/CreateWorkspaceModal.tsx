@@ -145,6 +145,7 @@ export const CreateWorkspaceModal: React.FC<CreateWorkspaceModalProps> = ({
             <input
               id="modalWorkspaceName"
               type="text"
+              maxLength={100}
               placeholder="e.g., Summer Cabin, Office, Garage"
               aria-invalid={!!errors.name}
               aria-describedby={errors.name ? 'modalWorkspaceName-error' : undefined}

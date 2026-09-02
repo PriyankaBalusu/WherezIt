@@ -61,6 +61,8 @@ public static class DependencyInjection
         services.AddScoped<WherezIt.Application.Identifiers.Services.IIdentifierService, Services.IdentifierService>();
         services.AddScoped<WherezIt.Application.ActivityHistory.Services.IActivityHistoryService, Services.ActivityHistoryService>();
         services.AddScoped<WherezIt.Application.Seed.Services.IDemoSeedService, Seed.DemoSeedService>();
+        services.AddScoped<WherezIt.Application.Seed.Services.IBug4SeedService, Seed.Bug4SeedService>();
+        services.AddScoped<WherezIt.Application.Seed.Services.IDemoDataSeedService, Seed.DemoDataSeedService>();
 
         services.AddHealthChecks()
             .AddDbContextCheck<WherezItDbContext>("postgresql");

@@ -120,11 +120,16 @@ export const WorkspaceHome: React.FC<WorkspaceHomeProps> = ({ activeWorkspace })
   const handleAddLocationSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setFormError(null);
-    if (!addLocationName.trim()) return;
+    const trimmed = addLocationName.trim();
+    if (!trimmed) return;
+    if (trimmed.length > 100) {
+      setFormError('Location name must be 100 characters or fewer.');
+      return;
+    }
 
     try {
       await createLocationMutation.mutateAsync({
-        name: addLocationName.trim(),
+        name: trimmed,
         parentId: addLocationParentId || null,
       });
       setAddLocationName('');
@@ -137,12 +142,17 @@ export const WorkspaceHome: React.FC<WorkspaceHomeProps> = ({ activeWorkspace })
   const handleRenameLocationSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setFormError(null);
-    if (!renameLocationId || !renameLocationName.trim()) return;
+    const trimmed = renameLocationName.trim();
+    if (!renameLocationId || !trimmed) return;
+    if (trimmed.length > 100) {
+      setFormError('Location name must be 100 characters or fewer.');
+      return;
+    }
 
     try {
       await renameLocationMutation.mutateAsync({
         locationId: renameLocationId,
-        data: { name: renameLocationName.trim() },
+        data: { name: trimmed },
       });
       setIsRenameLocationOpen(false);
       setRenameLocationId(null);
@@ -154,16 +164,29 @@ export const WorkspaceHome: React.FC<WorkspaceHomeProps> = ({ activeWorkspace })
   const handleAddBoxSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setFormError(null);
-    if (!addBoxName.trim() || !addBoxLocationId) {
+    const trimmedName = addBoxName.trim();
+    const trimmedDesc = addBoxDesc.trim();
+
+    if (!trimmedName || !addBoxLocationId) {
       setFormError('Please fill in the box name and select a storage location.');
+      return;
+    }
+
+    if (trimmedName.length > 100) {
+      setFormError('Container name must be 100 characters or fewer.');
+      return;
+    }
+
+    if (trimmedDesc.length > 500) {
+      setFormError('Description must be 500 characters or fewer.');
       return;
     }
 
     try {
       const newBox = await createBoxMutation.mutateAsync({
         storageNodeId: addBoxLocationId,
-        name: addBoxName.trim(),
-        description: addBoxDesc.trim() || undefined,
+        name: trimmedName,
+        description: trimmedDesc || undefined,
       });
       setAddBoxName('');
       setAddBoxDesc('');
@@ -371,6 +394,7 @@ export const WorkspaceHome: React.FC<WorkspaceHomeProps> = ({ activeWorkspace })
                   <input
                     type="text"
                     id="location-name"
+                    maxLength={100}
                     placeholder="e.g. Garage, Rack A, Shelf 1"
                     value={addLocationName}
                     onChange={(e) => setAddLocationName(e.target.value)}
@@ -435,6 +459,7 @@ export const WorkspaceHome: React.FC<WorkspaceHomeProps> = ({ activeWorkspace })
                   <input
                     type="text"
                     id="rename-location-name"
+                    maxLength={100}
                     value={renameLocationName}
                     onChange={(e) => setRenameLocationName(e.target.value)}
                     required
@@ -483,6 +508,7 @@ export const WorkspaceHome: React.FC<WorkspaceHomeProps> = ({ activeWorkspace })
                   <input
                     type="text"
                     id="box-name"
+                    maxLength={100}
                     placeholder="e.g. Holiday Decorations, Camping Gear"
                     value={addBoxName}
                     onChange={(e) => setAddBoxName(e.target.value)}
@@ -510,6 +536,7 @@ export const WorkspaceHome: React.FC<WorkspaceHomeProps> = ({ activeWorkspace })
                   <label htmlFor="box-description">Description</label>
                   <textarea
                     id="box-description"
+                    maxLength={500}
                     placeholder="Optional description..."
                     value={addBoxDesc}
                     onChange={(e) => setAddBoxDesc(e.target.value)}

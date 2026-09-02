@@ -121,4 +121,54 @@ describe('BoxHistoryTimeline Suite', () => {
     expect(screen.queryByRole('button', { name: /delete/i })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /edit/i })).not.toBeInTheDocument();
   });
+
+  it('renders photo added and photo removed events alongside container creation and movement events', () => {
+    const mockHistory: useBoxHistoryModule.BoxHistoryItem[] = [
+      {
+        id: 'h-photo-2',
+        activityType: 'PHOTO_REMOVED',
+        title: 'Photo removed',
+        description: 'Photo removed',
+        containerId: 'c-456',
+        workspaceId: 'ws-123',
+        actorUserId: 'user-1',
+        occurredAt: '2026-08-31T12:00:00Z',
+      },
+      {
+        id: 'h-photo-1',
+        activityType: 'PHOTO_ADDED',
+        title: 'Photo added',
+        description: 'Photo uploaded',
+        containerId: 'c-456',
+        workspaceId: 'ws-123',
+        actorUserId: 'user-1',
+        occurredAt: '2026-08-31T11:00:00Z',
+      },
+      {
+        id: 'h-box-created',
+        activityType: 'CONTAINER_CREATED',
+        title: 'Box created',
+        description: 'Created in Garage',
+        containerId: 'c-456',
+        workspaceId: 'ws-123',
+        actorUserId: 'user-1',
+        occurredAt: '2026-08-30T10:00:00Z',
+      },
+    ];
+
+    vi.spyOn(useBoxHistoryModule, 'useBoxHistory').mockReturnValue({
+      data: mockHistory,
+      isLoading: false,
+      isError: false,
+      error: null,
+    } as any);
+
+    renderComponent();
+
+    expect(screen.getByText('Box History')).toBeInTheDocument();
+    expect(screen.getByText('3 events')).toBeInTheDocument();
+    expect(screen.getByText('Photo removed')).toBeInTheDocument();
+    expect(screen.getByText('Photo added')).toBeInTheDocument();
+    expect(screen.getByText('Box created')).toBeInTheDocument();
+  });
 });

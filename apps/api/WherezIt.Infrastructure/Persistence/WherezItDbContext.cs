@@ -25,6 +25,7 @@ public class WherezItDbContext : DbContext
     public DbSet<InventoryNamespace> InventoryNamespaces => Set<InventoryNamespace>();
     public DbSet<InventoryNamespaceMember> InventoryNamespaceMembers => Set<InventoryNamespaceMember>();
     public DbSet<InventoryNamespaceBoxCounter> InventoryNamespaceBoxCounters => Set<InventoryNamespaceBoxCounter>();
+    public DbSet<WorkspaceAudit> WorkspaceAudits => Set<WorkspaceAudit>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

@@ -409,4 +409,40 @@ public class ImageUploadAndRetrievalIntegrationTest : IClassFixture<PostgresTest
         Assert.Single(images);
         Assert.Equal(uploadResult.Id, images[0].Id);
     }
+
+    [Fact]
+    public async Task UploadAndDeleteContainerImage_CreatesActivityHistory()
+    {
+        using var scope = _fixture.Services.CreateScope();
+        var workspaceService = scope.ServiceProvider.GetRequiredService<IWorkspaceService>();
+        var locationService = scope.ServiceProvider.GetRequiredService<IStorageLocationService>();
+        var containerService = scope.ServiceProvider.GetRequiredService<IContainerService>();
+        var imageService = scope.ServiceProvider.GetRequiredService<IImageManagementService>();
+        var db = scope.ServiceProvider.GetRequiredService<WherezItDbContext>();
+
+        var user = new AuthenticatedIdentity($"hist_img_user_{Guid.NewGuid():N}", "hist_img@example.com", true);
+        var ws = await workspaceService.CreateWorkspaceAsync(user, new CreateWorkspaceRequestDto("History WS"));
+        var loc = await locationService.CreateLocationAsync(user, ws.Id, new CreateStorageLocationRequestDto("Loc", null));
+        var container = await containerService.CreateContainerAsync(user, ws.Id, new CreateContainerRequestDto(loc.Id, "History Container", null));
+
+        var sampleBytes = Encoding.UTF8.GetBytes("\xFF\xD8\xFF\xE0FakeJpegContent");
+        using var uploadStream = new MemoryStream(sampleBytes);
+
+        // 1. Upload box reference photo
+        var uploadResult = await imageService.UploadContainerImageAsync(
+            user, ws.Id, container.Id, uploadStream, "image/jpeg", sampleBytes.Length);
+
+        var historyAdded = await db.ActivityHistories
+            .FirstOrDefaultAsync(h => h.WorkspaceId == ws.Id && h.ContainerId == container.Id && h.ActivityType == "PHOTO_ADDED");
+        Assert.NotNull(historyAdded);
+        Assert.Equal(user.FirebaseUid, historyAdded!.ActorUserId);
+
+        // 2. Delete box reference photo
+        await imageService.DeleteContainerReferenceImageAsync(user, ws.Id, container.Id, uploadResult.Id);
+
+        var historyRemoved = await db.ActivityHistories
+            .FirstOrDefaultAsync(h => h.WorkspaceId == ws.Id && h.ContainerId == container.Id && h.ActivityType == "PHOTO_REMOVED");
+        Assert.NotNull(historyRemoved);
+        Assert.Equal(user.FirebaseUid, historyRemoved!.ActorUserId);
+    }
 }

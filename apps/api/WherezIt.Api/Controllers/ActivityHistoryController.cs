@@ -11,6 +11,7 @@ using WherezIt.Application.Authentication;
 namespace WherezIt.Api.Controllers;
 
 [ApiController]
+[Route("api/v1")]
 [Authorize]
 public class ActivityHistoryController : ControllerBase
 {
@@ -21,11 +22,13 @@ public class ActivityHistoryController : ControllerBase
         _historyService = historyService;
     }
 
-    [HttpGet("api/v1/workspaces/{workspaceId}/containers/{containerId}/history")]
+    [HttpGet("workspaces/{workspaceId}/containers/{containerId}/history")]
     [EnableRateLimiting("GeneralApiPolicy")]
     public async Task<IActionResult> GetContainerHistory(
         [FromRoute] Guid workspaceId,
         [FromRoute] Guid containerId,
+        [FromQuery] int page = 1,
+        [FromQuery] int pageSize = 10,
         CancellationToken cancellationToken = default)
     {
         var identity = GetAuthenticatedIdentity();
@@ -36,7 +39,66 @@ public class ActivityHistoryController : ControllerBase
 
         try
         {
-            var history = await _historyService.GetContainerHistoryAsync(identity, workspaceId, containerId, cancellationToken);
+            var history = await _historyService.GetContainerHistoryAsync(identity, workspaceId, containerId, page, pageSize, cancellationToken);
+            return Ok(history);
+        }
+        catch (KeyNotFoundException ex)
+        {
+            return NotFound(new { error = ex.Message });
+        }
+        catch (UnauthorizedAccessException)
+        {
+            return Forbid();
+        }
+    }
+
+    [HttpGet("workspaces/{workspaceId}/history")]
+    [EnableRateLimiting("GeneralApiPolicy")]
+    public async Task<IActionResult> GetWorkspaceHistory(
+        [FromRoute] Guid workspaceId,
+        [FromQuery] int page = 1,
+        [FromQuery] int pageSize = 10,
+        CancellationToken cancellationToken = default)
+    {
+        var identity = GetAuthenticatedIdentity();
+        if (identity == null)
+        {
+            return Unauthorized(new { error = "Firebase UID claim not found in authenticated principal." });
+        }
+
+        try
+        {
+            var history = await _historyService.GetWorkspaceHistoryAsync(identity, workspaceId, page, pageSize, cancellationToken);
+            return Ok(history);
+        }
+        catch (KeyNotFoundException ex)
+        {
+            return NotFound(new { error = ex.Message });
+        }
+        catch (UnauthorizedAccessException)
+        {
+            return Forbid();
+        }
+    }
+
+    [HttpGet("workspaces/{workspaceId}/locations/{locationId}/history")]
+    [EnableRateLimiting("GeneralApiPolicy")]
+    public async Task<IActionResult> GetLocationHistory(
+        [FromRoute] Guid workspaceId,
+        [FromRoute] Guid locationId,
+        [FromQuery] int page = 1,
+        [FromQuery] int pageSize = 10,
+        CancellationToken cancellationToken = default)
+    {
+        var identity = GetAuthenticatedIdentity();
+        if (identity == null)
+        {
+            return Unauthorized(new { error = "Firebase UID claim not found in authenticated principal." });
+        }
+
+        try
+        {
+            var history = await _historyService.GetLocationHistoryAsync(identity, workspaceId, locationId, page, pageSize, cancellationToken);
             return Ok(history);
         }
         catch (KeyNotFoundException ex)

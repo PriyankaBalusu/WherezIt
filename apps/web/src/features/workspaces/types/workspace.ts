@@ -6,6 +6,8 @@ export interface Workspace {
   role: WorkspaceRole;
   createdAt: string;
   inventoryNamespaceId: string;
+  memberCount?: number;
+  ownerCount?: number;
 }
 
 export interface CreateWorkspaceRequest {

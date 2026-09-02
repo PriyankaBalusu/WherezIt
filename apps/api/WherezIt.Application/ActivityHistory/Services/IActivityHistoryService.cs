@@ -13,5 +13,22 @@ public interface IActivityHistoryService
         AuthenticatedIdentity identity,
         Guid workspaceId,
         Guid containerId,
+        int page = 1,
+        int pageSize = 10,
+        CancellationToken cancellationToken = default);
+
+    Task<List<ActivityHistoryDto>> GetWorkspaceHistoryAsync(
+        AuthenticatedIdentity identity,
+        Guid workspaceId,
+        int page = 1,
+        int pageSize = 10,
+        CancellationToken cancellationToken = default);
+
+    Task<List<ActivityHistoryDto>> GetLocationHistoryAsync(
+        AuthenticatedIdentity identity,
+        Guid workspaceId,
+        Guid locationId,
+        int page = 1,
+        int pageSize = 10,
         CancellationToken cancellationToken = default);
 }

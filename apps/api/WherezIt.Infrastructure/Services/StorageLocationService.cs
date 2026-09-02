@@ -3,6 +3,7 @@ using Npgsql;
 using WherezIt.Application.Authentication;
 using WherezIt.Application.StorageLocations.Dtos;
 using WherezIt.Application.StorageLocations.Services;
+using WherezIt.Application.Users.Services;
 using WherezIt.Application.Workspaces.Services;
 using WherezIt.Domain.Entities;
 using WherezIt.Infrastructure.Persistence;
@@ -13,11 +14,16 @@ public class StorageLocationService : IStorageLocationService
 {
     private readonly WherezItDbContext _dbContext;
     private readonly IWorkspaceAuthorizationService _authorizationService;
+    private readonly IUserService _userService;
 
-    public StorageLocationService(WherezItDbContext dbContext, IWorkspaceAuthorizationService authorizationService)
+    public StorageLocationService(
+        WherezItDbContext dbContext,
+        IWorkspaceAuthorizationService authorizationService,
+        IUserService userService)
     {
         _dbContext = dbContext;
         _authorizationService = authorizationService;
+        _userService = userService;
     }
 
     public async Task<List<StorageLocationResponseDto>> GetLocationsAsync(
@@ -75,6 +81,7 @@ public class StorageLocationService : IStorageLocationService
             throw new ArgumentException("Location name cannot exceed 100 characters.", nameof(request));
         }
 
+        string? parentLocationName = null;
         if (request.ParentId.HasValue)
         {
             var parent = await _dbContext.StorageNodes
@@ -85,6 +92,7 @@ public class StorageLocationService : IStorageLocationService
             {
                 throw new ArgumentException($"Target parent location '{request.ParentId}' does not exist in workspace '{workspaceId}'.", nameof(request));
             }
+            parentLocationName = parent.Name;
         }
 
         var normalizedName = trimmedName.ToLower();
@@ -116,6 +124,14 @@ public class StorageLocationService : IStorageLocationService
         try
         {
             _dbContext.StorageNodes.Add(node);
+            await RecordLocationAuditAsync(identity, workspaceId, "LOCATION_CREATED", new
+            {
+                locationId = node.Id,
+                locationName = node.Name,
+                parentLocationId = node.ParentId,
+                parentLocationName = parentLocationName
+            }, cancellationToken);
+
             await _dbContext.SaveChangesAsync(cancellationToken);
         }
         catch (DbUpdateException ex)
@@ -165,6 +181,11 @@ public class StorageLocationService : IStorageLocationService
             throw new KeyNotFoundException($"Storage location '{locationId}' was not found in workspace '{workspaceId}'.");
         }
 
+        if (node.Name == trimmedName)
+        {
+            return MapToDto(node);
+        }
+
         var normalizedName = trimmedName.ToLower();
         var isDuplicate = await _dbContext.StorageNodes.AnyAsync(
             n => n.WorkspaceId == workspaceId &&
@@ -181,11 +202,30 @@ public class StorageLocationService : IStorageLocationService
             throw new InvalidOperationException(duplicateMsg);
         }
 
+        string? parentLocationName = null;
+        if (node.ParentId.HasValue)
+        {
+            var parent = await _dbContext.StorageNodes
+                .AsNoTracking()
+                .FirstOrDefaultAsync(n => n.Id == node.ParentId.Value, cancellationToken);
+            parentLocationName = parent?.Name;
+        }
+
+        var previousName = node.Name;
         node.Name = trimmedName;
         node.UpdatedAt = DateTimeOffset.UtcNow;
 
         try
         {
+            await RecordLocationAuditAsync(identity, workspaceId, "LOCATION_RENAMED", new
+            {
+                locationId = node.Id,
+                previousLocationName = previousName,
+                newLocationName = trimmedName,
+                parentLocationId = node.ParentId,
+                parentLocationName = parentLocationName
+            }, cancellationToken);
+
             await _dbContext.SaveChangesAsync(cancellationToken);
         }
         catch (DbUpdateException ex)
@@ -239,9 +279,30 @@ public class StorageLocationService : IStorageLocationService
             throw new InvalidOperationException("Cannot delete storage location because it contains boxes.");
         }
 
+        string? parentLocationName = null;
+        if (node.ParentId.HasValue)
+        {
+            var parent = await _dbContext.StorageNodes
+                .AsNoTracking()
+                .FirstOrDefaultAsync(n => n.Id == node.ParentId.Value, cancellationToken);
+            parentLocationName = parent?.Name;
+        }
+
+        var locationIdToDelete = node.Id;
+        var locationNameToDelete = node.Name;
+        var parentLocationIdToDelete = node.ParentId;
+
         try
         {
             _dbContext.StorageNodes.Remove(node);
+            await RecordLocationAuditAsync(identity, workspaceId, "LOCATION_DELETED", new
+            {
+                locationId = locationIdToDelete,
+                locationName = locationNameToDelete,
+                parentLocationId = parentLocationIdToDelete,
+                parentLocationName = parentLocationName
+            }, cancellationToken);
+
             await _dbContext.SaveChangesAsync(cancellationToken);
         }
         catch (DbUpdateException ex)
@@ -253,6 +314,47 @@ public class StorageLocationService : IStorageLocationService
 
             throw;
         }
+    }
+
+    private async Task RecordLocationAuditAsync(
+        AuthenticatedIdentity identity,
+        Guid workspaceId,
+        string eventType,
+        object detailsObj,
+        CancellationToken cancellationToken)
+    {
+        var user = await _userService.SyncCurrentUserAsync(identity, cancellationToken);
+        var workspace = await _dbContext.Workspaces
+            .AsNoTracking()
+            .FirstOrDefaultAsync(w => w.Id == workspaceId, cancellationToken);
+
+        if (workspace == null) return;
+
+        var memberUserIds = await _dbContext.WorkspaceMembers
+            .AsNoTracking()
+            .Where(m => m.WorkspaceId == workspaceId)
+            .Select(m => m.UserId.ToString())
+            .ToListAsync(cancellationToken);
+
+        if (!memberUserIds.Contains(user.Id.ToString()))
+        {
+            memberUserIds.Add(user.Id.ToString());
+        }
+
+        var audit = new WorkspaceAudit
+        {
+            Id = Guid.NewGuid(),
+            WorkspaceId = workspaceId,
+            WorkspaceName = workspace.Name,
+            InventoryNamespaceId = workspace.InventoryNamespaceId,
+            EventType = eventType,
+            ActorUserId = user.Id.ToString(),
+            AllowedUserIds = string.Join(",", memberUserIds),
+            OccurredAt = DateTimeOffset.UtcNow,
+            DetailsJson = System.Text.Json.JsonSerializer.Serialize(detailsObj)
+        };
+
+        _dbContext.WorkspaceAudits.Add(audit);
     }
 
     private static StorageLocationResponseDto MapToDto(StorageNode node)

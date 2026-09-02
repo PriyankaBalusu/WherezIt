@@ -50,6 +50,8 @@ export const ContainerDetailScreen: React.FC = () => {
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const referenceFileInputRef = useRef<HTMLInputElement>(null);
+  const referenceCameraInputRef = useRef<HTMLInputElement>(null);
+  const referenceLibraryInputRef = useRef<HTMLInputElement>(null);
 
   const { data: container, isLoading: isContainerLoading, isError: isContainerError, error: containerError } = useContainer(workspaceId, containerId);
   const { data: locations = [] } = useStorageLocations(workspaceId || '');
@@ -342,8 +344,22 @@ export const ContainerDetailScreen: React.FC = () => {
   };
 
   const triggerReferencePhotoUpload = () => {
-    if (referenceFileInputRef.current) {
+    if (referenceLibraryInputRef.current) {
+      referenceLibraryInputRef.current.click();
+    } else if (referenceFileInputRef.current) {
       referenceFileInputRef.current.click();
+    }
+  };
+
+  const triggerReferenceCameraUpload = () => {
+    if (referenceCameraInputRef.current) {
+      referenceCameraInputRef.current.click();
+    }
+  };
+
+  const triggerReferenceLibraryUpload = () => {
+    if (referenceLibraryInputRef.current) {
+      referenceLibraryInputRef.current.click();
     }
   };
 
@@ -465,14 +481,25 @@ export const ContainerDetailScreen: React.FC = () => {
       })()}
 
 
-      {/* Hidden Reference Photo Input */}
+      {/* Hidden Reference Photo Inputs for Camera & Library */}
       <input
-        ref={referenceFileInputRef}
+        ref={referenceCameraInputRef}
         type="file"
-        accept="image/jpeg,image/png,image/webp,image/heic,image/heif,.heic,.heif"
+        accept="image/*,image/jpeg,image/png,image/webp,image/heic,image/heif,.heic,.heif"
+        capture="environment"
         onChange={handleReferencePhotoUpload}
         disabled={isUploadingReference || container.isArchived}
         className="hidden-file-input"
+        aria-label="Take reference photo with camera"
+      />
+      <input
+        ref={referenceLibraryInputRef}
+        type="file"
+        accept="image/*,image/jpeg,image/png,image/webp,image/heic,image/heif,.heic,.heif"
+        onChange={handleReferencePhotoUpload}
+        disabled={isUploadingReference || container.isArchived}
+        className="hidden-file-input"
+        aria-label="Choose existing reference photo"
       />
 
       {/* Layout Composition Boundary: Mobile vs Desktop */}
@@ -490,6 +517,10 @@ export const ContainerDetailScreen: React.FC = () => {
           labelImage={labelImage}
           identifiers={identifiers}
           isUploadingReference={isUploadingReference}
+          onTriggerPhotoUpload={triggerPhotoUpload}
+          onTriggerReferencePhotoUpload={triggerReferencePhotoUpload}
+          onTriggerReferenceCameraUpload={triggerReferenceCameraUpload}
+          onTriggerReferenceLibraryUpload={triggerReferenceLibraryUpload}
           onEditBox={() => {
             setEditName(container.name || '');
             setEditDesc(container.description || '');
@@ -671,6 +702,7 @@ export const ContainerDetailScreen: React.FC = () => {
                   <label className="box-header-form__label">Box Name</label>
                   <input
                     type="text"
+                    maxLength={100}
                     value={editName}
                     onChange={(e) => setEditName(e.target.value)}
                     className="box-header-form__input"
@@ -680,6 +712,7 @@ export const ContainerDetailScreen: React.FC = () => {
                   <label className="box-header-form__label">Description</label>
                   <input
                     type="text"
+                    maxLength={500}
                     value={editDesc}
                     onChange={(e) => setEditDesc(e.target.value)}
                     className="box-header-form__input"
@@ -900,14 +933,24 @@ export const ContainerDetailScreen: React.FC = () => {
                     </p>
                   </div>
                   {!container.isArchived && (
-                    <button
-                      type="button"
-                      className="btn btn-secondary btn--md"
-                      disabled={isUploadingReference}
-                      onClick={triggerReferencePhotoUpload}
-                    >
-                      {isUploadingReference ? 'Uploading...' : '+ Add Photo'}
-                    </button>
+                    <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+                      <button
+                        type="button"
+                        className="btn btn-secondary btn--md"
+                        disabled={isUploadingReference}
+                        onClick={triggerReferenceCameraUpload}
+                      >
+                        📷 Take Photo
+                      </button>
+                      <button
+                        type="button"
+                        className="btn btn-secondary btn--md"
+                        disabled={isUploadingReference}
+                        onClick={triggerReferenceLibraryUpload}
+                      >
+                        📁 Choose Photo
+                      </button>
+                    </div>
                   )}
                 </div>
 
@@ -959,7 +1002,7 @@ export const ContainerDetailScreen: React.FC = () => {
               </div>
 
               {/* Box History Card */}
-              <BoxHistoryTimeline workspaceId={workspaceId!} containerId={container.id} />
+              <BoxHistoryTimeline workspaceId={container.workspaceId} containerId={container.id} />
             </div>
           </div>
         </>

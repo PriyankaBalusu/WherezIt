@@ -6,6 +6,9 @@ import { useContainers } from '../../containers/hooks/useContainers';
 import { ContainerList } from '../../containers/components/ContainerList';
 import { StorageLocationList } from '../../locations/components/StorageLocationList';
 import { getStorageSpaceDisplayName } from '../utils/formatWorkspaceName';
+import { useWorkspaceHistory } from '../../containers/hooks/useBoxHistory';
+import { RecentActivitySection } from '../../containers/components/RecentActivitySection';
+import { ActivityHistoryModal } from '../../containers/components/ActivityHistoryModal';
 
 export const StorageSpaceDetailPage: React.FC = () => {
   const { workspaceId } = useParams<{ workspaceId: string }>();
@@ -108,7 +111,7 @@ export const StorageSpaceDetailPage: React.FC = () => {
       </div>
 
       {/* Boxes Section */}
-      <div>
+      <div style={{ marginBottom: '2rem' }}>
         <h2 style={{ fontSize: '1.25rem', fontWeight: 700, color: 'var(--color-text, #0f172a)', marginBottom: '0.75rem' }}>
           Boxes ({activeBoxes.length})
         </h2>
@@ -121,6 +124,60 @@ export const StorageSpaceDetailPage: React.FC = () => {
           }}
         />
       </div>
+
+      {/* Storage Space Activity History */}
+      <StorageSpaceHistorySection workspaceId={workspaceId!} />
     </div>
+  );
+};
+
+const StorageSpaceHistorySection: React.FC<{ workspaceId: string }> = ({ workspaceId }) => {
+  const [page, setPage] = React.useState(1);
+  const [isModalOpen, setIsModalOpen] = React.useState(false);
+  const [allModalItems, setAllModalItems] = React.useState<any[]>([]);
+
+  const { data: initialItems = [], isLoading, isError } = useWorkspaceHistory(workspaceId, 1, 10);
+  const { data: modalPageItems = [], isLoading: isModalLoading } = useWorkspaceHistory(workspaceId, page, 20);
+
+  React.useEffect(() => {
+    if (modalPageItems.length > 0) {
+      setAllModalItems((prev) => {
+        const existingIds = new Set(prev.map((i) => i.id));
+        const newItems = modalPageItems.filter((i) => !existingIds.has(i.id));
+        return [...prev, ...newItems];
+      });
+    }
+  }, [modalPageItems]);
+
+  const handleOpenModal = () => {
+    setIsModalOpen(true);
+    if (allModalItems.length === 0 && initialItems.length > 0) {
+      setAllModalItems(initialItems);
+    }
+  };
+
+  return (
+    <>
+      <RecentActivitySection
+        title="Recent Activity"
+        subtitle="Recent activity across this Storage Space."
+        items={initialItems}
+        isLoading={isLoading}
+        isError={isError}
+        onViewAll={handleOpenModal}
+        hasMore={initialItems.length >= 10}
+        emptyText="No activity recorded yet."
+      />
+
+      <ActivityHistoryModal
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+        title="Storage Space Activity History"
+        items={allModalItems.length > 0 ? allModalItems : initialItems}
+        isLoading={isModalLoading}
+        hasMore={modalPageItems.length >= 20}
+        onLoadMore={() => setPage((p) => p + 1)}
+      />
+    </>
   );
 };
