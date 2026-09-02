@@ -1,4 +1,5 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useLayoutEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { Workspace } from '../types/workspace';
 import { useRenameWorkspace, useDeleteWorkspace } from '../hooks/useWorkspaces';
 
@@ -19,7 +20,10 @@ export const WorkspaceManageMenu: React.FC<WorkspaceManageMenuProps> = ({
   const [newName, setNewName] = useState(workspace.name);
   const [error, setError] = useState<string | null>(null);
 
-  const menuRef = useRef<HTMLDivElement>(null);
+  const [menuCoords, setMenuCoords] = useState<{ top: number; left: number } | null>(null);
+
+  const buttonRef = useRef<HTMLButtonElement>(null);
+  const dropdownRef = useRef<HTMLDivElement>(null);
   const renameMutation = useRenameWorkspace();
   const deleteMutation = useDeleteWorkspace();
 
@@ -27,23 +31,106 @@ export const WorkspaceManageMenu: React.FC<WorkspaceManageMenuProps> = ({
     setNewName(workspace.name);
   }, [workspace.name]);
 
+  // Position calculation for Portaled Dropdown
+  const updatePosition = () => {
+    if (!buttonRef.current) return;
+    const rect = buttonRef.current.getBoundingClientRect();
+    const menuWidth = 200;
+    const margin = 8;
+    const viewportWidth = window.innerWidth;
+    const viewportHeight = window.innerHeight;
+
+    let top = rect.bottom + 6;
+    // Flip above if not enough vertical room below
+    if (top + 120 > viewportHeight && rect.top - 120 > margin) {
+      top = Math.max(margin, rect.top - 120);
+    }
+
+    // Align right edge of menu with right edge of trigger button
+    let left = rect.right - menuWidth;
+    // Clamp horizontally to stay within viewport bounds
+    const maxLeft = Math.max(margin, viewportWidth - menuWidth - margin);
+    left = Math.max(margin, Math.min(left, maxLeft));
+
+    setMenuCoords({ top, left });
+  };
+
+  useLayoutEffect(() => {
+    if (isOpen) {
+      updatePosition();
+    }
+  }, [isOpen]);
+
   useEffect(() => {
     if (!isOpen) return;
-    const handleClickOutside = (e: MouseEvent) => {
-      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
-        setIsOpen(false);
-      }
+
+    // Reposition on window resize or scroll
+    const handleScrollOrResize = () => {
+      updatePosition();
     };
+
+    window.addEventListener('resize', handleScrollOrResize);
+    window.addEventListener('scroll', handleScrollOrResize, true);
+
+    // Prevent immediate close on touch/click propagation by delaying click-outside attachment
+    let timerId: ReturnType<typeof setTimeout>;
+
+    const handleClickOutside = (e: Event) => {
+      const target = e.target as Node;
+      if (
+        buttonRef.current && buttonRef.current.contains(target) ||
+        (dropdownRef.current && dropdownRef.current.contains(target))
+      ) {
+        return;
+      }
+      console.log('[WorkspaceManageMenu Debug] Outside interaction detected, closing menu.');
+      setIsOpen(false);
+    };
+
     const handleEscape = (e: KeyboardEvent) => {
       if (e.key === 'Escape') setIsOpen(false);
     };
-    document.addEventListener('mousedown', handleClickOutside);
+
+    timerId = setTimeout(() => {
+      document.addEventListener('pointerdown', handleClickOutside);
+      document.addEventListener('mousedown', handleClickOutside);
+    }, 0);
+
     document.addEventListener('keydown', handleEscape);
+
     return () => {
+      clearTimeout(timerId);
+      window.removeEventListener('resize', handleScrollOrResize);
+      window.removeEventListener('scroll', handleScrollOrResize, true);
+      document.removeEventListener('pointerdown', handleClickOutside);
       document.removeEventListener('mousedown', handleClickOutside);
       document.removeEventListener('keydown', handleEscape);
     };
   }, [isOpen]);
+
+  // Diagnostic logger for menu rendering
+  useEffect(() => {
+    if (isOpen && buttonRef.current && dropdownRef.current) {
+      console.log('[WorkspaceManageMenu Diagnostics]', {
+        isOpen,
+        triggerRect: buttonRef.current.getBoundingClientRect(),
+        menuRect: dropdownRef.current.getBoundingClientRect(),
+        viewport: { width: window.innerWidth, height: window.innerHeight },
+        coords: menuCoords,
+        inDOM: true,
+      });
+    }
+  }, [isOpen, menuCoords]);
+
+  const handleToggle = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    const nextOpen = !isOpen;
+    console.log('[WorkspaceManageMenu Debug] Toggle button clicked. Current:', isOpen, 'Next:', nextOpen);
+    if (nextOpen) {
+      updatePosition();
+    }
+    setIsOpen(nextOpen);
+  };
 
   const handleRenameSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -73,11 +160,12 @@ export const WorkspaceManageMenu: React.FC<WorkspaceManageMenuProps> = ({
   };
 
   return (
-    <div style={{ position: 'relative' }} ref={menuRef}>
+    <div style={{ position: 'relative', flexShrink: 0 }}>
       <button
+        ref={buttonRef}
         type="button"
         aria-label="Manage storage space options"
-        onClick={() => setIsOpen(!isOpen)}
+        onClick={handleToggle}
         className="btn btn-secondary btn--icon-md"
         style={{
           width: '36px',
@@ -87,28 +175,31 @@ export const WorkspaceManageMenu: React.FC<WorkspaceManageMenuProps> = ({
           alignItems: 'center',
           justifyContent: 'center',
           fontSize: '1rem',
-          color: '#64748b',
-          backgroundColor: '#ffffff',
-          border: '1px solid #cbd5e1',
+          color: 'var(--color-text-muted, #64748b)',
+          backgroundColor: 'var(--color-input-bg, #ffffff)',
+          border: '1px solid var(--color-input-border, #cbd5e1)',
           borderRadius: '0.375rem',
         }}
       >
         ⋯
       </button>
 
-      {isOpen && (
+      {isOpen && menuCoords && createPortal(
         <div
+          ref={dropdownRef}
+          role="menu"
+          aria-label="Storage space management options"
           style={{
-            position: 'absolute',
-            top: '100%',
-            right: 0,
-            marginTop: '0.375rem',
+            position: 'fixed',
+            top: `${menuCoords.top}px`,
+            left: `${menuCoords.left}px`,
             width: '200px',
-            backgroundColor: '#ffffff',
+            maxWidth: 'calc(100vw - 16px)',
+            backgroundColor: 'var(--color-dropdown-bg, #ffffff)',
             borderRadius: '0.5rem',
-            boxShadow: '0 10px 25px rgba(0,0,0,0.12)',
-            border: '1px solid #e2e8f0',
-            zIndex: 50,
+            boxShadow: 'var(--color-card-shadow, 0 10px 25px rgba(0,0,0,0.18))',
+            border: '1px solid var(--color-dropdown-border, #cbd5e1)',
+            zIndex: 99999,
             overflow: 'hidden',
             display: 'flex',
             flexDirection: 'column',
@@ -128,7 +219,7 @@ export const WorkspaceManageMenu: React.FC<WorkspaceManageMenuProps> = ({
               border: 'none',
               fontSize: '0.85rem',
               fontWeight: 500,
-              color: '#0f172a',
+              color: 'var(--color-text, #0f172a)',
               cursor: 'pointer',
             }}
           >
@@ -147,14 +238,15 @@ export const WorkspaceManageMenu: React.FC<WorkspaceManageMenuProps> = ({
               border: 'none',
               fontSize: '0.85rem',
               fontWeight: 500,
-              color: '#dc2626',
+              color: 'var(--color-danger, #dc2626)',
               cursor: 'pointer',
-              borderTop: '1px solid #f1f5f9',
+              borderTop: '1px solid var(--color-border-subtle, #f1f5f9)',
             }}
           >
             🗑️ Delete Storage Space
           </button>
-        </div>
+        </div>,
+        document.body
       )}
 
       {/* Rename Modal */}

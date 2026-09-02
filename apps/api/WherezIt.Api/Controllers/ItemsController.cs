@@ -139,6 +139,14 @@ public class ItemsController : ControllerBase
             var item = await _itemService.ArchiveItemAsync(identity, workspaceId, itemId, cancellationToken);
             return Ok(item);
         }
+        catch (ArgumentException ex)
+        {
+            return BadRequest(new { error = ex.Message });
+        }
+        catch (InvalidOperationException ex)
+        {
+            return Conflict(new { error = ex.Message });
+        }
         catch (KeyNotFoundException ex)
         {
             return NotFound(new { error = ex.Message });
@@ -162,6 +170,14 @@ public class ItemsController : ControllerBase
         {
             var item = await _itemService.RestoreItemAsync(identity, workspaceId, itemId, cancellationToken);
             return Ok(item);
+        }
+        catch (ArgumentException ex)
+        {
+            return BadRequest(new { error = ex.Message });
+        }
+        catch (InvalidOperationException ex)
+        {
+            return Conflict(new { error = ex.Message });
         }
         catch (KeyNotFoundException ex)
         {

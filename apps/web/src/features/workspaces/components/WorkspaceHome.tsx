@@ -13,6 +13,29 @@ import {
 } from '../../locations/hooks/useStorageLocations';
 import { useCreateContainer, useContainers } from '../../containers/hooks/useContainers';
 
+import { MobileHomeLayout } from './MobileHomeLayout';
+
+function useIsMobile(breakpoint = 768): boolean {
+  const [isMobile, setIsMobile] = useState<boolean>(() => {
+    if (typeof window === 'undefined') return false;
+    return window.innerWidth <= breakpoint;
+  });
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const mediaQuery = window.matchMedia(`(max-width: ${breakpoint}px)`);
+    const handleChange = (e: MediaQueryListEvent) => {
+      setIsMobile(e.matches);
+    };
+
+    setIsMobile(mediaQuery.matches);
+    mediaQuery.addEventListener('change', handleChange);
+    return () => mediaQuery.removeEventListener('change', handleChange);
+  }, [breakpoint]);
+
+  return isMobile;
+}
+
 export interface SearchSuggestion {
   id: string;
   label: string;
@@ -176,10 +199,32 @@ export const WorkspaceHome: React.FC<WorkspaceHomeProps> = ({ activeWorkspace })
     setIsRenameLocationOpen(true);
   };
 
+  const isMobile = useIsMobile();
+
   return (
-    <div className="app-container" style={{ padding: '1rem' }}>
-      {/* Search Hero Area */}
-      <section className="search-hero">
+    <>
+      {isMobile ? (
+        <div className="mobile-page-container" data-layout="mobile">
+          <MobileHomeLayout
+            activeWorkspace={activeWorkspace}
+            workspaces={workspaceContext?.workspaces || [activeWorkspace]}
+            locations={locations}
+            containers={activeContainers}
+            selectedLocationId={selectedLocationId}
+            onSelectLocation={setSelectedLocationId}
+            onSelectWorkspace={(newId) => {
+              setSelectedLocationId(null);
+              workspaceContext?.setActiveWorkspaceId(newId);
+            }}
+            onCreateWorkspace={workspaceContext?.openCreateWorkspaceModal || (() => {})}
+            onOpenAddLocation={openAddLocationModal}
+            onOpenAddBox={openAddBoxModal}
+          />
+        </div>
+      ) : (
+        <div className="app-container" style={{ padding: '1rem' }} data-layout="desktop">
+          {/* Search Hero Area */}
+          <section className="search-hero">
         <h1 className="search-hero__title">
           Where is it?
         </h1>
@@ -230,13 +275,13 @@ export const WorkspaceHome: React.FC<WorkspaceHomeProps> = ({ activeWorkspace })
       {/* Main Browse Columns */}
       <div className="home-grid">
         {/* Left Column: Cohesive Browse Storage Panel */}
-        <div className="card browse-storage-card" style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem', padding: '1.25rem', backgroundColor: '#ffffff', borderRadius: '0.75rem', border: '1px solid #e2e8f0', height: 'fit-content' }}>
+        <div className="card browse-storage-card" style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem', padding: '1.25rem', backgroundColor: 'var(--color-card-bg, #ffffff)', borderRadius: '0.75rem', border: '1px solid var(--color-card-border, #e2e8f0)', height: 'fit-content' }}>
           <div>
-            <h2 style={{ fontSize: '1.25rem', fontWeight: 800, color: '#0f172a', margin: '0 0 0.75rem 0' }}>
+            <h2 style={{ fontSize: '1.25rem', fontWeight: 800, color: 'var(--color-text, #0f172a)', margin: '0 0 0.75rem 0' }}>
               Browse Storage
             </h2>
             {/* Storage Space Selector & Management Menu */}
-            <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+            <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', position: 'relative', zIndex: 10 }}>
               <div style={{ flex: 1, minWidth: 0 }}>
                 {workspaceContext?.workspaces && workspaceContext.workspaces.length > 0 && (
                   <WorkspaceSelector
@@ -255,9 +300,9 @@ export const WorkspaceHome: React.FC<WorkspaceHomeProps> = ({ activeWorkspace })
           </div>
 
           {/* Locations Tree Header */}
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingTop: '0.75rem', borderTop: '1px solid #f1f5f9' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingTop: '0.75rem', borderTop: '1px solid var(--color-border-subtle, #f1f5f9)' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-              <h3 style={{ fontSize: '1rem', fontWeight: 700, color: '#0f172a', margin: 0 }}>
+              <h3 style={{ fontSize: '1rem', fontWeight: 700, color: 'var(--color-text, #0f172a)', margin: 0 }}>
                 Locations
               </h3>
               {selectedLocationId && (
@@ -299,8 +344,10 @@ export const WorkspaceHome: React.FC<WorkspaceHomeProps> = ({ activeWorkspace })
           />
         </div>
       </div>
+    </div>
+  )}
 
-      {/* Add Location Modal */}
+  {/* Add Location Modal */}
       {isAddLocationOpen && (
         <div className="modal-overlay" onClick={() => setIsAddLocationOpen(false)}>
           <div className="modal-dialog" onClick={(e) => e.stopPropagation()}>
@@ -486,6 +533,6 @@ export const WorkspaceHome: React.FC<WorkspaceHomeProps> = ({ activeWorkspace })
           </div>
         </div>
       )}
-    </div>
+    </>
   );
 };

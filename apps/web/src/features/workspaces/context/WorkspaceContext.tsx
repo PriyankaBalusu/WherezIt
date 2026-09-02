@@ -9,6 +9,7 @@ import { WorkspaceSelector } from '../components/WorkspaceSelector';
 import { CreateWorkspaceModal } from '../components/CreateWorkspaceModal';
 import { WorkspaceHome } from '../components/WorkspaceHome';
 import { AccountMenu } from '../../auth/components/AccountMenu';
+import { MobileBottomNav } from '../../navigation/components/MobileBottomNav';
 
 interface WorkspaceContextType {
   workspaces: Workspace[];
@@ -17,14 +18,18 @@ interface WorkspaceContextType {
   openCreateWorkspaceModal: () => void;
 }
 
-const WorkspaceContext = createContext<WorkspaceContextType | undefined>(undefined);
+const defaultWorkspaceContextValue: WorkspaceContextType = {
+  workspaces: [],
+  activeWorkspace: null,
+  setActiveWorkspaceId: () => {},
+  openCreateWorkspaceModal: () => {},
+};
+
+const WorkspaceContext = createContext<WorkspaceContextType>(defaultWorkspaceContextValue);
 
 export const useWorkspaceContext = () => {
   const context = useContext(WorkspaceContext);
-  if (!context) {
-    throw new Error('useWorkspaceContext must be used within a WorkspaceProvider');
-  }
-  return context;
+  return context || defaultWorkspaceContextValue;
 };
 
 export const WorkspaceProvider: React.FC<{ children?: React.ReactNode }> = ({ children }) => {
@@ -69,9 +74,6 @@ export const WorkspaceProvider: React.FC<{ children?: React.ReactNode }> = ({ ch
   const handleSelectWorkspace = (newId: string) => {
     if (newId !== activeWorkspaceId) {
       setActiveWorkspaceId(newId);
-      if (window.location.pathname !== '/' && window.location.pathname !== '') {
-        window.location.href = '/';
-      }
     }
   };
 
@@ -84,7 +86,7 @@ export const WorkspaceProvider: React.FC<{ children?: React.ReactNode }> = ({ ch
         openCreateWorkspaceModal: () => setIsCreateModalOpen(true),
       }}
     >
-      <div className="workspace-layout" style={{ minHeight: '100vh', backgroundColor: '#f8fafc', display: 'flex', flexDirection: 'column' }}>
+      <div className="workspace-layout" style={{ minHeight: '100vh', backgroundColor: 'var(--color-bg)', color: 'var(--color-text)', display: 'flex', flexDirection: 'column' }}>
         <header className="workspace-nav">
           <div className="nav-container">
             <div className="nav-brand">
@@ -112,36 +114,6 @@ export const WorkspaceProvider: React.FC<{ children?: React.ReactNode }> = ({ ch
                     📷 Scan
                   </NavLink>
                 </nav>
-
-                {/* Mobile Quick Links Dropdown Trigger */}
-                <div className="nav-quick-links-mobile" ref={navMenuRef}>
-                  <button
-                    type="button"
-                    aria-label="Navigation menu"
-                    onClick={() => setIsNavMenuOpen(!isNavMenuOpen)}
-                    className="nav-mobile-trigger"
-                  >
-                    ⋮
-                  </button>
-                  {isNavMenuOpen && (
-                    <div className="nav-mobile-dropdown">
-                      <Link
-                        to={`/workspaces/${activeWorkspace.id}/quick-pack`}
-                        onClick={() => setIsNavMenuOpen(false)}
-                        className="nav-mobile-dropdown-item"
-                      >
-                        🚚 Moving Assistant
-                      </Link>
-                      <Link
-                        to="/scan"
-                        onClick={() => setIsNavMenuOpen(false)}
-                        className="nav-mobile-dropdown-item"
-                      >
-                        📷 Scan
-                      </Link>
-                    </div>
-                  )}
-                </div>
               </div>
             )}
 
@@ -151,7 +123,7 @@ export const WorkspaceProvider: React.FC<{ children?: React.ReactNode }> = ({ ch
           </div>
         </header>
 
-        <main className="workspace-main" style={{ flex: 1 }}>
+        <main className="workspace-main" style={{ flex: 1, paddingBottom: '3.5rem' }}>
           {isLoading ? (
             <WorkspaceLoadingState />
           ) : isError ? (
@@ -171,6 +143,9 @@ export const WorkspaceProvider: React.FC<{ children?: React.ReactNode }> = ({ ch
             refetch();
           }}
         />
+
+        {/* Global Mobile Bottom Navigation Bar */}
+        <MobileBottomNav />
       </div>
     </WorkspaceContext.Provider>
   );

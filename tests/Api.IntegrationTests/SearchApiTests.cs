@@ -359,5 +359,135 @@ public class SearchApiTests : IClassFixture<PostgresTestFixture>
         Assert.Equal(wsC.Id, resultsUser2[0].WorkspaceId);
         Assert.Equal("Christmas Wreath", resultsUser2[0].ItemName);
     }
+
+    [Fact]
+    public async Task SearchV2_Relevance_UnrelatedItemsInMatchingContainerAreExcluded()
+    {
+        using var scope = _fixture.Services.CreateScope();
+        var workspaceService = scope.ServiceProvider.GetRequiredService<IWorkspaceService>();
+        var locationService = scope.ServiceProvider.GetRequiredService<IStorageLocationService>();
+        var containerService = scope.ServiceProvider.GetRequiredService<IContainerService>();
+        var itemService = scope.ServiceProvider.GetRequiredService<IItemService>();
+        var searchService = scope.ServiceProvider.GetRequiredService<IWorkspaceSearchService>();
+        var db = scope.ServiceProvider.GetRequiredService<WherezItDbContext>();
+
+        var identity = new AuthenticatedIdentity($"rel001_user_{Guid.NewGuid():N}", "rel001@example.com", true);
+        var ws = await workspaceService.CreateWorkspaceAsync(identity, new CreateWorkspaceRequestDto("Rel WS"));
+        var attic = await locationService.CreateLocationAsync(identity, ws.Id, new CreateStorageLocationRequestDto("Attic", null));
+
+        // Create Container: Holiday Decorations (allocated BOX 007)
+        var box7 = await containerService.CreateContainerAsync(identity, ws.Id, new CreateContainerRequestDto(attic.Id, "Holiday Decorations", "Box for holiday decor"));
+        var cEntity = await db.Containers.FindAsync(box7.Id);
+        Assert.NotNull(cEntity);
+        cEntity.BoxNumber = 7;
+        await db.SaveChangesAsync();
+
+        // Items inside BOX 007
+        var item1 = await itemService.CreateItemAsync(identity, ws.Id, box7.Id, new CreateItemRequestDto("Christmas Lights", 1));
+        var item2 = await itemService.CreateItemAsync(identity, ws.Id, box7.Id, new CreateItemRequestDto("Tree Ornaments", 1));
+        var item3 = await itemService.CreateItemAsync(identity, ws.Id, box7.Id, new CreateItemRequestDto("Hairmax Ultima 9 Classic LaserComb", 1));
+        var item4 = await itemService.CreateItemAsync(identity, ws.Id, box7.Id, new CreateItemRequestDto("Ironing board", 1));
+
+        // Query: "Christmas decor"
+        var results = await searchService.SearchWorkspaceAsync(identity, ws.Id, "Christmas decor");
+
+        // Container BOX 007 should match as CONTAINER
+        Assert.Contains(results, r => r.ResultType == "CONTAINER" && r.ContainerId == box7.Id);
+
+        // Relevant items MUST qualify
+        Assert.Contains(results, r => r.ResultType == "ITEM" && r.ItemId == item1.Id);
+        Assert.Contains(results, r => r.ResultType == "ITEM" && r.ItemId == item2.Id);
+
+        // Irrelevant items MUST be EXCLUDED despite living in matching BOX 007
+        Assert.DoesNotContain(results, r => r.ResultType == "ITEM" && r.ItemId == item3.Id);
+        Assert.DoesNotContain(results, r => r.ResultType == "ITEM" && r.ItemId == item4.Id);
+    }
+
+    [Fact]
+    public async Task SearchV2_ParentContainerMatchProvidesRankingBoostToQualifiedItems()
+    {
+        using var scope = _fixture.Services.CreateScope();
+        var workspaceService = scope.ServiceProvider.GetRequiredService<IWorkspaceService>();
+        var locationService = scope.ServiceProvider.GetRequiredService<IStorageLocationService>();
+        var containerService = scope.ServiceProvider.GetRequiredService<IContainerService>();
+        var itemService = scope.ServiceProvider.GetRequiredService<IItemService>();
+        var searchService = scope.ServiceProvider.GetRequiredService<IWorkspaceSearchService>();
+
+        var identity = new AuthenticatedIdentity($"boost001_user_{Guid.NewGuid():N}", "boost001@example.com", true);
+        var ws = await workspaceService.CreateWorkspaceAsync(identity, new CreateWorkspaceRequestDto("Boost WS"));
+        var basement = await locationService.CreateLocationAsync(identity, ws.Id, new CreateStorageLocationRequestDto("Basement", null));
+
+        var holidayBox = await containerService.CreateContainerAsync(identity, ws.Id, new CreateContainerRequestDto(basement.Id, "Holiday Decorations", null));
+        var electricalBox = await containerService.CreateContainerAsync(identity, ws.Id, new CreateContainerRequestDto(basement.Id, "Electrical Supplies", null));
+
+        var holidayLights = await itemService.CreateItemAsync(identity, ws.Id, holidayBox.Id, new CreateItemRequestDto("String Lights", 1));
+        var electricalLights = await itemService.CreateItemAsync(identity, ws.Id, electricalBox.Id, new CreateItemRequestDto("String Lights", 1));
+
+        // Query: "Christmas lights"
+        var results = await searchService.SearchWorkspaceAsync(identity, ws.Id, "Christmas lights");
+
+        var itemResults = results.Where(r => r.ResultType == "ITEM").ToList();
+        Assert.Equal(2, itemResults.Count);
+
+        // String Lights in Holiday Decorations MUST rank higher than String Lights in Electrical Supplies
+        Assert.Equal(holidayLights.Id, itemResults[0].ItemId);
+        Assert.Equal(electricalLights.Id, itemResults[1].ItemId);
+    }
+
+    [Fact]
+    public async Task SearchV2_ExplicitLocationQueryQualifiesItemsInLocation()
+    {
+        using var scope = _fixture.Services.CreateScope();
+        var workspaceService = scope.ServiceProvider.GetRequiredService<IWorkspaceService>();
+        var locationService = scope.ServiceProvider.GetRequiredService<IStorageLocationService>();
+        var containerService = scope.ServiceProvider.GetRequiredService<IContainerService>();
+        var itemService = scope.ServiceProvider.GetRequiredService<IItemService>();
+        var searchService = scope.ServiceProvider.GetRequiredService<IWorkspaceSearchService>();
+
+        var identity = new AuthenticatedIdentity($"locq001_user_{Guid.NewGuid():N}", "locq001@example.com", true);
+        var ws = await workspaceService.CreateWorkspaceAsync(identity, new CreateWorkspaceRequestDto("Loc WS"));
+        var garage = await locationService.CreateLocationAsync(identity, ws.Id, new CreateStorageLocationRequestDto("Garage", null));
+        var box = await containerService.CreateContainerAsync(identity, ws.Id, new CreateContainerRequestDto(garage.Id, "General Storage", null));
+
+        var hammer = await itemService.CreateItemAsync(identity, ws.Id, box.Id, new CreateItemRequestDto("Hammer", 1));
+
+        // Explicit location query: "items in garage"
+        var results = await searchService.SearchWorkspaceAsync(identity, ws.Id, "items in garage");
+
+        Assert.NotEmpty(results);
+        Assert.Contains(results, r => r.ResultType == "ITEM" && r.ItemId == hammer.Id);
+    }
+
+    [Fact]
+    public async Task SearchV2_ContainerOnlyMatch_DoesNotExpandChildItems()
+    {
+        using var scope = _fixture.Services.CreateScope();
+        var workspaceService = scope.ServiceProvider.GetRequiredService<IWorkspaceService>();
+        var locationService = scope.ServiceProvider.GetRequiredService<IStorageLocationService>();
+        var containerService = scope.ServiceProvider.GetRequiredService<IContainerService>();
+        var itemService = scope.ServiceProvider.GetRequiredService<IItemService>();
+        var searchService = scope.ServiceProvider.GetRequiredService<IWorkspaceSearchService>();
+
+        var identity = new AuthenticatedIdentity($"cont001_user_{Guid.NewGuid():N}", "cont001@example.com", true);
+        var ws = await workspaceService.CreateWorkspaceAsync(identity, new CreateWorkspaceRequestDto("Cont WS"));
+        var office = await locationService.CreateLocationAsync(identity, ws.Id, new CreateStorageLocationRequestDto("Office", null));
+
+        // Create Container: Tax Documents
+        var taxBox = await containerService.CreateContainerAsync(identity, ws.Id, new CreateContainerRequestDto(office.Id, "Tax Documents", "Box for tax files"));
+
+        // Add unrelated child items to Tax Documents
+        var hairDryer = await itemService.CreateItemAsync(identity, ws.Id, taxBox.Id, new CreateItemRequestDto("Hair Dryer", 1));
+        var coffeeMug = await itemService.CreateItemAsync(identity, ws.Id, taxBox.Id, new CreateItemRequestDto("Coffee Mug", 1));
+
+        // Query: "Tax Documents"
+        var results = await searchService.SearchWorkspaceAsync(identity, ws.Id, "Tax Documents");
+
+        // Container MUST be returned
+        Assert.Contains(results, r => r.ResultType == "CONTAINER" && r.ContainerId == taxBox.Id && r.ContainerName == "Tax Documents");
+
+        // Neither child item MUST be returned simply because their parent container matched
+        Assert.DoesNotContain(results, r => r.ResultType == "ITEM" && r.ItemId == hairDryer.Id);
+        Assert.DoesNotContain(results, r => r.ResultType == "ITEM" && r.ItemId == coffeeMug.Id);
+    }
 }
 

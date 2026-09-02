@@ -526,4 +526,141 @@ public class InventoryNamespaceAndTransferIntegrationTests : IClassFixture<Postg
             await transaction.RollbackAsync();
         }
     }
+
+    [Fact]
+    public async Task TransferContainer_WithCaptureAndAIProcessingJob_SucceedsAndPreservesRelationships()
+    {
+        using var scope = _fixture.Services.CreateScope();
+        var workspaceService = scope.ServiceProvider.GetRequiredService<IWorkspaceService>();
+        var locationService = scope.ServiceProvider.GetRequiredService<IStorageLocationService>();
+        var containerService = scope.ServiceProvider.GetRequiredService<IContainerService>();
+        var transferService = scope.ServiceProvider.GetRequiredService<IContainerTransferService>();
+        var db = scope.ServiceProvider.GetRequiredService<WherezItDbContext>();
+
+        var uid = $"transfer_ai_user_{Guid.NewGuid():N}";
+        var identity = new AuthenticatedIdentity(uid, "transferai@example.com", true);
+
+        var ws1 = await workspaceService.CreateWorkspaceAsync(identity, new CreateWorkspaceRequestDto("Source Space"));
+        var ws2 = await workspaceService.CreateWorkspaceAsync(identity, new CreateWorkspaceRequestDto("Target Space"));
+
+        var loc1 = await locationService.CreateLocationAsync(identity, ws1.Id, new CreateStorageLocationRequestDto("Loc 1", null));
+        var loc2 = await locationService.CreateLocationAsync(identity, ws2.Id, new CreateStorageLocationRequestDto("Loc 2", null));
+
+        var container = await containerService.CreateContainerAsync(identity, ws1.Id, new CreateContainerRequestDto(loc1.Id, "Photo Box", null));
+
+        // Create InventoryCapture + AIProcessingJob + DetectionSuggestion attached to container in ws1
+        var captureId = Guid.NewGuid();
+        var capture = new InventoryCapture
+        {
+            Id = captureId,
+            WorkspaceId = ws1.Id,
+            ContainerId = container.Id,
+            Status = "COMPLETED",
+            CreatedAt = DateTimeOffset.UtcNow,
+            UpdatedAt = DateTimeOffset.UtcNow
+        };
+        db.InventoryCaptures.Add(capture);
+
+        var job = new AIProcessingJob
+        {
+            Id = Guid.NewGuid(),
+            WorkspaceId = ws1.Id,
+            CaptureId = captureId,
+            Status = "COMPLETED",
+            AttemptCount = 1,
+            CreatedAt = DateTimeOffset.UtcNow,
+            UpdatedAt = DateTimeOffset.UtcNow
+        };
+        db.AIProcessingJobs.Add(job);
+
+        var suggestion = new DetectionSuggestion
+        {
+            Id = Guid.NewGuid(),
+            WorkspaceId = ws1.Id,
+            CaptureId = captureId,
+            Name = "Detected Book",
+            Quantity = 1,
+            Confidence = 0.95m,
+            IsRemoved = false,
+            CreatedAt = DateTimeOffset.UtcNow,
+            UpdatedAt = DateTimeOffset.UtcNow
+        };
+        db.DetectionSuggestions.Add(suggestion);
+        await db.SaveChangesAsync();
+
+        // Perform cross-workspace transfer
+        var transferred = await transferService.TransferContainerAsync(
+            identity,
+            ws1.InventoryNamespaceId,
+            container.Id,
+            new TransferContainerRequestDto(ws2.Id, loc2.Id));
+
+        Assert.NotNull(transferred);
+        Assert.Equal(ws2.Id, transferred.WorkspaceId);
+        Assert.Equal(loc2.Id, transferred.StorageNodeId);
+
+        // Verify capture, job, and suggestion updated workspace_id to ws2 while preserving relationships
+        var dbCapture = await db.InventoryCaptures.AsNoTracking().FirstOrDefaultAsync(c => c.Id == captureId);
+        Assert.NotNull(dbCapture);
+        Assert.Equal(ws2.Id, dbCapture.WorkspaceId);
+
+        var dbJob = await db.AIProcessingJobs.AsNoTracking().FirstOrDefaultAsync(j => j.Id == job.Id);
+        Assert.NotNull(dbJob);
+        Assert.Equal(ws2.Id, dbJob.WorkspaceId);
+
+        var dbSuggestion = await db.DetectionSuggestions.AsNoTracking().FirstOrDefaultAsync(s => s.Id == suggestion.Id);
+        Assert.NotNull(dbSuggestion);
+        Assert.Equal(ws2.Id, dbSuggestion.WorkspaceId);
+    }
+
+    [Fact]
+    public async Task TransferContainer_WithImageAsset_SucceedsAndPreservesImageAssetWorkspaceId()
+    {
+        using var scope = _fixture.Services.CreateScope();
+        var workspaceService = scope.ServiceProvider.GetRequiredService<IWorkspaceService>();
+        var locationService = scope.ServiceProvider.GetRequiredService<IStorageLocationService>();
+        var containerService = scope.ServiceProvider.GetRequiredService<IContainerService>();
+        var transferService = scope.ServiceProvider.GetRequiredService<IContainerTransferService>();
+        var db = scope.ServiceProvider.GetRequiredService<WherezItDbContext>();
+
+        var uid = $"transfer_img_user_{Guid.NewGuid():N}";
+        var identity = new AuthenticatedIdentity(uid, "transferimg@example.com", true);
+
+        var ws1 = await workspaceService.CreateWorkspaceAsync(identity, new CreateWorkspaceRequestDto("Source Space Image"));
+        var ws2 = await workspaceService.CreateWorkspaceAsync(identity, new CreateWorkspaceRequestDto("Target Space Image"));
+
+        var loc1 = await locationService.CreateLocationAsync(identity, ws1.Id, new CreateStorageLocationRequestDto("Loc 1", null));
+        var loc2 = await locationService.CreateLocationAsync(identity, ws2.Id, new CreateStorageLocationRequestDto("Loc 2", null));
+
+        var container = await containerService.CreateContainerAsync(identity, ws1.Id, new CreateContainerRequestDto(loc1.Id, "Photo Box Image", null));
+
+        var imageAsset = new ImageAsset
+        {
+            Id = Guid.NewGuid(),
+            WorkspaceId = ws1.Id,
+            ContainerId = container.Id,
+            ObjectPath = "captures/photo.jpg",
+            ContentType = "image/jpeg",
+            SizeBytes = 1024,
+            Status = "READY",
+            ImagePurpose = "REFERENCE",
+            CreatedAt = DateTimeOffset.UtcNow,
+            UpdatedAt = DateTimeOffset.UtcNow
+        };
+        db.ImageAssets.Add(imageAsset);
+        await db.SaveChangesAsync();
+
+        var transferred = await transferService.TransferContainerAsync(
+            identity,
+            ws1.InventoryNamespaceId,
+            container.Id,
+            new TransferContainerRequestDto(ws2.Id, loc2.Id));
+
+        Assert.NotNull(transferred);
+        Assert.Equal(ws2.Id, transferred.WorkspaceId);
+
+        var dbImg = await db.ImageAssets.AsNoTracking().FirstOrDefaultAsync(i => i.Id == imageAsset.Id);
+        Assert.NotNull(dbImg);
+        Assert.Equal(ws2.Id, dbImg.WorkspaceId);
+    }
 }

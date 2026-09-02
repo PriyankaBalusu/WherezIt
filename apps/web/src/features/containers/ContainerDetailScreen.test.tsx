@@ -237,4 +237,106 @@ describe('ContainerDetailScreen Regression Suite', () => {
     expect(screen.queryByText('Open first')).not.toBeInTheDocument();
     expect(screen.queryByText('Can wait')).not.toBeInTheDocument();
   });
+
+  it('renders mobile quick summary counts and section navigation tabs with tab switching support', async () => {
+    mockPhysicalLabel = null;
+    mockLabelImage = null;
+    const { fireEvent } = await import('@testing-library/react');
+
+    render(
+      <QueryClientProvider client={queryClient}>
+        <MemoryRouter initialEntries={['/workspaces/ws-123/containers/cont-123']}>
+          <Routes>
+            <Route path="/workspaces/:workspaceId/containers/:containerId" element={<ContainerDetailScreen />} />
+          </Routes>
+        </MemoryRouter>
+      </QueryClientProvider>
+    );
+
+    // Summary counts row
+    expect(await screen.findByRole('region', { name: /box summary counts/i })).toBeInTheDocument();
+    expect(screen.getByText('2')).toBeInTheDocument(); // 2 items in mock
+    expect(screen.getByText('items')).toBeInTheDocument();
+
+    // Section navigation tabs
+    const contentsTab = screen.getByRole('tab', { name: /contents/i });
+    const photosTab = screen.getByRole('tab', { name: /photos/i });
+    const codesTab = screen.getByRole('tab', { name: /codes/i });
+    const historyTab = screen.getByRole('tab', { name: /history/i });
+
+    expect(contentsTab).toBeInTheDocument();
+    expect(photosTab).toBeInTheDocument();
+    expect(codesTab).toBeInTheDocument();
+    expect(historyTab).toBeInTheDocument();
+
+    // Contents active by default (only Contents section in DOM on mobile)
+    expect(contentsTab).toHaveAttribute('aria-selected', 'true');
+    expect(screen.getByText('Christmas Lights')).toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: /^photos$/i })).not.toBeInTheDocument();
+
+    // Switch to Photos (only Photos section in DOM on mobile)
+    fireEvent.click(photosTab);
+    expect(photosTab).toHaveAttribute('aria-selected', 'true');
+    expect(screen.getByRole('heading', { name: /^photos$/i })).toBeInTheDocument();
+    expect(screen.queryByText('Christmas Lights')).not.toBeInTheDocument();
+
+    // Switch to Codes (only Codes section in DOM on mobile)
+    fireEvent.click(codesTab);
+    expect(codesTab).toHaveAttribute('aria-selected', 'true');
+    expect(screen.getByRole('heading', { name: /labels & codes/i })).toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: /^photos$/i })).not.toBeInTheDocument();
+
+    // Switch to History (only History section in DOM on mobile)
+    fireEvent.click(historyTab);
+    expect(historyTab).toHaveAttribute('aria-selected', 'true');
+    expect(screen.getByText('Box History')).toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: /labels & codes/i })).not.toBeInTheDocument();
+
+    // Switch back to Contents
+    fireEvent.click(contentsTab);
+    expect(contentsTab).toHaveAttribute('aria-selected', 'true');
+    expect(screen.getByText('+ Add Item')).toBeInTheDocument();
+  });
+
+  it('renders full two-column grid on desktop viewports without mobile tab shell', async () => {
+    // Set window width to desktop
+    Object.defineProperty(window, 'innerWidth', { writable: true, configurable: true, value: 1200 });
+
+    render(
+      <QueryClientProvider client={queryClient}>
+        <MemoryRouter initialEntries={['/workspaces/ws-123/containers/cont-123']}>
+          <Routes>
+            <Route path="/workspaces/:workspaceId/containers/:containerId" element={<ContainerDetailScreen />} />
+          </Routes>
+        </MemoryRouter>
+      </QueryClientProvider>
+    );
+
+    // Desktop grid layout is rendered
+    expect(await screen.findByText('Holiday Decorations')).toBeInTheDocument();
+    expect(screen.getByText('Christmas Lights')).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: /labels & codes/i })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: /^photos$/i })).toBeInTheDocument();
+    expect(screen.getByText('Box History')).toBeInTheDocument();
+
+    // Mobile tabs and summary row are NOT rendered on desktop
+    expect(screen.queryByRole('region', { name: /box summary counts/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole('tablist')).not.toBeInTheDocument();
+  });
+
+  it('renders Storage Space in Box Detail breadcrumb linking to /workspaces/:workspaceId', async () => {
+    render(
+      <QueryClientProvider client={queryClient}>
+        <MemoryRouter initialEntries={['/workspaces/ws-123/containers/cont-123']}>
+          <Routes>
+            <Route path="/workspaces/:workspaceId/containers/:containerId" element={<ContainerDetailScreen />} />
+          </Routes>
+        </MemoryRouter>
+      </QueryClientProvider>
+    );
+
+    const spaceLink = await screen.findByRole('link', { name: /My Home/i });
+    expect(spaceLink).toBeInTheDocument();
+    expect(spaceLink).toHaveAttribute('href', '/workspaces/ws-123');
+  });
 });

@@ -57,8 +57,7 @@ public class AIProcessingJobConfiguration : IEntityTypeConfiguration<AIProcessin
 
         builder.HasOne(x => x.Capture)
             .WithMany(c => c.Jobs)
-            .HasPrincipalKey(c => new { c.WorkspaceId, c.Id })
-            .HasForeignKey(x => new { x.WorkspaceId, x.CaptureId })
+            .HasForeignKey(x => x.CaptureId)
             .OnDelete(DeleteBehavior.Cascade);
     }
 }

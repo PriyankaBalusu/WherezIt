@@ -9,7 +9,10 @@ import { useContainers } from './hooks/useContainers';
 import { useWorkspaceContext } from '../workspaces/context/WorkspaceContext';
 import { CodeScanner } from '../identifiers/components/CodeScanner';
 import { CreateWorkspaceModal } from '../workspaces/components/CreateWorkspaceModal';
-import { useQueryClient } from '@tanstack/react-query';
+import { useQueryClient, useQueries } from '@tanstack/react-query';
+import { HierarchicalLocationPicker } from '../locations/components/HierarchicalLocationPicker';
+import { fetchContainers } from './api/containerApi';
+import { fetchLocations } from '../locations/api/locationApi';
 import './QuickPackScreen.css';
 
 type SaveState = 'IDLE' | 'CREATING_BOX' | 'BOX_CREATED' | 'UPLOADING_CAPTURE' | 'COMPLETE' | 'PARTIAL_SUCCESS' | 'ERROR';
@@ -22,6 +25,21 @@ interface BoxMoveState {
   moveError?: string;
   priorityError?: string;
 }
+
+const getLocationPathString = (locId: string | null | undefined, locsList: any[]): string => {
+  if (!locId || !locsList || locsList.length === 0) return 'Unknown Location';
+  const crumbs = [];
+  let currentId: string | null | undefined = locId;
+  const visited = new Set<string>();
+  while (currentId && !visited.has(currentId)) {
+    visited.add(currentId);
+    const currentLoc = locsList.find((l) => l.id === currentId);
+    if (!currentLoc) break;
+    crumbs.unshift(currentLoc.name);
+    currentId = currentLoc.parentId;
+  }
+  return crumbs.join(' › ') || 'Unknown Location';
+};
 
 export const QuickPackScreen: React.FC = () => {
   const queryClient = useQueryClient();
@@ -39,9 +57,12 @@ export const QuickPackScreen: React.FC = () => {
     (w) => w.inventoryNamespaceId === sourceInventoryNamespaceId
   );
 
-  const { data: locations = [] } = useStorageLocations(workspaceId || '');
-  const { data: containers = [] } = useContainers(workspaceId || '');
-  const createLocationMutation = useCreateStorageLocation(workspaceId || '');
+  const [selectedPackWorkspaceId, setSelectedPackWorkspaceId] = useState<string>(workspaceId || '');
+
+  const effectivePackWorkspaceId = selectedPackWorkspaceId || workspaceId || (workspacesList.length > 0 ? workspacesList[0].id : '');
+  const { data: locations = [] } = useStorageLocations(effectivePackWorkspaceId);
+  const { data: containers = [] } = useContainers(effectivePackWorkspaceId);
+  const createLocationMutation = useCreateStorageLocation(effectivePackWorkspaceId);
 
   // Workflow selection: PACK_BOX, MOVE_BOXES, UNPACK, or null
   const [workflow, setWorkflow] = useState<'PACK_BOX' | 'MOVE_BOXES' | 'UNPACK' | null>(
@@ -81,6 +102,9 @@ export const QuickPackScreen: React.FC = () => {
   const [isTemporaryLocation, setIsTemporaryLocation] = useState<boolean>(false);
   const [temporaryLocationName, setTemporaryLocationName] = useState<string>('');
 
+  const currentLocationObj = locations.find((l) => l.id === storageNodeId);
+  const destinationLocationObj = locations.find((l) => l.id === destinationStorageNodeId);
+
   // Pack a Box inline location creation
   const [isAddingLocation, setIsAddingLocation] = useState<boolean>(false);
   const [newLocationName, setNewLocationName] = useState<string>('');
@@ -102,7 +126,7 @@ export const QuickPackScreen: React.FC = () => {
   const [createdContainer, setCreatedContainer] = useState<Container | null>(null);
 
   // ----------------------------------------------------
-  // MOVE EXISTING BOXES STATE
+  // MOVE EXISTING BOXES STATE (COMPLETELY DECOUPLED FROM HOME)
   // ----------------------------------------------------
   const [moveStep, setMoveStep] = useState<1 | 2 | 3>(1);
   const [selectedBoxes, setSelectedBoxes] = useState<Container[]>([]);
@@ -110,12 +134,123 @@ export const QuickPackScreen: React.FC = () => {
   const [showScanner, setShowScanner] = useState<boolean>(false);
   const [moveDestinationId, setMoveDestinationId] = useState<string>('');
 
-  // Destination workspace states
-  const [destinationWorkspaceId, setDestinationWorkspaceId] = useState<string>(workspaceId || '');
+  // Step 1 Discovery Filters (Independent of Home selected workspace)
+  const [filterWorkspaceId, setFilterWorkspaceId] = useState<string>('all');
+  const [filterLocationId, setFilterLocationId] = useState<string | null>(null);
+
+  // Destination workspace state
+  const [destinationWorkspaceId, setDestinationWorkspaceId] = useState<string>('');
   const [isAddingSpace, setIsAddingSpace] = useState<boolean>(false);
 
-  // Fetch destination locations and handle destination location mutations
-  const { data: destinationLocations = [] } = useStorageLocations(destinationWorkspaceId);
+  // Multi-workspace container & location queries for all authorized workspaces
+  const containerQueries = useQueries({
+    queries: workspacesList.map((ws) => ({
+      queryKey: ['containers', ws.id, undefined, false],
+      queryFn: () => fetchContainers(ws.id, getIdToken, undefined, false),
+      enabled: !!ws.id,
+    })),
+  });
+
+  const locationQueries = useQueries({
+    queries: workspacesList.map((ws) => ({
+      queryKey: ['locations', ws.id],
+      queryFn: () => fetchLocations(ws.id, getIdToken),
+      enabled: !!ws.id,
+    })),
+  });
+
+  // All authorized containers with workspace metadata
+  const allAuthorizedContainers = React.useMemo(() => {
+    const result: (Container & { workspaceName: string; inventoryNamespaceId?: string })[] = [];
+    workspacesList.forEach((ws, idx) => {
+      const list = containerQueries[idx]?.data || [];
+      list.forEach((c) => {
+        result.push({
+          ...c,
+          workspaceName: ws.name,
+          inventoryNamespaceId: ws.inventoryNamespaceId,
+        });
+      });
+    });
+    return result;
+  }, [containerQueries, workspacesList]);
+
+  // Locations map keyed by workspaceId
+  const locationsByWorkspaceMap = React.useMemo(() => {
+    const map = new Map<string, any[]>();
+    workspacesList.forEach((ws, idx) => {
+      map.set(ws.id, locationQueries[idx]?.data || []);
+    });
+    return map;
+  }, [locationQueries, workspacesList]);
+
+  // Locations available for Step 1 filter picker
+  const filterLocationsList = React.useMemo(() => {
+    if (filterWorkspaceId !== 'all') {
+      return locationsByWorkspaceMap.get(filterWorkspaceId) || [];
+    }
+    return Array.from(locationsByWorkspaceMap.values()).flat();
+  }, [filterWorkspaceId, locationsByWorkspaceMap]);
+
+  // Descendant location IDs calculation for hierarchical location filter
+  const descendantLocationIds = React.useMemo(() => {
+    if (!filterLocationId) return null;
+    const allLocs = Array.from(locationsByWorkspaceMap.values()).flat();
+    const set = new Set<string>();
+    set.add(filterLocationId);
+    const queue = [filterLocationId];
+    while (queue.length > 0) {
+      const curr = queue.shift()!;
+      allLocs.forEach((loc) => {
+        if (loc.parentId === curr && !set.has(loc.id)) {
+          set.add(loc.id);
+          queue.push(loc.id);
+        }
+      });
+    }
+    return set;
+  }, [filterLocationId, locationsByWorkspaceMap]);
+
+  // Filtered containers for Step 1 discovery list
+  const filteredMoveStep1Containers = React.useMemo(() => {
+    return allAuthorizedContainers.filter((c) => {
+      if (c.isArchived) return false;
+      if (filterWorkspaceId !== 'all' && c.workspaceId !== filterWorkspaceId) return false;
+      if (descendantLocationIds && !descendantLocationIds.has(c.storageNodeId)) return false;
+
+      const q = searchQuery.toLowerCase().trim();
+      if (!q) return true;
+
+      const boxIdStr = c.boxId || `BOX ${String(c.boxNumber).padStart(3, '0')}`;
+      const nameStr = c.name || '';
+      const wsName = c.workspaceName || '';
+      const locName = getLocationPathString(c.storageNodeId, locationsByWorkspaceMap.get(c.workspaceId) || []);
+
+      return (
+        boxIdStr.toLowerCase().includes(q) ||
+        nameStr.toLowerCase().includes(q) ||
+        wsName.toLowerCase().includes(q) ||
+        locName.toLowerCase().includes(q)
+      );
+    });
+  }, [allAuthorizedContainers, filterWorkspaceId, descendantLocationIds, searchQuery, locationsByWorkspaceMap]);
+
+  // Destination locations for selected destinationWorkspaceId
+  const destinationLocations = React.useMemo(() => {
+    if (!destinationWorkspaceId) return [];
+    return locationsByWorkspaceMap.get(destinationWorkspaceId) || [];
+  }, [destinationWorkspaceId, locationsByWorkspaceMap]);
+
+  // Source Inventory Namespace for selected boxes
+  const selectedBoxNamespaceId = (selectedBoxes[0] as any)?.inventoryNamespaceId ||
+    workspacesList.find((w) => w.id === selectedBoxes[0]?.workspaceId)?.inventoryNamespaceId;
+
+  // Destination workspaces compatible with selected box(es)' Inventory Namespace
+  const compatibleDestinationWorkspaces = React.useMemo(() => {
+    if (!selectedBoxNamespaceId) return workspacesList;
+    return workspacesList.filter((w) => w.inventoryNamespaceId === selectedBoxNamespaceId);
+  }, [workspacesList, selectedBoxNamespaceId]);
+
   const createDestLocationMutation = useCreateStorageLocation(destinationWorkspaceId);
 
   // Per-box priority overrides (key is containerId)
@@ -136,23 +271,18 @@ export const QuickPackScreen: React.FC = () => {
 
   // General error banner
   const [error, setError] = useState<string | null>(null);
-  const currentLocationObj = locations.find((l) => l.id === storageNodeId);
-  const destinationLocationObj = locations.find((l) => l.id === destinationStorageNodeId);
 
-  const getLocationPathString = (locId: string | null | undefined, locsList: any[]) => {
-    if (!locId || !locsList || locsList.length === 0) return 'Unknown Location';
-    const crumbs = [];
-    let currentId: string | null | undefined = locId;
-    const visited = new Set<string>();
-    while (currentId && !visited.has(currentId)) {
-      visited.add(currentId);
-      const currentLoc = locsList.find((l) => l.id === currentId);
-      if (!currentLoc) break;
-      crumbs.unshift(currentLoc);
-      currentId = currentLoc.parentId;
+  // URL containerId preselection effect
+  useEffect(() => {
+    const urlContainerId = searchParams.get('containerId');
+    if (urlContainerId && allAuthorizedContainers.length > 0 && selectedBoxes.length === 0) {
+      const matched = allAuthorizedContainers.find((c) => c.id === urlContainerId);
+      if (matched) {
+        setSelectedBoxes([matched]);
+        setWorkflow('MOVE_BOXES');
+      }
     }
-    return crumbs.map((c) => c?.name || '').filter(Boolean).join(' → ') || 'Unknown Location';
-  };
+  }, [searchParams, allAuthorizedContainers, selectedBoxes]);
 
   // ----------------------------------------------------
   // EFFECTS
@@ -255,8 +385,8 @@ export const QuickPackScreen: React.FC = () => {
     setStep(3);
   };
 
-  const handleUploadCapture = async (containerId: string): Promise<string> => {
-    if (!selectedFile || !workspaceId) throw new Error('No photo or workspace context.');
+  const handleUploadCapture = async (targetWsId: string, containerId: string): Promise<string> => {
+    if (!selectedFile || !targetWsId) throw new Error('No photo or workspace context.');
 
     const compressed = await compressImage(selectedFile);
     const formData = new FormData();
@@ -264,7 +394,7 @@ export const QuickPackScreen: React.FC = () => {
 
     const token = await getIdToken();
     const uploadRes = await fetch(
-      `/api/v1/workspaces/${encodeURIComponent(workspaceId)}/containers/${encodeURIComponent(containerId)}/captures`,
+      `/api/v1/workspaces/${encodeURIComponent(targetWsId)}/containers/${encodeURIComponent(containerId)}/captures`,
       {
         method: 'POST',
         headers: {
@@ -289,7 +419,11 @@ export const QuickPackScreen: React.FC = () => {
 
   const handleSaveBox = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!workspaceId) return;
+    const targetWsId = effectivePackWorkspaceId;
+    if (!targetWsId) {
+      setError('Please select a valid Storage Space.');
+      return;
+    }
 
     if (isTemporaryLocation && !storageNodeId) {
       setError('A temporary location cannot be saved to the database. Please select or create a real storage location.');
@@ -303,6 +437,14 @@ export const QuickPackScreen: React.FC = () => {
       return;
     }
 
+    // Defensive location validation: ensure selected storageNodeId belongs to targetWsId
+    const selectedLocObj = locations.find((l) => l.id === storageNodeId);
+    if (!selectedLocObj && !isTemporaryLocation) {
+      setError('Selected storage location is not valid for this storage space.');
+      setStep(1);
+      return;
+    }
+
     let activeContainer = createdContainer;
     setError(null);
 
@@ -310,7 +452,7 @@ export const QuickPackScreen: React.FC = () => {
       if (!activeContainer) {
         setSaveState('CREATING_BOX');
         const container = await createContainer(
-          workspaceId,
+          targetWsId,
           {
             storageNodeId,
             name: name.trim() || undefined,
@@ -327,12 +469,12 @@ export const QuickPackScreen: React.FC = () => {
 
       if (selectedFile) {
         setSaveState('UPLOADING_CAPTURE');
-        const captureId = await handleUploadCapture(activeContainer.id);
+        const captureId = await handleUploadCapture(targetWsId, activeContainer.id);
         setSaveState('COMPLETE');
-        navigate(`/workspaces/${workspaceId}/captures/${captureId}/review`);
+        navigate(`/workspaces/${targetWsId}/captures/${captureId}/review`);
       } else {
         setSaveState('COMPLETE');
-        navigate(`/workspaces/${workspaceId}/containers/${activeContainer.id}`);
+        navigate(`/workspaces/${targetWsId}/containers/${activeContainer.id}`);
       }
     } catch (err: any) {
       if (activeContainer) {
@@ -531,11 +673,21 @@ export const QuickPackScreen: React.FC = () => {
     setUnpackSuccessMessage(null);
   };
 
-  const handleToggleSelectBox = (box: Container) => {
+  const handleToggleSelectBox = (box: Container & { inventoryNamespaceId?: string; workspaceName?: string }) => {
     setError(null);
-    if (selectedBoxes.some((b) => b.id === box.id)) {
+    const isAlreadySelected = selectedBoxes.some((b) => b.id === box.id);
+
+    if (isAlreadySelected) {
       setSelectedBoxes((prev) => prev.filter((b) => b.id !== box.id));
     } else {
+      const boxNs = box.inventoryNamespaceId || workspacesList.find((w) => w.id === box.workspaceId)?.inventoryNamespaceId;
+      if (selectedBoxes.length > 0) {
+        const firstBoxNs = (selectedBoxes[0] as any).inventoryNamespaceId || workspacesList.find((w) => w.id === selectedBoxes[0].workspaceId)?.inventoryNamespaceId;
+        if (boxNs && firstBoxNs && boxNs !== firstBoxNs) {
+          setError('Selected boxes must share the same inventory namespace to be moved together.');
+          return;
+        }
+      }
       setSelectedBoxes((prev) => [...prev, box]);
     }
   };
@@ -551,7 +703,7 @@ export const QuickPackScreen: React.FC = () => {
     }
     setError(null);
     if (!destinationWorkspaceId) {
-      setDestinationWorkspaceId(workspaceId || '');
+      setDestinationWorkspaceId(selectedBoxes[0]?.workspaceId || workspacesList[0]?.id || '');
     }
     setMoveStep(2);
   };
@@ -930,6 +1082,29 @@ export const QuickPackScreen: React.FC = () => {
                 </form>
               ) : (
                 <form onSubmit={handleStep1Continue}>
+                  {workspacesList.length > 1 && (
+                    <div className="quickpack-field-group">
+                      <label htmlFor="quickpack-pack-workspace" className="quickpack-label">
+                        Storage Space
+                      </label>
+                      <select
+                        id="quickpack-pack-workspace"
+                        className="quickpack-select"
+                        value={effectivePackWorkspaceId}
+                        onChange={(e) => {
+                          setSelectedPackWorkspaceId(e.target.value);
+                          setStorageNodeId('');
+                          setDestinationStorageNodeId('');
+                        }}
+                      >
+                        {workspacesList.map((ws) => (
+                          <option key={ws.id} value={ws.id}>
+                            {ws.name}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  )}
                   <div className="quickpack-field-group">
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
                       <label
@@ -1000,13 +1175,16 @@ export const QuickPackScreen: React.FC = () => {
                         id="quickpack-current-location"
                         className="quickpack-select"
                         value={storageNodeId}
-                        onChange={(e) => setStorageNodeId(e.target.value)}
+                        onChange={(e) => {
+                          setStorageNodeId(e.target.value);
+                          setError(null);
+                        }}
                         required
                       >
                         <option value="">-- Select Current Location --</option>
                         {locations?.map((loc) => (
                           <option key={loc.id} value={loc.id}>
-                            {loc.name}
+                            {getLocationPathString(loc.id, locations) || loc.name}
                           </option>
                         ))}
                       </select>
@@ -1026,7 +1204,7 @@ export const QuickPackScreen: React.FC = () => {
                       <option value="">-- I don't know yet --</option>
                       {locations?.map((loc) => (
                         <option key={loc.id} value={loc.id}>
-                          {loc.name}
+                          {getLocationPathString(loc.id, locations) || loc.name}
                         </option>
                       ))}
                     </select>
@@ -1234,7 +1412,7 @@ export const QuickPackScreen: React.FC = () => {
                     <option value="">-- Map to Real Location --</option>
                     {locations.map((loc) => (
                       <option key={loc.id} value={loc.id}>
-                        {loc.name}
+                        {getLocationPathString(loc.id, locations) || loc.name}
                       </option>
                     ))}
                   </select>
@@ -1334,9 +1512,9 @@ export const QuickPackScreen: React.FC = () => {
     return 4;
   };
 
-  // Find packed boxes user can access in the CURRENT workspace/Storage Space
-  const unpackAvailableBoxes = containers
-    .filter((c) => !c.isArchived && c.isPacked)
+  // Find packed boxes user can access across all authorized workspaces
+  const unpackAvailableBoxes = allAuthorizedContainers
+    .filter((c) => !c.isArchived && (c.isPacked || c.destinationStorageNodeId != null || c.movingPriority != null))
     .sort((a, b) => {
       const wA = getPriorityWeight(a.movingPriority);
       const wB = getPriorityWeight(b.movingPriority);
@@ -1349,10 +1527,12 @@ export const QuickPackScreen: React.FC = () => {
     if (!q) return true;
     const boxIdStr = c.boxId || `BOX ${String(c.boxNumber).padStart(3, '0')}`;
     const nameStr = c.name || '';
-    const locName = locations.find((l) => l.id === c.storageNodeId)?.name || '';
+    const wsName = c.workspaceName || '';
+    const locName = getLocationPathString(c.storageNodeId, locationsByWorkspaceMap.get(c.workspaceId) || []);
     return (
       boxIdStr.toLowerCase().includes(q) ||
       nameStr.toLowerCase().includes(q) ||
+      wsName.toLowerCase().includes(q) ||
       locName.toLowerCase().includes(q)
     );
   });
@@ -1827,57 +2007,104 @@ export const QuickPackScreen: React.FC = () => {
               Which boxes are you moving?
             </h3>
 
-            <div style={{ display: 'flex', gap: '0.75rem', marginBottom: '1.5rem' }}>
+            <div style={{ display: 'flex', gap: '0.75rem', marginBottom: '1.25rem' }}>
               <button
                 type="button"
                 className="btn btn-secondary btn--md"
                 onClick={() => setShowScanner(!showScanner)}
               >
-                {showScanner ? 'Hide Scanner' : 'Scan a Box'}
+                {showScanner ? 'Hide Scanner' : '📷 Scan a Box'}
               </button>
             </div>
 
             {showScanner && (
-              <div style={{ marginBottom: '1.5rem', border: '1px solid #cbd5e1', borderRadius: '0.5rem', padding: '1rem', backgroundColor: '#f8fafc' }}>
+              <div style={{ marginBottom: '1.25rem', border: '1px solid #cbd5e1', borderRadius: '0.5rem', padding: '1rem', backgroundColor: '#f8fafc' }}>
                 <CodeScanner onResolve={handleScannerResolve} buttonText="📷 Scan Box Code" />
               </div>
             )}
 
-            {/* Selection/Search form */}
+            {/* Search Input */}
             <div className="quickpack-field-group">
               <label htmlFor="box-search" className="quickpack-label">Search boxes by ID, name, or location</label>
               <input
                 id="box-search"
                 type="text"
                 className="quickpack-input"
-                placeholder="e.g. BOX 004, Kitchen, Attic"
+                placeholder="Search boxes across authorized storage spaces..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
               />
             </div>
 
+            {/* Discovery Filters: Storage Space & Hierarchical Location */}
+            <div className="quickpack-field-group" style={{ backgroundColor: '#f8fafc', padding: '0.875rem', borderRadius: '0.5rem', border: '1px solid #e2e8f0' }}>
+              <span style={{ fontSize: '0.8rem', fontWeight: 800, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.05em', display: 'block', marginBottom: '0.5rem' }}>
+                Discovery Filters
+              </span>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '0.75rem' }}>
+                <div>
+                  <label htmlFor="move-filter-workspace" style={{ fontSize: '0.8rem', fontWeight: 700, color: '#64748b', display: 'block', marginBottom: '0.25rem' }}>
+                    Storage Space
+                  </label>
+                  <select
+                    id="move-filter-workspace"
+                    className="quickpack-select"
+                    value={filterWorkspaceId}
+                    onChange={(e) => {
+                      setFilterWorkspaceId(e.target.value);
+                      setFilterLocationId(null);
+                    }}
+                    style={{ fontSize: '0.85rem', padding: '0.45rem 0.6rem' }}
+                  >
+                    <option value="all">All Storage Spaces</option>
+                    {workspacesList.map((ws) => (
+                      <option key={ws.id} value={ws.id}>
+                        {ws.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label style={{ fontSize: '0.8rem', fontWeight: 700, color: '#64748b', display: 'block', marginBottom: '0.25rem' }}>
+                    Location (Includes Sublocations)
+                  </label>
+                  <HierarchicalLocationPicker
+                    locations={filterLocationsList}
+                    selectedLocationId={filterLocationId}
+                    onSelectLocation={(locId) => setFilterLocationId(locId)}
+                    title="Filter by Location"
+                    allowAll={true}
+                    allLabel="All Locations"
+                  />
+                </div>
+              </div>
+            </div>
+
             {/* Accessible boxes multi-select list */}
-            <div className="quickpack-field-group" style={{ maxHeight: '280px', overflowY: 'auto', border: '1px solid #e2e8f0', borderRadius: '0.5rem', padding: '0.5rem' }}>
-              {filteredSearchContainers.length === 0 ? (
+            <div className="quickpack-field-group" style={{ maxHeight: '320px', overflowY: 'auto', border: '1px solid #e2e8f0', borderRadius: '0.5rem', padding: '0.5rem' }}>
+              {filteredMoveStep1Containers.length === 0 ? (
                 <div style={{ textAlign: 'center', padding: '2rem 0', color: '#94a3b8' }}>
-                  No boxes found.
+                  No matching boxes found. Try clearing filters or search terms.
                 </div>
               ) : (
-                filteredSearchContainers.map((box) => {
-                  const boxLoc = locations.find((l) => l.id === box.storageNodeId)?.name || 'Unknown Location';
+                filteredMoveStep1Containers.map((box) => {
                   const isChecked = selectedBoxes.some((b) => b.id === box.id);
+                  const boxLoc = getLocationPathString(box.storageNodeId, locationsByWorkspaceMap.get(box.workspaceId) || []);
+
                   return (
                     <label
                       key={box.id}
                       style={{
                         display: 'flex',
-                        alignItems: 'center',
+                        alignItems: 'flex-start',
                         gap: '0.75rem',
-                        padding: '0.625rem 0.75rem',
+                        padding: '0.75rem',
                         borderBottom: '1px solid #f1f5f9',
                         cursor: 'pointer',
-                        borderRadius: '0.25rem',
-                        backgroundColor: isChecked ? '#f0f9ff' : 'transparent',
+                        borderRadius: '0.375rem',
+                        backgroundColor: isChecked ? '#f0f9ff' : '#ffffff',
+                        transition: 'background-color 150ms ease',
                       }}
                     >
                       <input
@@ -1885,28 +2112,22 @@ export const QuickPackScreen: React.FC = () => {
                         className="quickpack-checkbox-input"
                         checked={isChecked}
                         onChange={() => handleToggleSelectBox(box)}
+                        style={{ marginTop: '0.2rem' }}
                       />
-                      <div style={{ display: 'flex', flexDirection: 'column', flex: 1 }}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
+                      <div style={{ display: 'flex', flexDirection: 'column', flex: 1, minWidth: 0 }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', flexWrap: 'wrap', gap: '0.35rem' }}>
                           <span style={{ fontWeight: 800, fontSize: '0.9rem', color: '#0f172a' }}>
                             {box.boxId || `BOX ${String(box.boxNumber).padStart(3, '0')}`}
                           </span>
-                          <span style={{ fontSize: '0.8rem', color: '#64748b' }}>📍 {boxLoc}</span>
+                          <span style={{ fontSize: '0.75rem', fontWeight: 700, color: '#0284c7', backgroundColor: '#e0f2fe', padding: '0.15rem 0.4rem', borderRadius: '0.25rem' }}>
+                            {box.workspaceName}
+                          </span>
                         </div>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginTop: '0.125rem' }}>
-                          <span style={{ fontSize: '0.85rem', color: '#475569' }}>
-                            {box.name || 'Unnamed Box'}
-                          </span>
-                          <span style={{ display: 'inline-flex', gap: '0.35rem' }}>
-                            {box.isPacked && (
-                              <span style={{ fontSize: '0.75rem', color: '#16a34a', fontWeight: 600 }}>Packed</span>
-                            )}
-                            {box.movingPriority && (
-                              <span style={{ fontSize: '0.75rem', color: '#0284c7', fontWeight: 600 }}>
-                                {box.movingPriority === 'HIGH' ? 'Open first' : box.movingPriority === 'LOW' ? 'Can wait' : 'Normal'}
-                              </span>
-                            )}
-                          </span>
+                        <div style={{ fontSize: '0.85rem', fontWeight: 600, color: '#334155', marginTop: '0.15rem' }}>
+                          {box.name || 'Unnamed Box'}
+                        </div>
+                        <div style={{ fontSize: '0.8rem', color: '#64748b', marginTop: '0.25rem' }}>
+                          📍 {boxLoc}
                         </div>
                       </div>
                     </label>
@@ -1916,14 +2137,16 @@ export const QuickPackScreen: React.FC = () => {
             </div>
 
             {/* Selected Boxes Summary block */}
-            <div className="quickpack-summary-card" style={{ marginTop: '1.5rem', backgroundColor: '#f8fafc' }}>
+            <div className="quickpack-summary-card" style={{ marginTop: '1.25rem', backgroundColor: '#f8fafc' }}>
               <div className="quickpack-summary-title">Selected Boxes ({selectedBoxes.length})</div>
               {selectedBoxes.length === 0 ? (
                 <p style={{ color: '#94a3b8', fontSize: '0.9rem', margin: 0 }}>No boxes selected yet.</p>
               ) : (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
                   {selectedBoxes.map((box) => {
-                    const boxLoc = locations.find((l) => l.id === box.storageNodeId)?.name || 'Unknown Location';
+                    const wsName = (box as any).workspaceName || workspacesList.find((w) => w.id.toLowerCase() === box.workspaceId.toLowerCase())?.name || 'Workspace';
+                    const boxLoc = getLocationPathString(box.storageNodeId, locationsByWorkspaceMap.get(box.workspaceId) || []);
+
                     return (
                       <div
                         key={box.id}
@@ -1944,7 +2167,9 @@ export const QuickPackScreen: React.FC = () => {
                           <span style={{ fontSize: '0.85rem', color: '#475569' }}>
                             {box.name || 'Unnamed Box'}
                           </span>
-                          <div style={{ fontSize: '0.75rem', color: '#64748b', marginTop: '0.125rem' }}>📍 {boxLoc}</div>
+                          <div style={{ fontSize: '0.75rem', color: '#64748b', marginTop: '0.125rem' }}>
+                            {wsName} / 📍 {boxLoc}
+                          </div>
                         </div>
                         <button
                           type="button"
@@ -1986,6 +2211,22 @@ export const QuickPackScreen: React.FC = () => {
             <h3 ref={stepHeadingRef} tabIndex={-1} className="quickpack-step-heading">
               Where are these boxes going?
             </h3>
+
+            {/* Read-Only Source Banner */}
+            <div style={{ backgroundColor: '#f0f9ff', border: '1px solid #bae6fd', borderRadius: '0.5rem', padding: '1rem', marginBottom: '1.5rem' }}>
+              <span style={{ fontSize: '0.75rem', fontWeight: 800, color: '#0369a1', textTransform: 'uppercase', letterSpacing: '0.05em', display: 'block', marginBottom: '0.35rem' }}>
+                Source (FROM)
+              </span>
+              {selectedBoxes.map((box) => {
+                const wsName = (box as any).workspaceName || workspacesList.find((w) => w.id.toLowerCase() === box.workspaceId.toLowerCase())?.name || 'Workspace';
+                const sourceLoc = getLocationPathString(box.storageNodeId, locationsByWorkspaceMap.get(box.workspaceId) || []);
+                return (
+                  <div key={box.id} style={{ fontSize: '0.9rem', color: '#0f172a', fontWeight: 600, marginTop: '0.25rem' }}>
+                    <strong>{box.boxId || `BOX ${String(box.boxNumber).padStart(3, '0')}`}</strong> ({box.name || 'Unnamed Box'}) in <strong>{wsName}</strong> / 📍 {sourceLoc}
+                  </div>
+                );
+              })}
+            </div>
 
             {isAddingLocation ? (
               <form
@@ -2090,7 +2331,7 @@ export const QuickPackScreen: React.FC = () => {
                     required
                   >
                     <option value="">-- Select Storage Space --</option>
-                    {sameInventoryWorkspaces.map((ws) => (
+                    {(compatibleDestinationWorkspaces || workspacesList).map((ws) => (
                       <option key={ws.id} value={ws.id}>
                         {ws.name}
                       </option>
@@ -2098,10 +2339,10 @@ export const QuickPackScreen: React.FC = () => {
                   </select>
                 </div>
 
-                {/* Destination Location Selector */}
+                {/* Destination Location Selector (Hierarchical Picker) */}
                 <div className="quickpack-field-group">
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
-                    <label htmlFor="quickpack-move-destination" className="quickpack-label">
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: '0.35rem' }}>
+                    <label style={{ fontSize: '0.875rem', fontWeight: 700, color: '#334155' }}>
                       Destination Storage Location *
                     </label>
                     {destinationWorkspaceId && (
@@ -2135,31 +2376,24 @@ export const QuickPackScreen: React.FC = () => {
                         </button>
                       </div>
                     ) : (
-                      <select
-                        id="quickpack-move-destination"
-                        className="quickpack-select"
-                        value={moveDestinationId}
-                        onChange={(e) => setMoveDestinationId(e.target.value)}
-                        required
-                      >
-                        <option value="">-- Select Destination --</option>
-                        {destinationLocations.map((loc) => (
-                          <option key={loc.id} value={loc.id}>
-                            {loc.name}
-                          </option>
-                        ))}
-                      </select>
+                      <HierarchicalLocationPicker
+                        locations={destinationLocations}
+                        selectedLocationId={moveDestinationId || null}
+                        onSelectLocation={(locId) => setMoveDestinationId(locId || '')}
+                        title="Select Destination Location"
+                        allowAll={false}
+                        allLabel="Select Location"
+                        buttonLabel={
+                          moveDestinationId
+                            ? getLocationPathString(moveDestinationId, destinationLocations)
+                            : 'Select Destination Location...'
+                        }
+                      />
                     )
                   ) : (
-                    <select
-                      id="quickpack-move-destination"
-                      className="quickpack-select"
-                      value=""
-                      disabled
-                      required
-                    >
-                      <option value="">-- Select Storage Space First --</option>
-                    </select>
+                    <div style={{ padding: '0.65rem 0.85rem', backgroundColor: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '0.5rem', fontSize: '0.85rem', color: '#94a3b8' }}>
+                      Select a Destination Storage Space first.
+                    </div>
                   )}
                 </div>
 
@@ -2221,13 +2455,10 @@ export const QuickPackScreen: React.FC = () => {
                         type="button"
                         className="btn btn-primary btn--sm"
                         onClick={() => {
-                          if (workspaceContext) {
-                            workspaceContext.setActiveWorkspaceId(destinationWorkspaceId);
-                          }
-                          navigate(`/workspaces/${destinationWorkspaceId}`);
+                          navigate(`/workspaces/${destinationWorkspaceId}/locations/${moveDestinationId}`);
                         }}
                       >
-                        Open Destination
+                        Open destination location
                       </button>
                     </div>
                   </div>

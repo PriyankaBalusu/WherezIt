@@ -99,6 +99,7 @@ export const ItemList: React.FC<ItemListProps> = ({
       setIsAddingItem(false);
       queryClient.invalidateQueries({ queryKey: ['items', workspaceId, containerId] });
       queryClient.invalidateQueries({ queryKey: ['containers', workspaceId] });
+      queryClient.invalidateQueries({ queryKey: ['boxHistory', workspaceId, containerId] });
     }
   };
 
@@ -142,10 +143,10 @@ export const ItemList: React.FC<ItemListProps> = ({
       {/* Header */}
       <div className="item-list-header">
         <div>
-          <h2 style={{ fontSize: '1.25rem', fontWeight: 800, margin: '0 0 0.25rem 0', color: '#0f172a' }}>
+          <h2 style={{ fontSize: '1.25rem', fontWeight: 800, margin: '0 0 0.25rem 0', color: 'var(--color-text, #0f172a)' }}>
             Contents
           </h2>
-          <p style={{ margin: 0, fontSize: '0.85rem', color: '#64748b' }}>
+          <p style={{ margin: 0, fontSize: '0.85rem', color: 'var(--color-text-muted, #64748b)' }}>
             Items stored in this box.
           </p>
         </div>
@@ -175,10 +176,10 @@ export const ItemList: React.FC<ItemListProps> = ({
                 right: 0,
                 marginTop: '0.375rem',
                 width: '180px',
-                backgroundColor: '#ffffff',
+                backgroundColor: 'var(--color-dropdown-bg, #ffffff)',
                 borderRadius: '0.5rem',
-                boxShadow: '0 10px 25px rgba(0,0,0,0.15)',
-                border: '1px solid #e2e8f0',
+                boxShadow: 'var(--color-card-shadow, 0 10px 25px rgba(0,0,0,0.15))',
+                border: '1px solid var(--color-dropdown-border, #e2e8f0)',
                 zIndex: 40,
                 overflow: 'hidden',
                 display: 'flex',
@@ -198,7 +199,7 @@ export const ItemList: React.FC<ItemListProps> = ({
                   border: 'none',
                   fontSize: '0.85rem',
                   fontWeight: 600,
-                  color: '#0f172a',
+                  color: 'var(--color-text, #0f172a)',
                   cursor: 'pointer',
                 }}
               >
@@ -211,7 +212,7 @@ export const ItemList: React.FC<ItemListProps> = ({
 
       {/* Item List */}
       {items && items.length === 0 ? (
-        <div style={{ color: '#64748b', fontStyle: 'italic', padding: '2rem 1rem', textAlign: 'center', backgroundColor: '#f8fafc', borderRadius: '0.5rem', border: '1px dashed #cbd5e1' }}>
+        <div style={{ color: 'var(--color-text-muted, #64748b)', fontStyle: 'italic', padding: '2rem 1rem', textAlign: 'center', backgroundColor: 'var(--color-bg-subtle, #f8fafc)', borderRadius: '0.5rem', border: '1px dashed var(--color-border, #cbd5e1)' }}>
           No items in this box yet. Click "+ Add Item" to add items.
         </div>
       ) : (
@@ -243,11 +244,11 @@ export const ItemList: React.FC<ItemListProps> = ({
                       {icon}
                     </div>
                     <div style={{ minWidth: 0, flex: 1 }}>
-                      <div style={{ fontWeight: 700, color: '#0f172a', fontSize: '0.95rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      <div style={{ fontWeight: 700, color: 'var(--color-text, #0f172a)', fontSize: '0.95rem', overflowWrap: 'anywhere', wordBreak: 'break-word', whiteSpace: 'normal' }}>
                         {item.name}
                       </div>
                       {item.category && (
-                        <div style={{ fontSize: '0.75rem', color: '#64748b', fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        <div style={{ fontSize: '0.75rem', color: 'var(--color-text-muted, #64748b)', fontWeight: 500, overflowWrap: 'anywhere', wordBreak: 'break-word', whiteSpace: 'normal' }}>
                           {item.category}
                         </div>
                       )}
@@ -261,11 +262,12 @@ export const ItemList: React.FC<ItemListProps> = ({
                         display: 'inline-flex',
                         alignItems: 'center',
                         justifyContent: 'center',
-                        backgroundColor: '#f1f5f9',
+                        backgroundColor: 'var(--color-bg-subtle, #f1f5f9)',
+                        border: '1px solid var(--color-border, #cbd5e1)',
                         padding: '0 0.625rem',
                         borderRadius: '0.375rem',
                         fontSize: '0.8rem',
-                        color: '#334155',
+                        color: 'var(--color-text, #334155)',
                         fontWeight: 700,
                         whiteSpace: 'nowrap',
                         boxSizing: 'border-box',
@@ -311,7 +313,7 @@ export const ItemList: React.FC<ItemListProps> = ({
             {/* Archived Items Section when toggle is on */}
             {showArchived && archivedItems.length > 0 && (
               <>
-                <li style={{ padding: '0.75rem 0 0.25rem 0', fontSize: '0.8rem', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                <li style={{ padding: '0.75rem 0 0.25rem 0', fontSize: '0.8rem', fontWeight: 700, color: 'var(--color-text-muted, #94a3b8)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
                   Archived Items
                 </li>
                 {archivedItems.map((item) => (
@@ -324,15 +326,15 @@ export const ItemList: React.FC<ItemListProps> = ({
                       flexWrap: 'wrap',
                       gap: '0.5rem 0.875rem',
                       padding: '0.75rem 0.5rem',
-                      borderBottom: '1px solid #f1f5f9',
+                      borderBottom: '1px solid var(--color-border-subtle, #f1f5f9)',
                       opacity: 0.75,
                     }}
                   >
                     <div>
-                      <div style={{ fontWeight: 600, color: '#64748b', textDecoration: 'line-through', fontSize: '0.9rem' }}>
+                      <div style={{ fontWeight: 600, color: 'var(--color-text-muted, #64748b)', textDecoration: 'line-through', fontSize: '0.9rem' }}>
                         {item.name}
                       </div>
-                      <div style={{ fontSize: '0.75rem', color: '#94a3b8' }}>
+                      <div style={{ fontSize: '0.75rem', color: 'var(--color-text-muted, #94a3b8)' }}>
                         Qty: {item.quantity} {item.category ? `• ${item.category}` : ''}
                       </div>
                     </div>
@@ -371,7 +373,7 @@ export const ItemList: React.FC<ItemListProps> = ({
                 style={{
                   background: 'none',
                   border: 'none',
-                  color: '#0284c7',
+                  color: 'var(--color-primary-text, #0284c7)',
                   fontSize: '0.85rem',
                   fontWeight: 600,
                   cursor: 'pointer',

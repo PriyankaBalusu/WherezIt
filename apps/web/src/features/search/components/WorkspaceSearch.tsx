@@ -2,6 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { useGlobalSearch } from '../hooks/useSearch';
 import { useWorkspaceContext } from '../../workspaces/context/WorkspaceContext';
+import { getStorageSpaceDisplayName, formatSearchBreadcrumbDisplay } from '../../workspaces/utils/formatWorkspaceName';
+import './WorkspaceSearch.css';
 
 interface WorkspaceSearchProps {
   initialQuery?: string;
@@ -118,6 +120,10 @@ export const WorkspaceSearch: React.FC<WorkspaceSearchProps> = ({ initialQuery =
     (currentPage - 1) * pageSize,
     currentPage * pageSize
   );
+
+  const handleResultClick = (_e?: React.MouseEvent) => {
+    // Navigation is handled by react-router-dom <Link to={targetUrl} />
+  };
 
   return (
     <div style={{ maxWidth: '850px', margin: '0 auto', padding: '1rem' }}>
@@ -306,78 +312,139 @@ export const WorkspaceSearch: React.FC<WorkspaceSearchProps> = ({ initialQuery =
           ) : (
             <div>
               <div style={{ display: 'grid', gap: '1.25rem' }}>
-                {paginatedResults.map((res, index) => (
-                  <div
-                    key={res.itemId || `${res.containerId}-${index}`}
-                    className="card"
-                    style={{
-                      backgroundColor: '#ffffff',
-                      borderLeft: res.resultType === 'ITEM' ? '4px solid #0284c7' : '4px solid #f59e0b',
-                    }}
-                  >
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '0.75rem' }}>
-                      <div>
-                        {res.resultType === 'ITEM' ? (
-                          <h3 style={{ margin: 0, fontSize: '1.375rem', color: '#0f172a', fontWeight: 800 }}>
-                            {res.itemName}
-                          </h3>
-                        ) : (
-                          <h3 style={{ margin: 0, fontSize: '1.375rem', color: '#0f172a', fontWeight: 800 }}>
-                            Container {res.boxDisplayId}
-                          </h3>
-                        )}
-                      </div>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                        <span style={{ fontSize: '0.75rem', padding: '0.15rem 0.5rem', backgroundColor: '#f1f5f9', color: '#475569', borderRadius: '0.25rem', fontWeight: 700 }}>
-                          🏠 {res.workspaceName}
-                        </span>
-                        <span
-                          className="badge"
-                          style={{
-                            backgroundColor: res.resultType === 'ITEM' ? '#e0f2fe' : '#fef3c7',
-                            color: res.resultType === 'ITEM' ? '#0369a1' : '#d97706',
-                            border: res.resultType === 'ITEM' ? '1px solid rgba(2, 132, 199, 0.2)' : '1px solid rgba(217, 119, 6, 0.2)',
-                          }}
-                        >
-                          {res.resultType}
-                        </span>
-                      </div>
-                    </div>
+                {paginatedResults.map((res, index) => {
+                  const targetUrl = `/workspaces/${res.workspaceId}/containers/${res.containerId}`;
+                  const formattedBreadcrumb = formatSearchBreadcrumbDisplay(res.breadcrumbDisplay, res.workspaceName);
 
-                    {res.resultType === 'ITEM' && res.quantity != null && (
-                      <div style={{ fontSize: '0.875rem', color: '#475569', marginBottom: '0.75rem' }}>
-                        Quantity: <strong>{res.quantity}</strong>
-                      </div>
-                    )}
-
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '0.75rem', paddingTop: '0.75rem', borderTop: '1px solid #f1f5f9', flexWrap: 'wrap', gap: '0.5rem' }}>
-                      <div style={{ display: 'flex', gap: '1.5rem', fontSize: '0.875rem', color: '#334155', flexWrap: 'wrap', alignItems: 'center' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.375rem' }}>
-                          <span style={{ color: '#64748b' }}>Container:</span>
-                          <span className="badge badge-boxid">{res.boxDisplayId}</span>
+                  return (
+                    <React.Fragment key={res.itemId || `${res.containerId}-${index}`}>
+                      {/* DESKTOP SEARCH RESULT CARD */}
+                      <div
+                        className="card search-result-card-desktop"
+                        style={{
+                          backgroundColor: '#ffffff',
+                          borderLeft: res.resultType === 'ITEM' ? '4px solid #0284c7' : '4px solid #f59e0b',
+                        }}
+                      >
+                        <div className="search-result-header">
+                          <div className="search-result-title-container">
+                            {res.resultType === 'ITEM' ? (
+                              <h3 className="search-result-title">
+                                {res.itemName}
+                              </h3>
+                            ) : (
+                              <h3 className="search-result-title">
+                                {res.containerName || res.boxDisplayId}
+                              </h3>
+                            )}
+                          </div>
+                          <div className="search-result-badges">
+                            <span className="search-result-workspace-badge">
+                              🏠 {getStorageSpaceDisplayName(res.workspaceName)}
+                            </span>
+                            <span
+                              className="badge"
+                              style={{
+                                backgroundColor: res.resultType === 'ITEM' ? '#e0f2fe' : '#fef3c7',
+                                color: res.resultType === 'ITEM' ? '#0369a1' : '#d97706',
+                                border: res.resultType === 'ITEM' ? '1px solid rgba(2, 132, 199, 0.2)' : '1px solid rgba(217, 119, 6, 0.2)',
+                              }}
+                            >
+                              {res.resultType}
+                            </span>
+                          </div>
                         </div>
-                        {res.breadcrumbDisplay && (
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.375rem' }}>
-                            <span style={{ color: '#64748b' }}>Location:</span>
-                            <strong style={{ color: '#d97706' }}>{res.breadcrumbDisplay}</strong>
+
+                        {res.resultType === 'ITEM' && res.quantity != null && (
+                          <div style={{ fontSize: '0.875rem', color: '#475569', marginBottom: '0.75rem' }}>
+                            Quantity: <strong>{res.quantity}</strong>
                           </div>
                         )}
+
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '0.75rem', paddingTop: '0.75rem', borderTop: '1px solid #f1f5f9', flexWrap: 'wrap', gap: '0.5rem' }}>
+                          <div style={{ display: 'flex', gap: '1.5rem', fontSize: '0.875rem', color: '#334155', flexWrap: 'wrap', alignItems: 'center' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.375rem' }}>
+                              <span style={{ color: '#64748b' }}>Container:</span>
+                              <span className="badge badge-boxid">{res.boxDisplayId}</span>
+                            </div>
+                            {res.breadcrumbDisplay && (
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '0.375rem' }}>
+                                <span style={{ color: '#64748b' }}>Location:</span>
+                                <strong style={{ color: '#d97706' }}>{formattedBreadcrumb}</strong>
+                              </div>
+                            )}
+                          </div>
+                          <Link
+                            to={targetUrl}
+                            onClick={handleResultClick}
+                            className="btn-secondary"
+                            style={{ padding: '0.375rem 0.75rem', fontSize: '0.75rem', textDecoration: 'none' }}
+                          >
+                            Open Box →
+                          </Link>
+                        </div>
                       </div>
+
+                      {/* MOBILE COMPACT SEARCH RESULT CARD */}
                       <Link
-                        to={`/workspaces/${res.workspaceId}/containers/${res.containerId}`}
-                        onClick={() => {
-                          if (workspaceContext && workspaceContext.activeWorkspace?.id !== res.workspaceId) {
-                            workspaceContext.setActiveWorkspaceId(res.workspaceId);
-                          }
+                        to={targetUrl}
+                        onClick={handleResultClick}
+                        className="search-result-card-mobile"
+                        style={{
+                          textDecoration: 'none',
+                          backgroundColor: '#ffffff',
+                          borderRadius: '0.5rem',
+                          padding: '0.75rem 0.875rem',
+                          boxShadow: '0 1px 3px rgba(0, 0, 0, 0.05)',
+                          border: '1px solid #e2e8f0',
+                          borderLeft: res.resultType === 'ITEM' ? '3px solid #0284c7' : '3px solid #f59e0b',
                         }}
-                        className="btn-secondary"
-                        style={{ padding: '0.375rem 0.75rem', fontSize: '0.75rem', textDecoration: 'none' }}
                       >
-                        Open Box →
+                        {/* Top Row: Title / Box ID Pill + Type Badge */}
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.25rem' }}>
+                          {res.resultType === 'CONTAINER' ? (
+                            <span style={{ fontWeight: 800, fontSize: '0.95rem', color: '#0f172a', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                              {res.containerName || res.boxDisplayId}
+                            </span>
+                          ) : (
+                            <span style={{ fontWeight: 800, fontSize: '0.95rem', color: '#0f172a', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                              {res.itemName}
+                            </span>
+                          )}
+                          <span
+                            style={{
+                              fontSize: '0.7rem',
+                              padding: '0.1rem 0.4rem',
+                              borderRadius: '0.25rem',
+                              fontWeight: 700,
+                              backgroundColor: res.resultType === 'ITEM' ? '#e0f2fe' : '#fef3c7',
+                              color: res.resultType === 'ITEM' ? '#0369a1' : '#d97706',
+                              border: res.resultType === 'ITEM' ? '1px solid rgba(2, 132, 199, 0.2)' : '1px solid rgba(217, 119, 6, 0.2)',
+                              flexShrink: 0,
+                            }}
+                          >
+                            {res.resultType}
+                          </span>
+                        </div>
+
+                        {/* Middle Metadata Row */}
+                        <div style={{ fontSize: '0.825rem', color: '#475569', fontWeight: 600, marginBottom: '0.35rem' }}>
+                          {res.resultType === 'CONTAINER'
+                            ? res.boxDisplayId
+                            : `${res.quantity != null ? `Qty ${res.quantity} · ` : ''}${res.boxDisplayId}`}
+                        </div>
+
+                        {/* Bottom Row: Full Location Breadcrumb + Chevron */}
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '0.25rem' }}>
+                          <div style={{ fontSize: '0.785rem', color: '#64748b', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1, paddingRight: '0.5rem' }}>
+                            {formattedBreadcrumb}
+                          </div>
+                          <span style={{ color: '#94a3b8', fontSize: '1rem', fontWeight: 700, flexShrink: 0 }}>›</span>
+                        </div>
                       </Link>
-                    </div>
-                  </div>
-                ))}
+                    </React.Fragment>
+                  );
+                })}
               </div>
 
               {/* Pagination Controls */}

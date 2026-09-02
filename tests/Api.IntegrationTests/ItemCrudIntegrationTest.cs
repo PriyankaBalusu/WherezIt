@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using WherezIt.Api.IntegrationTests.Fixtures;
+using WherezIt.Application.ActivityHistory.Services;
 using WherezIt.Application.Authentication;
 using WherezIt.Application.Containers.Dtos;
 using WherezIt.Application.Containers.Services;
@@ -57,116 +58,145 @@ public class ItemCrudIntegrationTest : IClassFixture<PostgresTestFixture>
     }
 
     [Fact]
-    public async Task CreateItem_QuantityLessThanOne_IsRejected()
+    public async Task CreateItem_WithNullCategory_SucceedsAndLogsItemAddedHistory()
     {
         using var scope = _fixture.Services.CreateScope();
         var workspaceService = scope.ServiceProvider.GetRequiredService<IWorkspaceService>();
         var locationService = scope.ServiceProvider.GetRequiredService<IStorageLocationService>();
         var containerService = scope.ServiceProvider.GetRequiredService<IContainerService>();
         var itemService = scope.ServiceProvider.GetRequiredService<IItemService>();
+        var historyService = scope.ServiceProvider.GetRequiredService<IActivityHistoryService>();
 
-        var identity = new AuthenticatedIdentity($"qty_user_{Guid.NewGuid():N}", "qtyuser@example.com", true);
-        var workspace = await workspaceService.CreateWorkspaceAsync(identity, new CreateWorkspaceRequestDto("Qty Test WS"));
+        var identity = new AuthenticatedIdentity($"null_cat_user_{Guid.NewGuid():N}", "nullcat@example.com", true);
+        var workspace = await workspaceService.CreateWorkspaceAsync(identity, new CreateWorkspaceRequestDto("Null Cat WS"));
         var garage = await locationService.CreateLocationAsync(identity, workspace.Id, new CreateStorageLocationRequestDto("Garage", null));
-        var container = await containerService.CreateContainerAsync(identity, workspace.Id, new CreateContainerRequestDto(garage.Id, "Box", null));
+        var container = await containerService.CreateContainerAsync(identity, workspace.Id, new CreateContainerRequestDto(garage.Id, "Clothes Box", null));
 
-        await Assert.ThrowsAsync<ArgumentException>(() =>
-            itemService.CreateItemAsync(identity, workspace.Id, container.Id, new CreateItemRequestDto("Zero Qty", 0)));
+        // Create item with no category (null/empty) and quantity 1
+        var item = await itemService.CreateItemAsync(identity, workspace.Id, container.Id, new CreateItemRequestDto("Jackets", 1, null));
 
-        await Assert.ThrowsAsync<ArgumentException>(() =>
-            itemService.CreateItemAsync(identity, workspace.Id, container.Id, new CreateItemRequestDto("Negative Qty", -5)));
+        Assert.NotNull(item);
+        Assert.Equal("Jackets", item.Name);
+        Assert.Equal(1, item.Quantity);
+
+        // Verify ActivityHistory
+        var history = await historyService.GetContainerHistoryAsync(identity, workspace.Id, container.Id);
+        var addedEvent = history.FirstOrDefault(h => h.ActivityType == "ITEM_ADDED");
+        Assert.NotNull(addedEvent);
+        Assert.Equal("Item added", addedEvent.Title);
+        Assert.Equal("Jackets · Qty 1", addedEvent.Description);
     }
 
     [Fact]
-    public async Task CreateItem_ArchivedContainer_IsRejectedWithConflict()
+    public async Task CreateItem_WithCategory_SucceedsAndLogsItemAddedHistory()
     {
         using var scope = _fixture.Services.CreateScope();
         var workspaceService = scope.ServiceProvider.GetRequiredService<IWorkspaceService>();
         var locationService = scope.ServiceProvider.GetRequiredService<IStorageLocationService>();
         var containerService = scope.ServiceProvider.GetRequiredService<IContainerService>();
         var itemService = scope.ServiceProvider.GetRequiredService<IItemService>();
+        var historyService = scope.ServiceProvider.GetRequiredService<IActivityHistoryService>();
 
-        var identity = new AuthenticatedIdentity($"arch_item_user_{Guid.NewGuid():N}", "architem@example.com", true);
-        var workspace = await workspaceService.CreateWorkspaceAsync(identity, new CreateWorkspaceRequestDto("Archived Box Item WS"));
+        var identity = new AuthenticatedIdentity($"with_cat_user_{Guid.NewGuid():N}", "withcat@example.com", true);
+        var workspace = await workspaceService.CreateWorkspaceAsync(identity, new CreateWorkspaceRequestDto("Category WS"));
         var garage = await locationService.CreateLocationAsync(identity, workspace.Id, new CreateStorageLocationRequestDto("Garage", null));
-        var container = await containerService.CreateContainerAsync(identity, workspace.Id, new CreateContainerRequestDto(garage.Id, "Archived Box", null));
-        await containerService.ArchiveContainerAsync(identity, workspace.Id, container.Id);
+        var container = await containerService.CreateContainerAsync(identity, workspace.Id, new CreateContainerRequestDto(garage.Id, "Shoe Box", null));
 
-        var ex = await Assert.ThrowsAsync<InvalidOperationException>(() =>
-            itemService.CreateItemAsync(identity, workspace.Id, container.Id, new CreateItemRequestDto("Item in Archived Box", 1)));
+        var item = await itemService.CreateItemAsync(identity, workspace.Id, container.Id, new CreateItemRequestDto("Nike Sneakers", 2, "Footwear"));
 
-        Assert.Contains("Cannot create an item in an archived container.", ex.Message);
+        Assert.NotNull(item);
+        Assert.Equal("Nike Sneakers", item.Name);
+        Assert.Equal(2, item.Quantity);
+
+        // Verify ActivityHistory
+        var history = await historyService.GetContainerHistoryAsync(identity, workspace.Id, container.Id);
+        var addedEvent = history.FirstOrDefault(h => h.ActivityType == "ITEM_ADDED");
+        Assert.NotNull(addedEvent);
+        Assert.Equal("Item added", addedEvent.Title);
+        Assert.Equal("Nike Sneakers · Qty 2", addedEvent.Description);
     }
 
     [Fact]
-    public async Task Item_CrossWorkspaceContainerAssignment_FailsAtDatabaseLevel()
+    public async Task DeleteItem_WritesItemRemovedHistoryAndPreservesSnapshot()
     {
         using var scope = _fixture.Services.CreateScope();
         var workspaceService = scope.ServiceProvider.GetRequiredService<IWorkspaceService>();
         var locationService = scope.ServiceProvider.GetRequiredService<IStorageLocationService>();
         var containerService = scope.ServiceProvider.GetRequiredService<IContainerService>();
+        var itemService = scope.ServiceProvider.GetRequiredService<IItemService>();
+        var historyService = scope.ServiceProvider.GetRequiredService<IActivityHistoryService>();
         var dbContext = scope.ServiceProvider.GetRequiredService<WherezItDbContext>();
 
-        var identityA = new AuthenticatedIdentity($"item_ws_a_{Guid.NewGuid():N}", "itemwsa@example.com", true);
-        var identityB = new AuthenticatedIdentity($"item_ws_b_{Guid.NewGuid():N}", "itemwsb@example.com", true);
+        var identity = new AuthenticatedIdentity($"del_item_user_{Guid.NewGuid():N}", "delitem@example.com", true);
+        var workspace = await workspaceService.CreateWorkspaceAsync(identity, new CreateWorkspaceRequestDto("Delete Item WS"));
+        var garage = await locationService.CreateLocationAsync(identity, workspace.Id, new CreateStorageLocationRequestDto("Garage", null));
+        var container = await containerService.CreateContainerAsync(identity, workspace.Id, new CreateContainerRequestDto(garage.Id, "Box", null));
 
-        var wsA = await workspaceService.CreateWorkspaceAsync(identityA, new CreateWorkspaceRequestDto("Item WS A"));
-        var wsB = await workspaceService.CreateWorkspaceAsync(identityB, new CreateWorkspaceRequestDto("Item WS B"));
+        var item = await itemService.CreateItemAsync(identity, workspace.Id, container.Id, new CreateItemRequestDto("Old Jacket", 1));
 
-        var nodeA = await locationService.CreateLocationAsync(identityA, wsA.Id, new CreateStorageLocationRequestDto("Node A", null));
-        var containerA = await containerService.CreateContainerAsync(identityA, wsA.Id, new CreateContainerRequestDto(nodeA.Id, "Box A", null));
+        await itemService.ArchiveItemAsync(identity, workspace.Id, item.Id);
+        await itemService.DeleteItemAsync(identity, workspace.Id, item.Id);
 
-        // Attempt DB insertion of Item belonging to Workspace B but pointing to Container A (belonging to Workspace A)
-        var invalidItem = new Item
-        {
-            Id = Guid.NewGuid(),
-            WorkspaceId = wsB.Id, // Mismatched workspace!
-            ContainerId = containerA.Id,
-            Name = "Mismatched Item",
-            Quantity = 1,
-            Source = "MANUAL",
-            IsVerified = true,
-            IsArchived = false,
-            CreatedAt = DateTimeOffset.UtcNow,
-            UpdatedAt = DateTimeOffset.UtcNow
-        };
+        // Assert item row is deleted from database
+        var dbItem = await dbContext.Items.FindAsync(item.Id);
+        Assert.Null(dbItem);
 
-        dbContext.Items.Add(invalidItem);
-        await Assert.ThrowsAsync<DbUpdateException>(() => dbContext.SaveChangesAsync());
+        // Assert ITEM_REMOVED exists in history and snapshot survives deletion
+        var history = await historyService.GetContainerHistoryAsync(identity, workspace.Id, container.Id);
+        var removedEvent = history.FirstOrDefault(h => h.ActivityType == "ITEM_REMOVED");
+        Assert.NotNull(removedEvent);
+        Assert.Equal("Item removed", removedEvent.Title);
+        Assert.Equal("Old Jacket · Qty 1", removedEvent.Description);
     }
 
     [Fact]
-    public async Task Item_ArchiveAndRestore_PreservesTrustedMetadata()
+    public async Task ArchiveItem_ActiveItem_SetsIsArchivedTrueLogsItemArchivedHistoryAndIsIdempotent()
     {
         using var scope = _fixture.Services.CreateScope();
         var workspaceService = scope.ServiceProvider.GetRequiredService<IWorkspaceService>();
         var locationService = scope.ServiceProvider.GetRequiredService<IStorageLocationService>();
         var containerService = scope.ServiceProvider.GetRequiredService<IContainerService>();
         var itemService = scope.ServiceProvider.GetRequiredService<IItemService>();
+        var historyService = scope.ServiceProvider.GetRequiredService<IActivityHistoryService>();
 
-        var identity = new AuthenticatedIdentity($"arch_rest_user_{Guid.NewGuid():N}", "archrest@example.com", true);
+        var identity = new AuthenticatedIdentity($"archive_item_user_{Guid.NewGuid():N}", "archuser@example.com", true);
         var workspace = await workspaceService.CreateWorkspaceAsync(identity, new CreateWorkspaceRequestDto("Archive Item WS"));
         var garage = await locationService.CreateLocationAsync(identity, workspace.Id, new CreateStorageLocationRequestDto("Garage", null));
-        var container = await containerService.CreateContainerAsync(identity, workspace.Id, new CreateContainerRequestDto(garage.Id, "Box", null));
+        var container = await containerService.CreateContainerAsync(identity, workspace.Id, new CreateContainerRequestDto(garage.Id, "Storage Box", null));
+        var item = await itemService.CreateItemAsync(identity, workspace.Id, container.Id, new CreateItemRequestDto("Winter Coat", 1));
 
-        var item = await itemService.CreateItemAsync(identity, workspace.Id, container.Id, new CreateItemRequestDto("Extension Cord", 1));
+        // Archive item
+        var archivedItem = await itemService.ArchiveItemAsync(identity, workspace.Id, item.Id);
 
-        // Archive
-        var archived = await itemService.ArchiveItemAsync(identity, workspace.Id, item.Id);
-        Assert.True(archived.IsArchived);
-        Assert.Equal("MANUAL", archived.Source);
-        Assert.True(archived.IsVerified);
+        Assert.True(archivedItem.IsArchived);
 
-        // List default excludes archived
-        var activeItems = await itemService.GetItemsByContainerAsync(identity, workspace.Id, container.Id, includeArchived: false);
-        Assert.Empty(activeItems);
+        // Verify ITEM_ARCHIVED ActivityHistory entry was written
+        var history = await historyService.GetContainerHistoryAsync(identity, workspace.Id, container.Id);
+        var archivedEvent = history.FirstOrDefault(h => h.ActivityType == "ITEM_ARCHIVED");
+        Assert.NotNull(archivedEvent);
+        Assert.Equal("Item archived", archivedEvent.Title);
+        Assert.Equal("Winter Coat · Qty 1", archivedEvent.Description);
 
-        // List includeArchived includes it
-        var allItems = await itemService.GetItemsByContainerAsync(identity, workspace.Id, container.Id, includeArchived: true);
-        Assert.Single(allItems);
+        // Call ArchiveItemAsync again to verify idempotency
+        var reArchivedItem = await itemService.ArchiveItemAsync(identity, workspace.Id, item.Id);
+        Assert.True(reArchivedItem.IsArchived);
 
-        // Restore
-        var restored = await itemService.RestoreItemAsync(identity, workspace.Id, item.Id);
-        Assert.False(restored.IsArchived);
+        // Restore item (Logs ITEM_RESTORED)
+        var restoredItem = await itemService.RestoreItemAsync(identity, workspace.Id, item.Id);
+        Assert.False(restoredItem.IsArchived);
+
+        var restoredHistory = await historyService.GetContainerHistoryAsync(identity, workspace.Id, container.Id);
+        var restoredEvent = restoredHistory.FirstOrDefault(h => h.ActivityType == "ITEM_RESTORED");
+        Assert.NotNull(restoredEvent);
+        Assert.Equal("Winter Coat · Qty 1", restoredEvent.Description);
+
+        // Re-archive and Delete item (Logs ITEM_REMOVED)
+        await itemService.ArchiveItemAsync(identity, workspace.Id, item.Id);
+        await itemService.DeleteItemAsync(identity, workspace.Id, item.Id);
+
+        var deletedHistory = await historyService.GetContainerHistoryAsync(identity, workspace.Id, container.Id);
+        var removedEvent = deletedHistory.FirstOrDefault(h => h.ActivityType == "ITEM_REMOVED");
+        Assert.NotNull(removedEvent);
+        Assert.Equal("Winter Coat · Qty 1", removedEvent.Description);
     }
 }

@@ -2,6 +2,7 @@ import React from 'react';
 import { BrowserRouter as Router, Routes, Route, useParams, useSearchParams, useNavigate } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { AuthProvider } from './features/auth/AuthProvider';
+import { ThemeProvider } from './theme/ThemeContext';
 import { LoginForm } from './features/auth/LoginForm';
 import { SignupForm } from './features/auth/SignupForm';
 import { ProtectedRoute } from './routes/ProtectedRoute';
@@ -50,8 +51,9 @@ const CaptureReviewScreenWrapper: React.FC = () => {
 
 export const App: React.FC = () => {
   return (
-    <AuthProvider>
-      <QueryClientProvider client={queryClient}>
+    <ThemeProvider>
+      <AuthProvider>
+        <QueryClientProvider client={queryClient}>
         <Router>
           <Routes>
             <Route path="/login" element={<LoginForm />} />
@@ -70,12 +72,36 @@ export const App: React.FC = () => {
               }
             />
             <Route
+              path="/workspaces/:workspaceId"
+              element={
+                <ProtectedRoute>
+                  <WorkspaceProvider>
+                    <React.Suspense fallback={<div>Loading Storage Space...</div>}>
+                      {React.createElement(React.lazy(() => import('./features/workspaces/components/StorageSpaceDetailPage').then(m => ({ default: m.StorageSpaceDetailPage }))))}
+                    </React.Suspense>
+                  </WorkspaceProvider>
+                </ProtectedRoute>
+              }
+            />
+            <Route
               path="/workspaces/:workspaceId/locations/:locationId"
               element={
                 <ProtectedRoute>
                   <WorkspaceProvider>
                     <React.Suspense fallback={<div>Loading Location...</div>}>
                       {React.createElement(React.lazy(() => import('./features/locations/components/LocationDetailScreen').then(m => ({ default: m.LocationDetailScreen }))))}
+                    </React.Suspense>
+                  </WorkspaceProvider>
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/move"
+              element={
+                <ProtectedRoute>
+                  <WorkspaceProvider>
+                    <React.Suspense fallback={<div>Loading Moving Assistant...</div>}>
+                      {React.createElement(React.lazy(() => import('./features/containers/QuickPackScreen').then(m => ({ default: m.QuickPackScreen }))))}
                     </React.Suspense>
                   </WorkspaceProvider>
                 </ProtectedRoute>
@@ -159,7 +185,8 @@ export const App: React.FC = () => {
         </Router>
       </QueryClientProvider>
     </AuthProvider>
-  );
+  </ThemeProvider>
+);
 };
 
 export default App;

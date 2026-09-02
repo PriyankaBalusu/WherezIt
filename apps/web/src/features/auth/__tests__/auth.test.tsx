@@ -97,3 +97,89 @@ describe('AUTH-001 Frontend Authentication Unit Tests', () => {
     expect(screen.getByText('Protected Content')).toBeDefined();
   });
 });
+
+import { fireEvent } from '@testing-library/react';
+import { LoginForm } from '../LoginForm';
+import { SignupForm } from '../SignupForm';
+
+describe('Auth Forms Redesign & Usability Suite', () => {
+  it('renders LoginForm with hero headline, example search card, password toggle, and signup link', () => {
+    const mockAuthContext = {
+      user: null,
+      loading: false,
+      error: null,
+      signUp: vi.fn(),
+      signIn: vi.fn(),
+      signOut: vi.fn(),
+      getIdToken: vi.fn(),
+      clearError: vi.fn(),
+    };
+
+    render(
+      <AuthContext.Provider value={mockAuthContext}>
+        <MemoryRouter>
+          <LoginForm />
+        </MemoryRouter>
+      </AuthContext.Provider>
+    );
+
+    // Hero branding & headline
+    expect(screen.getByText('Your Things. Always Findable.')).toBeDefined();
+    expect(screen.getByText('App that remembers for you.')).toBeDefined();
+
+    // Compact Example Search card
+    expect(screen.getByText('Where are my Christmas lights?')).toBeDefined();
+    expect(screen.getByText('BOX 001 — Holiday Decorations')).toBeDefined();
+
+    // Form header & elements
+    expect(screen.getByText('Welcome back')).toBeDefined();
+    expect(screen.getByLabelText('Email Address')).toBeDefined();
+    expect(screen.getByLabelText('Password')).toBeDefined();
+
+    // Show/hide password toggle
+    const passwordInput = screen.getByLabelText('Password') as HTMLInputElement;
+    expect(passwordInput.type).toBe('password');
+
+    const toggleButton = screen.getByRole('button', { name: /Show password/i });
+    fireEvent.click(toggleButton);
+    expect(passwordInput.type).toBe('text');
+
+    // Link to Sign Up
+    expect(screen.getByRole('link', { name: /Sign Up/i })).toBeDefined();
+  });
+
+  it('renders SignupForm with concise hero headline, password toggles, and signin link', () => {
+    const mockAuthContext = {
+      user: null,
+      loading: false,
+      error: null,
+      signUp: vi.fn(),
+      signIn: vi.fn(),
+      signOut: vi.fn(),
+      getIdToken: vi.fn(),
+      clearError: vi.fn(),
+    };
+
+    render(
+      <AuthContext.Provider value={mockAuthContext}>
+        <MemoryRouter>
+          <SignupForm />
+        </MemoryRouter>
+      </AuthContext.Provider>
+    );
+
+    // Concise Hero headline & copy
+    expect(screen.getByText('Organize everything in your home.')).toBeDefined();
+    expect(screen.getByText('Track boxes, scan labels, and find things instantly.')).toBeDefined();
+
+    // Form elements
+    expect(screen.getByText('Create an account')).toBeDefined();
+    expect(screen.getByLabelText('Email Address')).toBeDefined();
+    expect(screen.getByLabelText('Password')).toBeDefined();
+    expect(screen.getByLabelText('Confirm Password')).toBeDefined();
+
+    // Link to Sign In
+    expect(screen.getByRole('link', { name: /Sign In/i })).toBeDefined();
+  });
+});
+

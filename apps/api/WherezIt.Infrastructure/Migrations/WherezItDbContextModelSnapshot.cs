@@ -69,7 +69,7 @@ namespace WherezIt.Infrastructure.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("WorkspaceId", "CaptureId");
+                    b.HasIndex("CaptureId");
 
                     b.ToTable("ai_processing_jobs", null, t =>
                         {
@@ -142,7 +142,7 @@ namespace WherezIt.Infrastructure.Migrations
 
                     b.ToTable("activity_histories", null, t =>
                         {
-                            t.HasCheckConstraint("ck_activity_histories_activity_type", "activity_type IN ('CONTAINER_MOVED', 'TRANSFERRED_OUT', 'TRANSFERRED_IN')");
+                            t.HasCheckConstraint("ck_activity_histories_activity_type", "activity_type IN ('CONTAINER_CREATED', 'CONTAINER_RENAMED', 'CONTAINER_MOVED', 'TRANSFERRED_OUT', 'TRANSFERRED_IN', 'CONTAINER_PACKED', 'CONTAINER_UNPACKED', 'CONTAINER_ARCHIVED', 'CONTAINER_RESTORED', 'ITEM_ADDED', 'ITEM_UPDATED', 'ITEM_ARCHIVED', 'ITEM_RESTORED', 'ITEM_REMOVED', 'PHOTO_ADDED', 'PHOTO_REMOVED')");
                         });
                 });
 
@@ -279,7 +279,7 @@ namespace WherezIt.Infrastructure.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("WorkspaceId", "CaptureId");
+                    b.HasIndex("CaptureId");
 
                     b.ToTable("detection_suggestions", null, t =>
                         {
@@ -412,9 +412,9 @@ namespace WherezIt.Infrastructure.Migrations
                     b.HasAlternateKey("WorkspaceId", "Id")
                         .HasName("ix_image_assets_workspace_id_id");
 
-                    b.HasIndex("WorkspaceId", "ContainerId");
+                    b.HasIndex("ContainerId");
 
-                    b.HasIndex("WorkspaceId", "ItemId");
+                    b.HasIndex("ItemId");
 
                     b.ToTable("image_assets", null, t =>
                         {
@@ -777,8 +777,7 @@ namespace WherezIt.Infrastructure.Migrations
                 {
                     b.HasOne("WherezIt.Domain.Entities.InventoryCapture", "Capture")
                         .WithMany("Jobs")
-                        .HasForeignKey("WorkspaceId", "CaptureId")
-                        .HasPrincipalKey("WorkspaceId", "Id")
+                        .HasForeignKey("CaptureId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
@@ -861,8 +860,7 @@ namespace WherezIt.Infrastructure.Migrations
                 {
                     b.HasOne("WherezIt.Domain.Entities.InventoryCapture", "Capture")
                         .WithMany("Suggestions")
-                        .HasForeignKey("WorkspaceId", "CaptureId")
-                        .HasPrincipalKey("WorkspaceId", "Id")
+                        .HasForeignKey("CaptureId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
@@ -893,14 +891,12 @@ namespace WherezIt.Infrastructure.Migrations
                 {
                     b.HasOne("WherezIt.Domain.Entities.Container", "Container")
                         .WithMany()
-                        .HasForeignKey("WorkspaceId", "ContainerId")
-                        .HasPrincipalKey("WorkspaceId", "Id")
+                        .HasForeignKey("ContainerId")
                         .OnDelete(DeleteBehavior.Restrict);
 
                     b.HasOne("WherezIt.Domain.Entities.Item", "Item")
                         .WithMany()
-                        .HasForeignKey("WorkspaceId", "ItemId")
-                        .HasPrincipalKey("WorkspaceId", "Id")
+                        .HasForeignKey("ItemId")
                         .OnDelete(DeleteBehavior.Cascade);
 
                     b.Navigation("Container");

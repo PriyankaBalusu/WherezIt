@@ -11,6 +11,7 @@ export interface SearchResult {
   containerId: string;
   boxNumber: number;
   boxDisplayId: string;
+  containerName?: string | null;
   locationId?: string | null;
   locationName?: string | null;
   breadcrumb: string[];

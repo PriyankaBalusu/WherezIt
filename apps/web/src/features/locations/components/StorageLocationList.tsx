@@ -11,6 +11,7 @@ interface StorageLocationListProps {
   onSelectLocation?: (id: string | null) => void;
   onAddSublocation?: (parentId: string) => void;
   onRenameLocation?: (id: string, name: string) => void;
+  readOnly?: boolean;
 }
 
 export const StorageLocationList: React.FC<StorageLocationListProps> = ({
@@ -19,6 +20,7 @@ export const StorageLocationList: React.FC<StorageLocationListProps> = ({
   onSelectLocation,
   onAddSublocation,
   onRenameLocation,
+  readOnly = false,
 }) => {
   const { data: locations = [], isLoading, isError, error, refetch } = useStorageLocations(workspaceId);
   const deleteMutation = useDeleteStorageLocation(workspaceId);
@@ -159,7 +161,7 @@ export const StorageLocationList: React.FC<StorageLocationListProps> = ({
                       gap: '0.375rem',
                       background: 'none',
                       border: 'none',
-                      color: isSelected ? '#0369a1' : '#0f172a',
+                      color: isSelected ? 'var(--color-primary-text, #0369a1)' : 'var(--color-text, #0f172a)',
                       fontWeight: isSelected ? 700 : 500,
                       fontSize: '0.9rem',
                       cursor: 'pointer',
@@ -176,87 +178,89 @@ export const StorageLocationList: React.FC<StorageLocationListProps> = ({
                   </button>
                 </div>
 
-                <div style={{ position: 'relative' }}>
-                  <button
-                    type="button"
-                    aria-label="Location actions"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setActiveMenuId(isMenuOpen ? null : node.id);
-                    }}
-                    style={{
-                      background: 'none',
-                      border: 'none',
-                      color: '#64748b',
-                      cursor: 'pointer',
-                      padding: '0.25rem',
-                      fontSize: '0.9rem',
-                    }}
-                  >
-                    ⋯
-                  </button>
-
-                  {isMenuOpen && (
-                    <div
-                      ref={menuRef}
+                {!readOnly && (
+                  <div style={{ position: 'relative' }}>
+                    <button
+                      type="button"
+                      aria-label="Location actions"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setActiveMenuId(isMenuOpen ? null : node.id);
+                      }}
                       style={{
-                        position: 'absolute',
-                        right: 0,
-                        top: '100%',
-                        zIndex: 100,
-                        minWidth: '150px',
-                        backgroundColor: '#ffffff',
-                        border: '1px solid #cbd5e1',
-                        borderRadius: '0.375rem',
-                        boxShadow: '0 4px 6px rgba(0,0,0,0.1)',
-                        padding: '0.25rem 0',
+                        background: 'none',
+                        border: 'none',
+                        color: 'var(--color-text-muted, #64748b)',
+                        cursor: 'pointer',
+                        padding: '0.25rem',
+                        fontSize: '0.9rem',
                       }}
                     >
-                      <button
-                        type="button"
-                        onClick={() => {
-                          onAddSublocation?.(node.id);
-                          setActiveMenuId(null);
+                      ⋯
+                    </button>
+
+                    {isMenuOpen && (
+                      <div
+                        ref={menuRef}
+                        style={{
+                          position: 'absolute',
+                          right: 0,
+                          top: '100%',
+                          zIndex: 100,
+                          minWidth: '150px',
+                          backgroundColor: 'var(--color-dropdown-bg, #ffffff)',
+                          border: '1px solid var(--color-dropdown-border, #cbd5e1)',
+                          borderRadius: '0.375rem',
+                          boxShadow: 'var(--color-card-shadow, 0 4px 6px rgba(0,0,0,0.1))',
+                          padding: '0.25rem 0',
                         }}
-                        style={{ display: 'block', width: '100%', padding: '0.375rem 0.75rem', border: 'none', background: 'none', textAlign: 'left', fontSize: '0.8rem', color: '#334155', cursor: 'pointer' }}
                       >
-                        + Sub-location
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          onRenameLocation?.(node.id, node.name);
-                          setActiveMenuId(null);
-                        }}
-                        style={{ display: 'block', width: '100%', padding: '0.375rem 0.75rem', border: 'none', background: 'none', textAlign: 'left', fontSize: '0.8rem', color: '#334155', cursor: 'pointer' }}
-                      >
-                        Rename
-                      </button>
-                      {node.parentId !== null && (
                         <button
                           type="button"
                           onClick={() => {
-                            handleMove(node.id, null);
+                            onAddSublocation?.(node.id);
                             setActiveMenuId(null);
                           }}
-                          style={{ display: 'block', width: '100%', padding: '0.375rem 0.75rem', border: 'none', background: 'none', textAlign: 'left', fontSize: '0.8rem', color: '#334155', cursor: 'pointer' }}
+                          style={{ display: 'block', width: '100%', padding: '0.375rem 0.75rem', border: 'none', background: 'none', textAlign: 'left', fontSize: '0.8rem', color: 'var(--color-text, #334155)', cursor: 'pointer' }}
                         >
-                          Make Root Location
+                          + Sub-location
                         </button>
-                      )}
-                      <button
-                        type="button"
-                        onClick={() => {
-                          handleDelete(node.id);
-                          setActiveMenuId(null);
-                        }}
-                        style={{ display: 'block', width: '100%', padding: '0.375rem 0.75rem', border: 'none', background: 'none', textAlign: 'left', fontSize: '0.8rem', color: '#dc2626', cursor: 'pointer' }}
-                      >
-                        Delete Location
-                      </button>
-                    </div>
-                  )}
-                </div>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            onRenameLocation?.(node.id, node.name);
+                            setActiveMenuId(null);
+                          }}
+                          style={{ display: 'block', width: '100%', padding: '0.375rem 0.75rem', border: 'none', background: 'none', textAlign: 'left', fontSize: '0.8rem', color: 'var(--color-text, #334155)', cursor: 'pointer' }}
+                        >
+                          Rename
+                        </button>
+                        {node.parentId !== null && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              handleMove(node.id, null);
+                              setActiveMenuId(null);
+                            }}
+                            style={{ display: 'block', width: '100%', padding: '0.375rem 0.75rem', border: 'none', background: 'none', textAlign: 'left', fontSize: '0.8rem', color: 'var(--color-text, #334155)', cursor: 'pointer' }}
+                          >
+                            Make Root Location
+                          </button>
+                        )}
+                        <button
+                          type="button"
+                          onClick={() => {
+                            handleDelete(node.id);
+                            setActiveMenuId(null);
+                          }}
+                          style={{ display: 'block', width: '100%', padding: '0.375rem 0.75rem', border: 'none', background: 'none', textAlign: 'left', fontSize: '0.8rem', color: 'var(--color-danger, #dc2626)', cursor: 'pointer' }}
+                        >
+                          Delete Location
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
 
               {hasChildren && !isCollapsed && renderTree(node.id, depth + 1)}
@@ -270,13 +274,13 @@ export const StorageLocationList: React.FC<StorageLocationListProps> = ({
   return (
     <div>
       {actionError && (
-        <div style={{ color: '#dc2626', fontSize: '0.8rem', marginBottom: '0.5rem', padding: '0.375rem 0.5rem', backgroundColor: '#fef2f2', borderRadius: '0.25rem' }}>
+        <div style={{ color: 'var(--color-danger, #dc2626)', fontSize: '0.8rem', marginBottom: '0.5rem', padding: '0.375rem 0.5rem', backgroundColor: 'var(--color-danger-bg, #fef2f2)', borderRadius: '0.25rem' }}>
           {actionError}
         </div>
       )}
       {locations.length === 0 ? (
-        <div style={{ color: '#64748b', fontSize: '0.85rem', fontStyle: 'italic', padding: '0.5rem 0' }}>
-          No locations added yet. Click "+ Add Location" to create one.
+        <div style={{ color: 'var(--color-text-muted, #64748b)', fontSize: '0.85rem', fontStyle: 'italic', padding: '0.5rem 0' }}>
+          {readOnly ? 'No storage locations found.' : 'No locations added yet. Click "+ Add Location" to create one.'}
         </div>
       ) : (
         renderTree(null, 0)

@@ -112,6 +112,17 @@ public class AICaptureConfirmationService : IAICaptureConfirmationService
                 };
 
                 _dbContext.Items.Add(newItem);
+                _dbContext.ActivityHistories.Add(new ActivityHistory
+                {
+                    Id = Guid.NewGuid(),
+                    WorkspaceId = workspaceId,
+                    ActorUserId = identity.FirebaseUid,
+                    ActivityType = "ITEM_ADDED",
+                    ContainerId = capture.ContainerId,
+                    PreviousLocationDisplay = string.Empty,
+                    DestinationLocationDisplay = $"{newItem.Name} · Qty {newItem.Quantity}",
+                    OccurredAt = now
+                });
                 createdItems.Add(newItem);
             }
 

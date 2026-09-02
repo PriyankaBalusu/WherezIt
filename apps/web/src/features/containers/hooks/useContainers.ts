@@ -64,8 +64,13 @@ export function useArchiveContainer(workspaceId: string) {
 
   return useMutation({
     mutationFn: (containerId: string) => archiveContainer(workspaceId, containerId, getIdToken),
-    onSuccess: () => {
+    onSuccess: (data, containerId) => {
+      queryClient.setQueryData(['container', workspaceId, containerId], (old: any) => {
+        if (!old) return data;
+        return { ...old, ...data, isArchived: true };
+      });
       queryClient.invalidateQueries({ queryKey: ['containers', workspaceId] });
+      queryClient.invalidateQueries({ queryKey: ['container', workspaceId, containerId] });
     },
   });
 }
@@ -76,8 +81,13 @@ export function useRestoreContainer(workspaceId: string) {
 
   return useMutation({
     mutationFn: (containerId: string) => restoreContainer(workspaceId, containerId, getIdToken),
-    onSuccess: () => {
+    onSuccess: (data, containerId) => {
+      queryClient.setQueryData(['container', workspaceId, containerId], (old: any) => {
+        if (!old) return data;
+        return { ...old, ...data, isArchived: false };
+      });
       queryClient.invalidateQueries({ queryKey: ['containers', workspaceId] });
+      queryClient.invalidateQueries({ queryKey: ['container', workspaceId, containerId] });
     },
   });
 }

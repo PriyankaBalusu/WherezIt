@@ -84,6 +84,13 @@ builder.Services.AddCors(options =>
 
 var app = builder.Build();
 
+// Automatically apply EF Core migrations and update check constraints on startup
+using (var scope = app.Services.CreateScope())
+{
+    var dbContext = scope.ServiceProvider.GetRequiredService<WherezIt.Infrastructure.Persistence.WherezItDbContext>();
+    await dbContext.Database.MigrateAsync();
+}
+
 var useMockVision = builder.Configuration.GetValue<bool>("Gemini:UseMockVision", false) || builder.Configuration.GetValue<bool>("AI:UseMockVision", false);
 app.Logger.LogInformation("IInventoryVisionProvider registered as: {Provider}", useMockVision ? "MockInventoryVisionProvider" : "VertexAiGeminiVisionProvider");
 

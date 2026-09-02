@@ -81,6 +81,26 @@ public class StorageLocationCrudIntegrationTest : IClassFixture<PostgresTestFixt
     }
 
     [Fact]
+    public async Task DeleteLocation_LocationWithBoxes_FailsWithConflictException()
+    {
+        using var scope = _fixture.Services.CreateScope();
+        var workspaceService = scope.ServiceProvider.GetRequiredService<IWorkspaceService>();
+        var locationService = scope.ServiceProvider.GetRequiredService<IStorageLocationService>();
+        var containerService = scope.ServiceProvider.GetRequiredService<IContainerService>();
+
+        var identity = new AuthenticatedIdentity($"del_box_conflict_{Guid.NewGuid():N}", "boxconflict@example.com", true);
+        var workspace = await workspaceService.CreateWorkspaceAsync(identity, new CreateWorkspaceRequestDto("Delete Box Conflict WS"));
+
+        var location = await locationService.CreateLocationAsync(identity, workspace.Id, new CreateStorageLocationRequestDto("Storage Room", null));
+        var box = await containerService.CreateContainerAsync(identity, workspace.Id, new CreateContainerRequestDto(location.Id, "Tool Box", null));
+
+        var ex = await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            locationService.DeleteLocationAsync(identity, workspace.Id, location.Id));
+
+        Assert.Contains("Cannot delete storage location because it contains boxes.", ex.Message);
+    }
+
+    [Fact]
     public async Task LocationCrud_InvalidNameAndCrossWorkspaceParent_FailsValidation()
     {
         using var scope = _fixture.Services.CreateScope();
@@ -106,6 +126,48 @@ public class StorageLocationCrudIntegrationTest : IClassFixture<PostgresTestFixt
 
         // Attempt cross-workspace parent
         await Assert.ThrowsAsync<ArgumentException>(() =>
-            locationService.CreateLocationAsync(identity2, ws2.Id, new CreateStorageLocationRequestDto("WS2 Child", ws1Node.Id)));
+            locationService.CreateLocationAsync(identity1, ws1.Id, new CreateStorageLocationRequestDto("Cross Node", ws1Node.Id)));
+    }
+
+    [Fact]
+    public async Task CreateLocation_DuplicateSiblingNames_FailsValidation()
+    {
+        using var scope = _fixture.Services.CreateScope();
+        var workspaceService = scope.ServiceProvider.GetRequiredService<IWorkspaceService>();
+        var locationService = scope.ServiceProvider.GetRequiredService<IStorageLocationService>();
+
+        var identity = new AuthenticatedIdentity($"dup_loc_{Guid.NewGuid():N}", "dup@example.com", true);
+        var ws1 = await workspaceService.CreateWorkspaceAsync(identity, new CreateWorkspaceRequestDto("Dup WS 1"));
+        var ws2 = await workspaceService.CreateWorkspaceAsync(identity, new CreateWorkspaceRequestDto("Dup WS 2"));
+
+        var parentGarage = await locationService.CreateLocationAsync(identity, ws1.Id, new CreateStorageLocationRequestDto("Garage", null));
+        var parentBedroom = await locationService.CreateLocationAsync(identity, ws1.Id, new CreateStorageLocationRequestDto("Bedroom", null));
+
+        // 1. Child location creation under same parent
+        await locationService.CreateLocationAsync(identity, ws1.Id, new CreateStorageLocationRequestDto("Shelf A", parentGarage.Id));
+
+        // 2. Duplicate under same parent with case variation should fail
+        var ex1 = await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            locationService.CreateLocationAsync(identity, ws1.Id, new CreateStorageLocationRequestDto("shelf a ", parentGarage.Id)));
+        Assert.Contains("already exists under this location", ex1.Message);
+
+        // 3. Same child name under DIFFERENT parent should succeed
+        var shelfInBedroom = await locationService.CreateLocationAsync(identity, ws1.Id, new CreateStorageLocationRequestDto("Shelf A", parentBedroom.Id));
+        Assert.NotNull(shelfInBedroom);
+
+        // 4. Duplicate root location in same workspace should fail
+        var ex2 = await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            locationService.CreateLocationAsync(identity, ws1.Id, new CreateStorageLocationRequestDto("garage", null)));
+        Assert.Contains("already exists in this Storage Space", ex2.Message);
+
+        // 5. Same root location name in DIFFERENT workspace should succeed
+        var garageInWs2 = await locationService.CreateLocationAsync(identity, ws2.Id, new CreateStorageLocationRequestDto("Garage", null));
+        Assert.NotNull(garageInWs2);
+
+        // 6. Rename sibling to an existing sibling name should fail
+        var shelfB = await locationService.CreateLocationAsync(identity, ws1.Id, new CreateStorageLocationRequestDto("Shelf B", parentGarage.Id));
+        var ex3 = await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            locationService.RenameLocationAsync(identity, ws1.Id, shelfB.Id, new RenameStorageLocationRequestDto("Shelf A")));
+        Assert.Contains("already exists under this location", ex3.Message);
     }
 }

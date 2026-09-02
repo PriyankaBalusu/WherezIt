@@ -1,0 +1,83 @@
+import { describe, it, expect, vi } from 'vitest';
+import { render, screen, fireEvent } from '@testing-library/react';
+import React from 'react';
+import { HierarchicalLocationPicker } from '../HierarchicalLocationPicker';
+import { StorageLocation } from '../../types/location';
+
+const mockLocations: StorageLocation[] = [
+  { id: 'loc-1', name: 'Garage', parentId: null, workspaceId: 'ws-1', path: 'Garage' },
+  { id: 'loc-2', name: 'Rack A', parentId: 'loc-1', workspaceId: 'ws-1', path: 'Garage > Rack A' },
+  { id: 'loc-3', name: 'Shelf 1', parentId: 'loc-2', workspaceId: 'ws-1', path: 'Garage > Rack A > Shelf 1' },
+];
+
+describe('HierarchicalLocationPicker Component', () => {
+  it('renders button trigger with selected location breadcrumb or default title', () => {
+    render(
+      <HierarchicalLocationPicker
+        locations={mockLocations}
+        selectedLocationId="loc-2"
+        onSelectLocation={vi.fn()}
+        title="Select Current Location"
+        allowAll={false}
+      />
+    );
+
+    expect(screen.getByRole('button', { name: /Garage › Rack A/i })).toBeDefined();
+  });
+
+  it('opens modal dialog when trigger button is clicked', () => {
+    render(
+      <HierarchicalLocationPicker
+        locations={mockLocations}
+        selectedLocationId={null}
+        onSelectLocation={vi.fn()}
+        title="Select Current Location"
+        allowAll={false}
+        buttonLabel="-- Select Current Location --"
+      />
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: /-- Select Current Location --/i }));
+
+    expect(screen.getByText('Select Current Location')).toBeDefined();
+    expect(screen.getByText('Garage')).toBeDefined();
+  });
+
+  it('supports drilling down into sublocations', () => {
+    render(
+      <HierarchicalLocationPicker
+        locations={mockLocations}
+        selectedLocationId={null}
+        onSelectLocation={vi.fn()}
+        title="Select Current Location"
+        allowAll={false}
+        buttonLabel="-- Select Current Location --"
+      />
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: /-- Select Current Location --/i }));
+    fireEvent.click(screen.getByRole('button', { name: /Sublocations ›/i }));
+
+    expect(screen.getByText('Rack A')).toBeDefined();
+  });
+
+  it('calls onSelectLocation and closes modal when a location is chosen', () => {
+    const handleSelect = vi.fn();
+
+    render(
+      <HierarchicalLocationPicker
+        locations={mockLocations}
+        selectedLocationId={null}
+        onSelectLocation={handleSelect}
+        title="Select Current Location"
+        allowAll={false}
+        buttonLabel="-- Select Current Location --"
+      />
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: /-- Select Current Location --/i }));
+    fireEvent.click(screen.getByRole('button', { name: /^Garage$/i }));
+
+    expect(handleSelect).toHaveBeenCalledWith('loc-1');
+  });
+});

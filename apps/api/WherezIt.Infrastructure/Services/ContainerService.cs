@@ -208,6 +208,17 @@ public class ContainerService : IContainerService
         };
 
         _dbContext.Containers.Add(container);
+        _dbContext.ActivityHistories.Add(new ActivityHistory
+        {
+            Id = Guid.NewGuid(),
+            WorkspaceId = workspaceId,
+            ActorUserId = identity.FirebaseUid,
+            ActivityType = "CONTAINER_CREATED",
+            ContainerId = container.Id,
+            PreviousLocationDisplay = string.Empty,
+            DestinationLocationDisplay = storageNode.Name,
+            OccurredAt = now
+        });
         await _dbContext.SaveChangesAsync(cancellationToken);
 
         return MapToDto(container);
@@ -229,6 +240,9 @@ public class ContainerService : IContainerService
         {
             throw new KeyNotFoundException($"Container '{containerId}' was not found in workspace '{workspaceId}'.");
         }
+
+        var oldName = container.Name;
+        var oldIsPacked = container.IsPacked;
 
         if (request.DestinationStorageNodeId.HasValue)
         {
@@ -266,7 +280,10 @@ public class ContainerService : IContainerService
             container.PhysicalLabel = string.IsNullOrEmpty(normLabel) ? null : normLabel;
         }
 
-        container.Name = request.Name?.Trim();
+        if (request.Name != null)
+        {
+            container.Name = request.Name.Trim();
+        }
         container.Description = request.Description?.Trim();
         if (request.DestinationStorageNodeId.HasValue || request.DestinationStorageNodeId == null)
         {
@@ -277,6 +294,36 @@ public class ContainerService : IContainerService
             container.IsPacked = request.IsPacked.Value;
         }
         container.UpdatedAt = DateTimeOffset.UtcNow;
+
+        if (oldName != null && container.Name != null && !string.Equals(oldName, container.Name, StringComparison.Ordinal))
+        {
+            _dbContext.ActivityHistories.Add(new ActivityHistory
+            {
+                Id = Guid.NewGuid(),
+                WorkspaceId = workspaceId,
+                ActorUserId = identity.FirebaseUid,
+                ActivityType = "CONTAINER_RENAMED",
+                ContainerId = container.Id,
+                PreviousLocationDisplay = oldName,
+                DestinationLocationDisplay = container.Name,
+                OccurredAt = DateTimeOffset.UtcNow
+            });
+        }
+
+        if (oldIsPacked != container.IsPacked)
+        {
+            _dbContext.ActivityHistories.Add(new ActivityHistory
+            {
+                Id = Guid.NewGuid(),
+                WorkspaceId = workspaceId,
+                ActorUserId = identity.FirebaseUid,
+                ActivityType = container.IsPacked ? "CONTAINER_PACKED" : "CONTAINER_UNPACKED",
+                ContainerId = container.Id,
+                PreviousLocationDisplay = string.Empty,
+                DestinationLocationDisplay = container.IsPacked ? "Packed" : "Unpacked",
+                OccurredAt = DateTimeOffset.UtcNow
+            });
+        }
 
         await _dbContext.SaveChangesAsync(cancellationToken);
 
@@ -302,6 +349,18 @@ public class ContainerService : IContainerService
         container.IsArchived = true;
         container.UpdatedAt = DateTimeOffset.UtcNow;
 
+        _dbContext.ActivityHistories.Add(new ActivityHistory
+        {
+            Id = Guid.NewGuid(),
+            WorkspaceId = workspaceId,
+            ActorUserId = identity.FirebaseUid,
+            ActivityType = "CONTAINER_ARCHIVED",
+            ContainerId = container.Id,
+            PreviousLocationDisplay = string.Empty,
+            DestinationLocationDisplay = "Archived",
+            OccurredAt = DateTimeOffset.UtcNow
+        });
+
         await _dbContext.SaveChangesAsync(cancellationToken);
 
         return MapToDto(container);
@@ -325,6 +384,18 @@ public class ContainerService : IContainerService
 
         container.IsArchived = false;
         container.UpdatedAt = DateTimeOffset.UtcNow;
+
+        _dbContext.ActivityHistories.Add(new ActivityHistory
+        {
+            Id = Guid.NewGuid(),
+            WorkspaceId = workspaceId,
+            ActorUserId = identity.FirebaseUid,
+            ActivityType = "CONTAINER_RESTORED",
+            ContainerId = container.Id,
+            PreviousLocationDisplay = string.Empty,
+            DestinationLocationDisplay = "Restored",
+            OccurredAt = DateTimeOffset.UtcNow
+        });
 
         await _dbContext.SaveChangesAsync(cancellationToken);
 

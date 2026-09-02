@@ -13,6 +13,31 @@ vi.mock('@tanstack/react-query', async (importOriginal) => {
     useQueryClient: () => ({
       invalidateQueries: vi.fn(),
     }),
+    useQueries: ({ queries }: any) => {
+      return queries.map((q: any) => {
+        if (q.queryKey[0] === 'containers') {
+          const wsId = q.queryKey[1] || 'ws-1';
+          return {
+            data: [
+              { id: `cont-004-${wsId}`, boxNumber: 4, boxDisplayId: 'BOX 004', name: 'Kitchen Appliances', storageNodeId: 'loc-1', isArchived: false, movingPriority: 'HIGH', isPacked: true, workspaceId: wsId, inventoryNamespaceId: 'ns-1' },
+              { id: `cont-007-${wsId}`, boxNumber: 7, boxDisplayId: 'BOX 007', name: 'Camping Gear', storageNodeId: 'loc-2', isArchived: false, movingPriority: null, isPacked: false, workspaceId: wsId, inventoryNamespaceId: 'ns-1' },
+            ],
+            isLoading: false,
+          };
+        }
+        if (q.queryKey[0] === 'locations') {
+          return {
+            data: [
+              { id: 'loc-1', name: 'Bedroom', parentId: null },
+              { id: 'loc-2', name: 'Kitchen', parentId: null },
+              { id: 'loc-dest', name: 'Moving Truck', parentId: null },
+            ],
+            isLoading: false,
+          };
+        }
+        return { data: [], isLoading: false };
+      });
+    },
   };
 });
 
@@ -169,6 +194,44 @@ describe('QuickPackScreen Phase 2 (Landing, Pack a Box, Move Boxes)', () => {
     await waitFor(() => {
       expect(containerApi.createContainer).toHaveBeenCalledTimes(1);
     });
+  });
+
+  it('2b: Box search input filtering does not throw initialization error', async () => {
+    render(
+      <MemoryRouter initialEntries={['/workspaces/ws-1/quick-pack?workflow=MOVE_BOXES']}>
+        <Routes>
+          <Route path="/workspaces/:workspaceId/quick-pack" element={<QuickPackScreen />} />
+        </Routes>
+      </MemoryRouter>
+    );
+
+    const searchInput = screen.getByPlaceholderText(/Search boxes across authorized storage spaces.../i);
+    expect(() => {
+      fireEvent.change(searchInput, { target: { value: 'Kitchen' } });
+    }).not.toThrow();
+
+    expect(screen.getByText(/Kitchen Appliances/i)).toBeInTheDocument();
+  });
+
+  it('2c: Pack a Box final step review renders currentLocationObj safely without throwing', async () => {
+    render(
+      <MemoryRouter initialEntries={['/workspaces/ws-1/quick-pack?workflow=PACK_BOX']}>
+        <Routes>
+          <Route path="/workspaces/:workspaceId/quick-pack" element={<QuickPackScreen />} />
+        </Routes>
+      </MemoryRouter>
+    );
+
+    fireEvent.change(screen.getByLabelText(/Current location/i), { target: { value: 'loc-1' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Continue' }));
+
+    // Step 2 -> Step 3
+    fireEvent.click(screen.getByRole('button', { name: 'Skip for now' }));
+
+    // Step 3 review summary block
+    expect(screen.getByText('Finish this box')).toBeInTheDocument();
+    expect(screen.getByText('SUMMARY')).toBeInTheDocument();
+    expect(screen.getByText('Bedroom')).toBeInTheDocument();
   });
 
   it('3-7: Move Boxes workflow steps - select boxes, handle duplicates, cross-workspace warning and switch context', async () => {
@@ -861,6 +924,132 @@ describe('QuickPackScreen Phase 2 (Landing, Pack a Box, Move Boxes)', () => {
       // Click View Box
       fireEvent.click(screen.getByRole('button', { name: 'View Box' }));
       expect(screen.getByText('Box Details Screen')).toBeInTheDocument();
+    });
+  });
+
+  describe('Decoupled Moving Assistant Tests', () => {
+    it('decouples source workspace from Home active workspace', async () => {
+      render(
+        <MemoryRouter initialEntries={['/move?workflow=MOVE_BOXES']}>
+          <Routes>
+            <Route path="/move" element={<QuickPackScreen />} />
+          </Routes>
+        </MemoryRouter>
+      );
+
+      expect(screen.getByText('Which boxes are you moving?')).toBeInTheDocument();
+
+      // Filter by "All Storage Spaces" shows boxes from multiple workspaces
+      expect(screen.getByText('All Storage Spaces')).toBeInTheDocument();
+
+      // Check a box
+      const boxes = screen.getAllByRole('checkbox');
+      fireEvent.click(boxes[0]);
+
+      fireEvent.click(screen.getByRole('button', { name: 'Continue' }));
+
+      // Step 2 shows exact source from container workspace, not Home active workspace
+      expect(screen.getByText(/Source \(FROM\)/i)).toBeInTheDocument();
+    });
+
+    it('preselects box when containerId URL parameter is provided', async () => {
+      render(
+        <MemoryRouter initialEntries={['/move?workflow=MOVE_BOXES&containerId=cont-004-ws-1']}>
+          <Routes>
+            <Route path="/move" element={<QuickPackScreen />} />
+          </Routes>
+        </MemoryRouter>
+      );
+      await waitFor(() => {
+        expect(screen.getByText('Selected Boxes (1)')).toBeInTheDocument();
+      });
+    });
+
+    it('unpacks candidates across all authorized workspaces without scoping to Home active workspace', async () => {
+      render(
+        <MemoryRouter initialEntries={['/quick-pack?workflow=UNPACK']}>
+          <Routes>
+            <Route path="/quick-pack" element={<QuickPackScreen />} />
+          </Routes>
+        </MemoryRouter>
+      );
+
+      expect(screen.getByText('Unpack')).toBeInTheDocument();
+      // Verify packed box cont-004-ws-1 is rendered in candidate list
+      expect(screen.getByText('Kitchen Appliances')).toBeInTheDocument();
+    });
+
+    it('17: Open destination location button navigates to destination location route', async () => {
+      render(
+        <MemoryRouter initialEntries={['/move?workflow=MOVE_BOXES']}>
+          <Routes>
+            <Route path="/move" element={<QuickPackScreen />} />
+          </Routes>
+        </MemoryRouter>
+      );
+
+      // Select boxes step 1
+      const boxes = screen.getAllByRole('checkbox');
+      fireEvent.click(boxes[0]);
+      fireEvent.click(screen.getByRole('button', { name: 'Continue' }));
+
+      // Step 2: Select destination
+      fireEvent.change(screen.getByLabelText(/Destination Storage Space/i), { target: { value: 'ws-1' } });
+      fireEvent.change(screen.getByLabelText(/Destination Location/i), { target: { value: 'loc-1' } });
+      fireEvent.click(screen.getByRole('button', { name: 'Continue' }));
+
+      // Step 3: Execute move
+      fireEvent.click(screen.getByRole('button', { name: 'Execute Move' }));
+
+      await waitFor(() => {
+        expect(screen.getByRole('button', { name: 'Open destination location' })).toBeInTheDocument();
+      });
+    });
+
+    it('16/20: Pack a box derives source workspace from Pack selection and resets location on workspace change', async () => {
+      vi.mocked(containerApi.createContainer).mockResolvedValue({
+        id: 'new-box-1',
+        boxNumber: 9,
+        boxDisplayId: 'BOX 009',
+        workspaceId: 'ws-other',
+        storageNodeId: 'loc-1',
+        isPacked: false,
+        isArchived: false,
+        movingPriority: null,
+        createdAt: '2026-08-15T00:00:00Z',
+        updatedAt: '2026-08-15T00:00:00Z',
+      });
+
+      render(
+        <MemoryRouter initialEntries={['/quick-pack?workflow=PACK_BOX']}>
+          <Routes>
+            <Route path="/quick-pack" element={<QuickPackScreen />} />
+          </Routes>
+        </MemoryRouter>
+      );
+
+      expect(screen.getByText(/Pack a Box/i)).toBeInTheDocument();
+
+      // Change Storage Space from default to ws-other
+      const spaceSelect = screen.getByLabelText(/Storage Space/i);
+      fireEvent.change(spaceSelect, { target: { value: 'ws-other' } });
+
+      // Select location
+      const locSelect = screen.getByLabelText(/Current location/i);
+      fireEvent.change(locSelect, { target: { value: 'loc-1' } });
+
+      fireEvent.click(screen.getByRole('button', { name: 'Continue' }));
+
+      // Save box in step 3
+      fireEvent.click(screen.getByRole('button', { name: 'Save Box' }));
+
+      await waitFor(() => {
+        expect(containerApi.createContainer).toHaveBeenCalledWith(
+          'ws-other',
+          expect.objectContaining({ storageNodeId: 'loc-1' }),
+          expect.any(Function)
+        );
+      });
     });
   });
 });

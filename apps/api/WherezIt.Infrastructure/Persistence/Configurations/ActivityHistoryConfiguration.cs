@@ -10,7 +10,7 @@ public class ActivityHistoryConfiguration : IEntityTypeConfiguration<ActivityHis
     {
         builder.ToTable("activity_histories", t =>
         {
-            t.HasCheckConstraint("ck_activity_histories_activity_type", "activity_type IN ('CONTAINER_MOVED', 'TRANSFERRED_OUT', 'TRANSFERRED_IN')");
+            t.HasCheckConstraint("ck_activity_histories_activity_type", "activity_type IN ('CONTAINER_CREATED', 'CONTAINER_RENAMED', 'CONTAINER_MOVED', 'TRANSFERRED_OUT', 'TRANSFERRED_IN', 'CONTAINER_PACKED', 'CONTAINER_UNPACKED', 'CONTAINER_ARCHIVED', 'CONTAINER_RESTORED', 'ITEM_ADDED', 'ITEM_UPDATED', 'ITEM_ARCHIVED', 'ITEM_RESTORED', 'ITEM_REMOVED', 'PHOTO_ADDED', 'PHOTO_REMOVED')");
         });
 
         builder.HasKey(a => a.Id);

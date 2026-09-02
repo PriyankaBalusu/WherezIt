@@ -1,0 +1,63 @@
+/* WorkspaceSearch.css - Responsive Search Result Card Refinements */
+
+.search-result-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 0.75rem;
+  margin-bottom: 0.75rem;
+}
+
+.search-result-title-container {
+  flex: 1;
+  min-width: 0;
+}
+
+.search-result-title {
+  margin: 0;
+  font-size: 1.375rem;
+  color: var(--color-text, #0f172a);
+  font-weight: 800;
+  line-height: 1.3;
+  word-break: break-word;
+}
+
+.search-result-badges {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-shrink: 0;
+}
+
+.search-result-workspace-badge {
+  font-size: 0.75rem;
+  padding: 0.15rem 0.5rem;
+  background-color: var(--color-bg-subtle, #f1f5f9);
+  color: var(--color-text-muted, #475569);
+  border-radius: 0.25rem;
+  font-weight: 700;
+  display: inline-block;
+}
+
+/* Desktop layout wrapper */
+.search-result-card-desktop {
+  display: block;
+}
+
+/* Mobile compact layout wrapper */
+.search-result-card-mobile {
+  display: none;
+}
+
+/* Viewport switching at 640px */
+@media (max-width: 640px) {
+  .search-result-workspace-badge {
+    display: none !important;
+  }
+  .search-result-card-desktop {
+    display: none !important;
+  }
+  .search-result-card-mobile {
+    display: block !important;
+  }
+}

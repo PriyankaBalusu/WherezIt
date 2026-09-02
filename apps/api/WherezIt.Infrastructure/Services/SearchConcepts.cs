@@ -125,19 +125,22 @@ public class SearchQueryContext
     public IReadOnlyList<QueryComponent> Components { get; }
     public int? TargetBoxNumber { get; }
     public bool IsShortQuery { get; }
+    public bool HasLocationIntent { get; }
 
     public SearchQueryContext(
         string rawQuery,
         string cleanedQuery,
         IReadOnlyList<QueryComponent> components,
         int? targetBoxNumber,
-        bool isShortQuery)
+        bool isShortQuery,
+        bool hasLocationIntent = false)
     {
         RawQuery = rawQuery;
         CleanedQuery = cleanedQuery;
         Components = components;
         TargetBoxNumber = targetBoxNumber;
         IsShortQuery = isShortQuery;
+        HasLocationIntent = hasLocationIntent;
     }
 }
 

@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using Npgsql;
 using WherezIt.Application.Authentication;
 using WherezIt.Application.StorageLocations.Dtos;
 using WherezIt.Application.StorageLocations.Services;
@@ -74,10 +75,44 @@ public class LocationMoveService : ILocationMoveService
             }
         }
 
+        var normalizedName = node.Name.Trim().ToLower();
+        var isDuplicate = await _dbContext.StorageNodes.AnyAsync(
+            n => n.WorkspaceId == workspaceId &&
+                 n.ParentId == request.ParentId &&
+                 n.Id != locationId &&
+                 n.Name.ToLower() == normalizedName,
+            cancellationToken);
+
+        if (isDuplicate)
+        {
+            var duplicateMsg = request.ParentId.HasValue
+                ? $"A storage location named '{node.Name}' already exists under this location."
+                : $"A storage location named '{node.Name}' already exists in this Storage Space.";
+            throw new InvalidOperationException(duplicateMsg);
+        }
+
         node.ParentId = request.ParentId;
         node.UpdatedAt = DateTimeOffset.UtcNow;
 
-        await _dbContext.SaveChangesAsync(cancellationToken);
+        try
+        {
+            await _dbContext.SaveChangesAsync(cancellationToken);
+        }
+        catch (DbUpdateException ex)
+        {
+            if (ex.InnerException is PostgresException pgEx &&
+                pgEx.SqlState == "23505" &&
+                !string.IsNullOrEmpty(pgEx.ConstraintName) &&
+                (pgEx.ConstraintName.Equals("ix_storage_nodes_workspace_parent_lower_name", StringComparison.OrdinalIgnoreCase) ||
+                 pgEx.ConstraintName.Equals("ix_storage_nodes_workspace_root_lower_name", StringComparison.OrdinalIgnoreCase)))
+            {
+                var duplicateMsg = request.ParentId.HasValue
+                    ? $"A storage location named '{node.Name}' already exists under this location."
+                    : $"A storage location named '{node.Name}' already exists in this Storage Space.";
+                throw new InvalidOperationException(duplicateMsg, ex);
+            }
+            throw;
+        }
 
         return MapToDto(node);
     }

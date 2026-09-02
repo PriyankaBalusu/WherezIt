@@ -36,6 +36,7 @@ export function useCreateItem(workspaceId: string, containerId: string) {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['items', workspaceId, containerId] });
+      queryClient.invalidateQueries({ queryKey: ['boxHistory', workspaceId, containerId] });
     },
   });
 }
@@ -52,6 +53,7 @@ export function useUpdateItem(workspaceId: string, containerId: string) {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['items', workspaceId, containerId] });
+      queryClient.invalidateQueries({ queryKey: ['boxHistory', workspaceId, containerId] });
     },
   });
 }
@@ -68,6 +70,7 @@ export function useArchiveItem(workspaceId: string, containerId: string) {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['items', workspaceId, containerId] });
+      queryClient.invalidateQueries({ queryKey: ['boxHistory', workspaceId, containerId] });
     },
   });
 }
@@ -84,6 +87,7 @@ export function useRestoreItem(workspaceId: string, containerId: string) {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['items', workspaceId, containerId] });
+      queryClient.invalidateQueries({ queryKey: ['boxHistory', workspaceId, containerId] });
     },
   });
 }
@@ -100,6 +104,7 @@ export function useDeleteItem(workspaceId: string, containerId: string) {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['items', workspaceId, containerId] });
+      queryClient.invalidateQueries({ queryKey: ['boxHistory', workspaceId, containerId] });
     },
   });
 }

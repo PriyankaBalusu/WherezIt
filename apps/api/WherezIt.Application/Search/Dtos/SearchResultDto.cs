@@ -20,6 +20,7 @@ public class SearchResultDto
     public Guid ContainerId { get; set; }
     public int BoxNumber { get; set; }
     public string BoxDisplayId { get; set; } = null!;
+    public string? ContainerName { get; set; }
     public Guid? LocationId { get; set; }
     public string? LocationName { get; set; }
     public IReadOnlyList<string> Breadcrumb { get; set; } = Array.Empty<string>();

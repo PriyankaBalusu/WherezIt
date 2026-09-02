@@ -124,6 +124,17 @@ public class ItemService : IItemService
         };
 
         _dbContext.Items.Add(item);
+        _dbContext.ActivityHistories.Add(new ActivityHistory
+        {
+            Id = Guid.NewGuid(),
+            WorkspaceId = workspaceId,
+            ActorUserId = identity.FirebaseUid,
+            ActivityType = "ITEM_ADDED",
+            ContainerId = containerId,
+            PreviousLocationDisplay = string.Empty,
+            DestinationLocationDisplay = $"{item.Name} · Qty {item.Quantity}",
+            OccurredAt = now
+        });
         await _dbContext.SaveChangesAsync(cancellationToken);
 
         return MapToDto(item);
@@ -145,6 +156,9 @@ public class ItemService : IItemService
         {
             throw new KeyNotFoundException($"Item '{itemId}' was not found in workspace '{workspaceId}'.");
         }
+
+        var oldName = item.Name;
+        var oldQuantity = item.Quantity;
 
         if (request.Name != null)
         {
@@ -170,6 +184,22 @@ public class ItemService : IItemService
         }
 
         item.UpdatedAt = DateTimeOffset.UtcNow;
+
+        if (oldName != item.Name || oldQuantity != item.Quantity)
+        {
+            _dbContext.ActivityHistories.Add(new ActivityHistory
+            {
+                Id = Guid.NewGuid(),
+                WorkspaceId = workspaceId,
+                ActorUserId = identity.FirebaseUid,
+                ActivityType = "ITEM_UPDATED",
+                ContainerId = item.ContainerId,
+                PreviousLocationDisplay = $"{oldName} · Qty {oldQuantity}",
+                DestinationLocationDisplay = $"{item.Name} · Qty {item.Quantity}",
+                OccurredAt = DateTimeOffset.UtcNow
+            });
+        }
+
         await _dbContext.SaveChangesAsync(cancellationToken);
 
         return MapToDto(item);
@@ -191,8 +221,26 @@ public class ItemService : IItemService
             throw new KeyNotFoundException($"Item '{itemId}' was not found in workspace '{workspaceId}'.");
         }
 
+        if (item.IsArchived)
+        {
+            return MapToDto(item);
+        }
+
         item.IsArchived = true;
         item.UpdatedAt = DateTimeOffset.UtcNow;
+
+        _dbContext.ActivityHistories.Add(new ActivityHistory
+        {
+            Id = Guid.NewGuid(),
+            WorkspaceId = workspaceId,
+            ActorUserId = identity.FirebaseUid,
+            ActivityType = "ITEM_ARCHIVED",
+            ContainerId = item.ContainerId,
+            PreviousLocationDisplay = string.Empty,
+            DestinationLocationDisplay = $"{item.Name} · Qty {item.Quantity}",
+            OccurredAt = DateTimeOffset.UtcNow
+        });
+
         await _dbContext.SaveChangesAsync(cancellationToken);
 
         return MapToDto(item);
@@ -214,8 +262,26 @@ public class ItemService : IItemService
             throw new KeyNotFoundException($"Item '{itemId}' was not found in workspace '{workspaceId}'.");
         }
 
+        if (!item.IsArchived)
+        {
+            return MapToDto(item);
+        }
+
         item.IsArchived = false;
         item.UpdatedAt = DateTimeOffset.UtcNow;
+
+        _dbContext.ActivityHistories.Add(new ActivityHistory
+        {
+            Id = Guid.NewGuid(),
+            WorkspaceId = workspaceId,
+            ActorUserId = identity.FirebaseUid,
+            ActivityType = "ITEM_RESTORED",
+            ContainerId = item.ContainerId,
+            PreviousLocationDisplay = string.Empty,
+            DestinationLocationDisplay = $"{item.Name} · Qty {item.Quantity}",
+            OccurredAt = DateTimeOffset.UtcNow
+        });
+
         await _dbContext.SaveChangesAsync(cancellationToken);
 
         return MapToDto(item);
@@ -242,6 +308,11 @@ public class ItemService : IItemService
             throw new InvalidOperationException("Only archived items can be permanently deleted.");
         }
 
+        // Capture snapshot before deletion
+        var snapshotName = item.Name;
+        var snapshotQty = item.Quantity;
+        var snapshotContainerId = item.ContainerId;
+
         // 1. Capture item ImageAsset object paths BEFORE deleting DB rows
         var itemImageAssets = await _dbContext.ImageAssets
             .Where(img => img.WorkspaceId == workspaceId && img.ItemId == itemId)
@@ -255,6 +326,18 @@ public class ItemService : IItemService
 
         // 2. Perform DB deletion in ONE EF Core transaction
         using var transaction = await _dbContext.Database.BeginTransactionAsync(cancellationToken);
+
+        _dbContext.ActivityHistories.Add(new ActivityHistory
+        {
+            Id = Guid.NewGuid(),
+            WorkspaceId = workspaceId,
+            ActorUserId = identity.FirebaseUid,
+            ActivityType = "ITEM_REMOVED",
+            ContainerId = snapshotContainerId,
+            PreviousLocationDisplay = string.Empty,
+            DestinationLocationDisplay = $"{snapshotName} · Qty {snapshotQty}",
+            OccurredAt = DateTimeOffset.UtcNow
+        });
 
         _dbContext.ImageAssets.RemoveRange(itemImageAssets);
         _dbContext.Items.Remove(item);

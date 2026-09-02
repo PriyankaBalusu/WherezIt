@@ -5,6 +5,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 using WherezIt.Application.Authentication;
 using WherezIt.Application.Containers.Dtos;
 using WherezIt.Application.Containers.Services;
@@ -59,6 +60,10 @@ public class ContainerTransfersController : ControllerBase
         catch (InvalidOperationException ex)
         {
             return BadRequest(new { error = ex.Message });
+        }
+        catch (DbUpdateException ex)
+        {
+            return BadRequest(new { error = ex.InnerException?.Message ?? ex.Message });
         }
     }
 

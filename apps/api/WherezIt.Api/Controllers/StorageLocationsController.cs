@@ -85,6 +85,10 @@ public class StorageLocationsController : ControllerBase
         {
             return BadRequest(new { error = ex.Message });
         }
+        catch (InvalidOperationException ex)
+        {
+            return Conflict(new { error = ex.Message });
+        }
         catch (UnauthorizedAccessException)
         {
             return Forbid();
@@ -109,6 +113,10 @@ public class StorageLocationsController : ControllerBase
         catch (ArgumentException ex)
         {
             return BadRequest(new { error = ex.Message });
+        }
+        catch (InvalidOperationException ex)
+        {
+            return Conflict(new { error = ex.Message });
         }
         catch (KeyNotFoundException ex)
         {
@@ -171,6 +179,10 @@ public class StorageLocationsController : ControllerBase
         catch (ArgumentException ex)
         {
             return BadRequest(new { error = ex.Message });
+        }
+        catch (InvalidOperationException ex)
+        {
+            return Conflict(new { error = ex.Message });
         }
         catch (KeyNotFoundException ex)
         {

@@ -16,8 +16,32 @@ import { compressImage } from '../../images/utils/compressImage';
 import { useAuth } from '../../auth/useAuth';
 import { useContainerImages, useDeleteContainerImage, useUploadContainerImage, usePhysicalLabelImage, useDeleteExistingLabel } from '../hooks/useContainerImages';
 import { useWorkspaceContext } from '../../workspaces/context/WorkspaceContext';
+import { getStorageSpaceDisplayName } from '../../workspaces/utils/formatWorkspaceName';
 import { AuthenticatedImage } from '../../images/components/AuthenticatedImage';
+import { BoxHistoryTimeline } from './BoxHistoryTimeline';
+import { MobileContainerDetailLayout } from './MobileContainerDetailLayout';
 import './ContainerDetailScreen.css';
+
+function useIsMobile(breakpoint = 768): boolean {
+  const [isMobile, setIsMobile] = useState<boolean>(() => {
+    if (typeof window === 'undefined') return false;
+    return window.innerWidth <= breakpoint;
+  });
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const mediaQuery = window.matchMedia(`(max-width: ${breakpoint}px)`);
+    const handleChange = (e: MediaQueryListEvent) => {
+      setIsMobile(e.matches);
+    };
+
+    setIsMobile(mediaQuery.matches);
+    mediaQuery.addEventListener('change', handleChange);
+    return () => mediaQuery.removeEventListener('change', handleChange);
+  }, [breakpoint]);
+
+  return isMobile;
+}
 
 export const ContainerDetailScreen: React.FC = () => {
   const { workspaceId, containerId } = useParams<{ workspaceId: string; containerId: string }>();
@@ -62,6 +86,16 @@ export const ContainerDetailScreen: React.FC = () => {
   const [imageToDelete, setImageToDelete] = useState<{ id: string; url: string } | null>(null);
   const [previewImageUrl, setPreviewImageUrl] = useState<string | null>(null);
   const [galleryIndex, setGalleryIndex] = useState<number | null>(null);
+
+  const isMobile = useIsMobile();
+
+  // Mobile section navigation tab state
+  const [activeMobileTab, setActiveMobileTab] = useState<'contents' | 'photos' | 'codes' | 'history'>('contents');
+
+  // Summary counts for mobile row
+  const itemCount = container?.itemCount ?? 0;
+  const photoCount = referenceImages.length + (labelImage ? 1 : 0);
+  const codeCount = identifiers.length + (container?.physicalLabel ? 1 : 0);
 
   useEffect(() => {
     if (galleryIndex === null || referenceImages.length === 0) return;
@@ -387,29 +421,48 @@ export const ContainerDetailScreen: React.FC = () => {
       )}
 
       {/* 1. Breadcrumb Navigation */}
-      <nav aria-label="Breadcrumb" className="container-detail-breadcrumbs">
-        <ol className="container-detail-breadcrumbs__list">
-          <li>
-            <Link to="/" className="container-detail-breadcrumbs__link">Home</Link>
-          </li>
-          {breadcrumbs.map((crumb) => (
-            <React.Fragment key={crumb.id}>
+      {(() => {
+        const containerWorkspace =
+          workspaceContext?.workspaces?.find((w) => w.id === container.workspaceId) ||
+          workspaceContext?.workspaces?.find((w) => w.id === workspaceId);
+        const containerSpaceName = getStorageSpaceDisplayName(containerWorkspace?.name || 'Storage Space');
+
+        return (
+          <nav aria-label="Breadcrumb" className="container-detail-breadcrumbs">
+            <ol className="container-detail-breadcrumbs__list">
+              <li>
+                <Link to="/" className="container-detail-breadcrumbs__link">Home</Link>
+              </li>
               <li className="container-detail-breadcrumbs__sep">/</li>
               <li>
                 <Link
-                  to={`/workspaces/${workspaceId}/locations/${crumb.id}`}
+                  to={`/workspaces/${container.workspaceId}`}
                   className="container-detail-breadcrumbs__link"
                   style={{ fontWeight: 600 }}
                 >
-                  {crumb.name}
+                  {containerSpaceName}
                 </Link>
               </li>
-            </React.Fragment>
-          ))}
-          <li className="container-detail-breadcrumbs__sep">/</li>
-          <li aria-current="page" className="container-detail-breadcrumbs__current">{container.boxId}</li>
-        </ol>
-      </nav>
+              {breadcrumbs.map((crumb) => (
+                <React.Fragment key={crumb.id}>
+                  <li className="container-detail-breadcrumbs__sep">/</li>
+                  <li>
+                    <Link
+                      to={`/workspaces/${container.workspaceId}/locations/${crumb.id}`}
+                      className="container-detail-breadcrumbs__link"
+                      style={{ fontWeight: 600 }}
+                    >
+                      {crumb.name}
+                    </Link>
+                  </li>
+                </React.Fragment>
+              ))}
+              <li className="container-detail-breadcrumbs__sep">/</li>
+              <li aria-current="page" className="container-detail-breadcrumbs__current">{container.boxId}</li>
+            </ol>
+          </nav>
+        );
+      })()}
 
 
       {/* Hidden Reference Photo Input */}
@@ -422,60 +475,93 @@ export const ContainerDetailScreen: React.FC = () => {
         className="hidden-file-input"
       />
 
-      {/* 2. Box Header Card */}
-      <section className="card box-header-card">
-        <div className="box-header-card__inner">
-          <div>
-            <span className="badge badge-boxid box-header-card__badge">
-              {container.boxId}
-            </span>
-            <h1 className="box-header-card__title">
-              {container.name || 'Unnamed Box'}
-            </h1>
-            <div className="box-header-card__meta">
-              <span>📍 <strong>{locationPathString}</strong></span>
-              {container.description && <span className="box-header-card__meta-sep">•</span>}
-              {container.description && <span>{container.description}</span>}
-              {container.isPacked && (
-                <>
-                  <span className="box-header-card__meta-sep">•</span>
-                  <span style={{ fontSize: '0.8rem', padding: '0.15rem 0.4rem', borderRadius: '0.25rem', backgroundColor: '#e2f0d9', color: '#385723', fontWeight: 'bold' }}>
-                    Packed
-                  </span>
-                </>
-              )}
-            </div>
-          </div>
-          <div className="box-header-card__actions" ref={menuRef}>
-            <button
-              type="button"
-              className="btn btn-secondary btn--md box-header-edit-desktop box-header-card__btn"
-              disabled={container.isArchived}
-              onClick={() => {
-                setEditName(container.name || '');
-                setEditDesc(container.description || '');
-                setEditPriority(container.movingPriority || '');
-                setIsEditing(!isEditing);
-                setIsMoving(false);
-                setIsMenuOpen(false);
-              }}
-            >
-              ✏️ Edit Box
-            </button>
-            <button
-              type="button"
-              aria-label="Box actions"
-              className="btn btn-secondary btn--icon-md box-header-card__menu-trigger"
-              onClick={() => setIsMenuOpen(!isMenuOpen)}
-            >
-              ⋮
-            </button>
-
-            {isMenuOpen && (
-              <div className="box-header-card__dropdown">
+      {/* Layout Composition Boundary: Mobile vs Desktop */}
+      {isMobile ? (
+        <MobileContainerDetailLayout
+          container={container}
+          locationPathString={locationPathString}
+          itemCount={itemCount}
+          photoCount={photoCount}
+          codeCount={codeCount}
+          workspaceId={workspaceId!}
+          containerId={container.id}
+          isOwner={isOwner}
+          referenceImages={referenceImages}
+          labelImage={labelImage}
+          identifiers={identifiers}
+          isUploadingReference={isUploadingReference}
+          onEditBox={() => {
+            setEditName(container.name || '');
+            setEditDesc(container.description || '');
+            setEditPriority(container.movingPriority || '');
+            setIsEditing(!isEditing);
+            setIsMoving(false);
+          }}
+          onMoveBox={() => {
+            setNewLocationId(container.storageNodeId);
+            setIsMoving(!isMoving);
+            setIsEditing(false);
+          }}
+          onArchiveBox={() => setIsArchiveBoxConfirmOpen(true)}
+          onDeleteBox={() => setIsDeleteBoxConfirmOpen(true)}
+          onTriggerPhotoUpload={triggerPhotoUpload}
+          onTriggerReferencePhotoUpload={triggerReferencePhotoUpload}
+          onOpenBoxLabel={() => setIsBoxLabelOpen(true)}
+          onOpenQr={() => setIsQrOpen(true)}
+          onOpenBarcode={() => setIsBarcodeOpen(true)}
+          onOpenAttachMaster={() => setIsAttachMasterOpen(true)}
+          onOpenPhysicalLabel={() => setIsPhysicalLabelOpen(true)}
+          onOpenTakePhotoLabel={() => setIsTakePhotoLabelOpen(true)}
+          onOpenRemoveExistingLabel={() => setIsRemoveExistingLabelConfirmOpen(true)}
+          onSetRevokeIdentifierTarget={setRevokeIdentifierTarget}
+          onSetPreviewImageUrl={setPreviewImageUrl}
+          onSetGalleryIndex={setGalleryIndex}
+          onSetImageToDelete={setImageToDelete}
+          isEditing={isEditing}
+          isMoving={isMoving}
+          editName={editName}
+          editDesc={editDesc}
+          newLocationId={newLocationId}
+          locations={locations}
+          onSetEditName={setEditName}
+          onSetEditDesc={setEditDesc}
+          onSetNewLocationId={setNewLocationId}
+          onSaveEdit={handleUpdateInfo}
+          onConfirmMove={handleMoveContainer}
+          onCancelEdit={() => setIsEditing(false)}
+          onCancelMove={() => setIsMoving(false)}
+        />
+      ) : (
+        <>
+          {/* Desktop Box Header Card */}
+          <section className="card box-header-card" data-layout="desktop">
+            <div className="box-header-card__inner">
+              <div>
+                <span className="badge badge-boxid box-header-card__badge">
+                  {container.boxId}
+                </span>
+                <h1 className="box-header-card__title">
+                  {container.name || 'Unnamed Box'}
+                </h1>
+                <div className="box-header-card__meta">
+                  <span>📍 <strong>{locationPathString}</strong></span>
+                  {container.description && <span className="box-header-card__meta-sep">•</span>}
+                  {container.description && <span>{container.description}</span>}
+                  {container.isPacked && (
+                    <>
+                      <span className="box-header-card__meta-sep">•</span>
+                      <span style={{ fontSize: '0.8rem', padding: '0.15rem 0.4rem', borderRadius: '0.25rem', backgroundColor: '#e2f0d9', color: '#385723', fontWeight: 'bold' }}>
+                        Packed
+                      </span>
+                    </>
+                  )}
+                </div>
+              </div>
+              <div className="box-header-card__actions" ref={menuRef}>
                 <button
                   type="button"
-                  className="box-menu-edit-mobile box-header-card__menu-item"
+                  className="btn btn-secondary btn--md box-header-edit-desktop box-header-card__btn"
+                  disabled={container.isArchived}
                   onClick={() => {
                     setEditName(container.name || '');
                     setEditDesc(container.description || '');
@@ -484,370 +570,400 @@ export const ContainerDetailScreen: React.FC = () => {
                     setIsMoving(false);
                     setIsMenuOpen(false);
                   }}
-                  disabled={container.isArchived}
                 >
                   ✏️ Edit Box
                 </button>
                 <button
                   type="button"
-                  className="box-header-card__menu-item"
-                  onClick={() => {
-                    setNewLocationId(container.storageNodeId);
-                    setIsMoving(!isMoving);
-                    setIsEditing(false);
-                    setIsMenuOpen(false);
-                  }}
-                  disabled={container.isArchived}
+                  aria-label="Box actions"
+                  className="btn btn-secondary btn--icon-md box-header-card__menu-trigger"
+                  onClick={() => setIsMenuOpen(!isMenuOpen)}
                 >
-                  📦 Move Box
+                  ⋮
                 </button>
-                <button
-                  type="button"
-                  className={`box-header-card__menu-item ${container.isArchived ? 'box-header-card__menu-item--restore' : ''}`}
-                  onClick={() => {
-                    setIsMenuOpen(false);
-                    setIsArchiveBoxConfirmOpen(true);
-                  }}
-                >
-                  📥 {container.isArchived ? 'Restore Box' : 'Archive Box'}
-                </button>
-                {container.isArchived && isOwner && (
-                  <button
-                    type="button"
-                    className="box-header-card__menu-item box-header-card__menu-item--danger"
-                    onClick={() => {
-                      setIsMenuOpen(false);
-                      setIsDeleteBoxConfirmOpen(true);
-                    }}
-                  >
-                    🗑️ Delete Box
-                  </button>
+
+                {isMenuOpen && (
+                  <div className="box-header-card__dropdown">
+                    <button
+                      type="button"
+                      className="box-menu-edit-mobile box-header-card__menu-item"
+                      onClick={() => {
+                        setEditName(container.name || '');
+                        setEditDesc(container.description || '');
+                        setEditPriority(container.movingPriority || '');
+                        setIsEditing(!isEditing);
+                        setIsMoving(false);
+                        setIsMenuOpen(false);
+                      }}
+                      disabled={container.isArchived}
+                    >
+                      ✏️ Edit Box
+                    </button>
+                    <button
+                      type="button"
+                      className="box-header-card__menu-item"
+                      onClick={() => {
+                        setNewLocationId(container.storageNodeId);
+                        setIsMoving(!isMoving);
+                        setIsEditing(false);
+                        setIsMenuOpen(false);
+                      }}
+                      disabled={container.isArchived}
+                    >
+                      📦 Move Box
+                    </button>
+                    <button
+                      type="button"
+                      className={`box-header-card__menu-item ${container.isArchived ? 'box-header-card__menu-item--restore' : ''}`}
+                      onClick={() => {
+                        setIsMenuOpen(false);
+                        setIsArchiveBoxConfirmOpen(true);
+                      }}
+                    >
+                      📥 {container.isArchived ? 'Restore Box' : 'Archive Box'}
+                    </button>
+                    {container.isArchived && isOwner && (
+                      <button
+                        type="button"
+                        className="box-header-card__menu-item box-header-card__menu-item--danger"
+                        onClick={() => {
+                          setIsMenuOpen(false);
+                          setIsDeleteBoxConfirmOpen(true);
+                        }}
+                      >
+                        🗑️ Delete Box
+                      </button>
+                    )}
+                  </div>
                 )}
               </div>
-            )}
-          </div>
-        </div>
-
-        {/* Move Box Form */}
-        {isMoving && (
-          <form onSubmit={handleMoveContainer} className="box-header-form">
-            <div className="form-group box-header-form__group">
-              <label className="box-header-form__label">Select New Storage Location</label>
-              <select
-                value={newLocationId}
-                onChange={(e) => setNewLocationId(e.target.value)}
-                className="box-header-form__select"
-                required
-              >
-                {locations.map((loc) => (
-                  <option key={loc.id} value={loc.id}>
-                    {loc.name}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div className="box-header-form__actions">
-              <button type="submit" className="btn-primary box-header-form__btn">Confirm Move</button>
-              <button type="button" className="btn-secondary box-header-form__btn" onClick={() => setIsMoving(false)}>Cancel</button>
-            </div>
-          </form>
-        )}
-
-        {/* Edit Details Form */}
-        {isEditing && (
-          <form onSubmit={handleUpdateInfo} className="box-header-form">
-            <div className="form-group box-header-form__group">
-              <label className="box-header-form__label">Box Name</label>
-              <input
-                type="text"
-                value={editName}
-                onChange={(e) => setEditName(e.target.value)}
-                className="box-header-form__input"
-              />
-            </div>
-            <div className="form-group box-header-form__group">
-              <label className="box-header-form__label">Description</label>
-              <input
-                type="text"
-                value={editDesc}
-                onChange={(e) => setEditDesc(e.target.value)}
-                className="box-header-form__input"
-              />
-            </div>
-            <div className="box-header-form__actions">
-              <button type="submit" className="btn-primary box-header-form__btn">Save Details</button>
-              <button type="button" className="btn-secondary box-header-form__btn" onClick={() => setIsEditing(false)}>Cancel</button>
-            </div>
-          </form>
-        )}
-      </section>
-
-      {/* 3. Main Two-Column Grid Layout */}
-      <div className="box-detail-grid">
-        {/* Left Column: Contents (~55%) */}
-        <div className="box-detail-left">
-          <ItemList
-            workspaceId={workspaceId!}
-            containerId={container.id}
-            isContainerArchived={container.isArchived}
-            onAddFromPhoto={triggerPhotoUpload}
-          />
-        </div>
-
-        {/* Right Column: Labels & Codes + Photos (~45%) */}
-        <div className="box-detail-right">
-          {/* Labels & Codes Card */}
-          <div className="card labels-codes-card">
-            <div className="labels-codes-card__header">
-              <h3 className="labels-codes-card__title">
-                Labels & Codes
-              </h3>
-              <p className="labels-codes-card__subtitle">
-                Ways to recognize or scan this box.
-              </p>
             </div>
 
-            {/* 1. BOX ID Section */}
-            <div className="labels-codes-section labels-codes-box-id">
-              <div>
-                <span className="labels-codes-section__label">BOX ID</span>
-                <div className="labels-codes-box-id__value">{container.boxId}</div>
-                <span className="labels-codes-box-id__sub">Permanent WherezIt ID</span>
-              </div>
-              <button
-                type="button"
-                className="btn btn-secondary btn--md labels-codes-box-id__print-btn"
-                disabled={container.isArchived}
-                onClick={() => setIsBoxLabelOpen(true)}
-              >
-                🏷️ Print Label
-              </button>
-            </div>
-
-            {/* 2. EXISTING LABEL Section (Rendered only when label text or label photo exists) */}
-            {(container.physicalLabel || labelImage) && (
-              <div className="labels-codes-section">
-                <span className="labels-codes-section__label">
-                  EXISTING LABEL
-                </span>
-
-                <div>
-                  {container.physicalLabel && (
-                    <div className="labels-codes-existing__value">
-                      🏷️ {container.physicalLabel}
-                    </div>
-                  )}
-                  {labelImage && (
-                    <div className="labels-codes-existing__photo-row">
-                      <div
-                        className="labels-codes-existing__thumb"
-                        onClick={() => setPreviewImageUrl(labelImage.url)}
-                        title="View photographed label"
-                      >
-                        <AuthenticatedImage
-                          src={labelImage.url}
-                          alt="Photographed label"
-                          style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-                        />
-                      </div>
-                      <span className="labels-codes-existing__photo-caption">From photographed label</span>
-                    </div>
-                  )}
-
-                  {!container.isArchived && (
-                    <div className="labels-codes-existing__btn-row">
-                      <button
-                        type="button"
-                        className="labels-codes-existing__btn"
-                        onClick={() => setIsPhysicalLabelOpen(true)}
-                      >
-                        {container.physicalLabel ? 'Edit Text' : '+ Add Text'}
-                      </button>
-                      <button
-                        type="button"
-                        className="labels-codes-existing__btn labels-codes-existing__btn--sec"
-                        onClick={() => setIsTakePhotoLabelOpen(true)}
-                      >
-                        {labelImage ? 'Replace Photo' : 'Add Photo'}
-                      </button>
-                      <button
-                        type="button"
-                        className="labels-codes-existing__btn labels-codes-existing__btn--danger"
-                        onClick={() => setIsRemoveExistingLabelConfirmOpen(true)}
-                        disabled={deleteExistingLabelMutation.isPending}
-                      >
-                        Remove
-                      </button>
-                    </div>
-                  )}
+            {/* Move Box Form */}
+            {isMoving && (
+              <form onSubmit={handleMoveContainer} className="box-header-form">
+                <div className="form-group box-header-form__group">
+                  <label className="box-header-form__label">Select New Storage Location</label>
+                  <select
+                    value={newLocationId}
+                    onChange={(e) => setNewLocationId(e.target.value)}
+                    className="box-header-form__select"
+                    required
+                  >
+                    {locations.map((loc) => (
+                      <option key={loc.id} value={loc.id}>
+                        {loc.name}
+                      </option>
+                    ))}
+                  </select>
                 </div>
-              </div>
+                <div className="box-header-form__actions">
+                  <button type="submit" className="btn-primary box-header-form__btn">Confirm Move</button>
+                  <button type="button" className="btn-secondary box-header-form__btn" onClick={() => setIsMoving(false)}>Cancel</button>
+                </div>
+              </form>
             )}
 
-            {/* 3. SCANNABLE CODES Section */}
-            <div className="labels-codes-section labels-codes-section--nobg">
-              <span className="labels-codes-section__label">
-                SCANNABLE CODES
-              </span>
+            {/* Edit Details Form */}
+            {isEditing && (
+              <form onSubmit={handleUpdateInfo} className="box-header-form">
+                <div className="form-group box-header-form__group">
+                  <label className="box-header-form__label">Box Name</label>
+                  <input
+                    type="text"
+                    value={editName}
+                    onChange={(e) => setEditName(e.target.value)}
+                    className="box-header-form__input"
+                  />
+                </div>
+                <div className="form-group box-header-form__group">
+                  <label className="box-header-form__label">Description</label>
+                  <input
+                    type="text"
+                    value={editDesc}
+                    onChange={(e) => setEditDesc(e.target.value)}
+                    className="box-header-form__input"
+                  />
+                </div>
+                <div className="box-header-form__actions">
+                  <button type="submit" className="btn-primary box-header-form__btn">Save Details</button>
+                  <button type="button" className="btn-secondary box-header-form__btn" onClick={() => setIsEditing(false)}>Cancel</button>
+                </div>
+              </form>
+            )}
+          </section>
 
-              {identifiers.length > 0 ? (
-                <div className="scannable-codes-list" style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-                  {identifiers.map((ident) => (
-                    <div key={ident.id} className="scannable-code-card">
-                      <div className="scannable-code-card__header">
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                          <span style={{ fontSize: '1.1rem' }}>{ident.type === 'QR' ? '📱' : '║▌'}</span>
-                          <span className="scannable-code-card__title">
-                            {ident.type === 'QR' ? 'QR Code' : 'Barcode'}
-                          </span>
+          {/* Desktop Main Two-Column Grid Layout */}
+          <div className="box-detail-grid" data-layout="desktop">
+            {/* Left Column: Contents (~55%) */}
+            <div className="box-detail-left">
+              <ItemList
+                workspaceId={workspaceId!}
+                containerId={container.id}
+                isContainerArchived={container.isArchived}
+                onAddFromPhoto={triggerPhotoUpload}
+              />
+            </div>
+
+            {/* Right Column: Labels & Codes + Photos (~45%) */}
+            <div className="box-detail-right">
+              {/* Labels & Codes Card */}
+              <div className="card labels-codes-card">
+                <div className="labels-codes-card__header">
+                  <h3 className="labels-codes-card__title">
+                    Labels & Codes
+                  </h3>
+                  <p className="labels-codes-card__subtitle">
+                    Ways to recognize or scan this box.
+                  </p>
+                </div>
+
+                {/* 1. BOX ID Section */}
+                <div className="labels-codes-section labels-codes-box-id">
+                  <div>
+                    <span className="labels-codes-section__label">BOX ID</span>
+                    <div className="labels-codes-box-id__value">{container.boxId}</div>
+                    <span className="labels-codes-box-id__sub">Permanent WherezIt ID</span>
+                  </div>
+                  <button
+                    type="button"
+                    className="btn btn-secondary btn--md labels-codes-box-id__print-btn"
+                    disabled={container.isArchived}
+                    onClick={() => setIsBoxLabelOpen(true)}
+                  >
+                    🏷️ Print Label
+                  </button>
+                </div>
+
+                {/* 2. EXISTING LABEL Section */}
+                {(container.physicalLabel || labelImage) && (
+                  <div className="labels-codes-section">
+                    <span className="labels-codes-section__label">
+                      EXISTING LABEL
+                    </span>
+
+                    <div>
+                      {container.physicalLabel && (
+                        <div className="labels-codes-existing__value">
+                          🏷️ {container.physicalLabel}
                         </div>
-                        <span className="scannable-code-card__badge">
-                          GENERATED
-                        </span>
-                      </div>
-
-                      <div className="scannable-code-card__subtext">
-                        Scan to open {container.boxId}
-                      </div>
+                      )}
+                      {labelImage && (
+                        <div className="labels-codes-existing__photo-row">
+                          <div
+                            className="labels-codes-existing__thumb"
+                            onClick={() => setPreviewImageUrl(labelImage.url)}
+                            title="View photographed label"
+                          >
+                            <AuthenticatedImage
+                              src={labelImage.url}
+                              alt="Photographed label"
+                              style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                            />
+                          </div>
+                          <span className="labels-codes-existing__photo-caption">From photographed label</span>
+                        </div>
+                      )}
 
                       {!container.isArchived && (
-                        <div className="scannable-code-card__actions">
+                        <div className="labels-codes-existing__btn-row">
                           <button
                             type="button"
-                            className="scannable-code-card__btn"
-                            onClick={() => ident.type === 'QR' ? setIsQrOpen(true) : setIsBarcodeOpen(true)}
+                            className="labels-codes-existing__btn"
+                            onClick={() => setIsPhysicalLabelOpen(true)}
                           >
-                            View
+                            {container.physicalLabel ? 'Edit Text' : '+ Add Text'}
                           </button>
                           <button
                             type="button"
-                            className="scannable-code-card__btn scannable-code-card__btn--print"
-                            onClick={() => ident.type === 'QR' ? setIsQrOpen(true) : setIsBarcodeOpen(true)}
+                            className="labels-codes-existing__btn labels-codes-existing__btn--sec"
+                            onClick={() => setIsTakePhotoLabelOpen(true)}
                           >
-                            Print
+                            {labelImage ? 'Replace Photo' : 'Add Photo'}
                           </button>
                           <button
                             type="button"
-                            className="scannable-code-card__btn scannable-code-card__btn--danger"
-                            onClick={() => setRevokeIdentifierTarget({ id: ident.id, type: ident.type as any, value: ident.value })}
+                            className="labels-codes-existing__btn labels-codes-existing__btn--danger"
+                            onClick={() => setIsRemoveExistingLabelConfirmOpen(true)}
+                            disabled={deleteExistingLabelMutation.isPending}
                           >
                             Remove
                           </button>
                         </div>
                       )}
                     </div>
-                  ))}
-                </div>
-              ) : (
-                <div className="scannable-codes-empty">
-                  No scannable codes generated.
-                </div>
-              )}
-
-              {/* Conditional generation actions & attach master */}
-              <div className="scannable-codes-gen-actions">
-                {!identifiers.some((i) => i.type === 'QR') && !container.isArchived && (
-                  <button
-                    type="button"
-                    className="btn btn-secondary btn--md scannable-codes-gen-btn"
-                    onClick={() => setIsQrOpen(true)}
-                  >
-                    📱 + Generate QR Code
-                  </button>
-                )}
-                {!identifiers.some((i) => i.type === 'BARCODE') && !container.isArchived && (
-                  <button
-                    type="button"
-                    className="btn btn-secondary btn--md scannable-codes-gen-btn"
-                    onClick={() => setIsBarcodeOpen(true)}
-                  >
-                    ║▌ + Generate Barcode
-                  </button>
-                )}
-                {!container.isArchived && (
-                  <button
-                    type="button"
-                    className="btn btn-secondary btn--md scannable-codes-gen-btn"
-                    onClick={() => setIsAttachMasterOpen(true)}
-                  >
-                    + Add Existing Code or Label
-                  </button>
-                )}
-              </div>
-            </div>
-          </div>
-
-          {/* Photos Card */}
-          <div className="card photos-card">
-            <div className="photos-card-header">
-              <div>
-                <h3 className="photos-card-title">
-                  Photos
-                </h3>
-                <p className="photos-card-subtitle">
-                  Reference photos of this box.
-                </p>
-              </div>
-              {!container.isArchived && (
-                <button
-                  type="button"
-                  className="btn btn-secondary btn--md"
-                  disabled={isUploadingReference}
-                  onClick={triggerReferencePhotoUpload}
-                >
-                  {isUploadingReference ? 'Uploading...' : '+ Add Photo'}
-                </button>
-              )}
-            </div>
-
-            {referenceImages.length > 0 ? (
-              <>
-                <div className="photos-grid">
-                  {referenceImages.slice(0, 4).map((img, idx) => (
-                    <div key={img.id} className="photos-grid__thumb-wrapper">
-                      <AuthenticatedImage
-                        src={img.url}
-                        alt="Box reference photo"
-                        className="photos-grid__thumb-img"
-                        onClick={() => setGalleryIndex(idx)}
-                      />
-                      {!container.isArchived && (
-                        <button
-                          type="button"
-                          onClick={() => setImageToDelete({ id: img.id, url: img.url })}
-                          className="photos-grid__delete-btn"
-                          title="Delete reference photo"
-                        >
-                          ×
-                        </button>
-                      )}
-                    </div>
-                  ))}
-                </div>
-
-                {referenceImages.length > 4 && (
-                  <div className="photos-card__view-all-wrapper">
-                    <button
-                      type="button"
-                      onClick={() => setGalleryIndex(0)}
-                      className="photos-card__view-all-btn"
-                    >
-                      View all photos
-                    </button>
                   </div>
                 )}
-              </>
-            ) : (
-              <div className="photos-card__empty">
-                No reference photos added yet.
+
+                {/* 3. SCANNABLE CODES Section */}
+                <div className="labels-codes-section labels-codes-section--nobg">
+                  <span className="labels-codes-section__label">
+                    SCANNABLE CODES
+                  </span>
+
+                  {identifiers.length > 0 ? (
+                    <div className="scannable-codes-list" style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                      {identifiers.map((ident) => (
+                        <div key={ident.id} className="scannable-code-card">
+                          <div className="scannable-code-card__header">
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                              <span style={{ fontSize: '1.1rem' }}>{ident.type === 'QR' ? '📱' : '║▌'}</span>
+                              <span className="scannable-code-card__title">
+                                {ident.type === 'QR' ? 'QR Code' : 'Barcode'}
+                              </span>
+                            </div>
+                            <span className="scannable-code-card__badge">
+                              GENERATED
+                            </span>
+                          </div>
+
+                          <div className="scannable-code-card__subtext">
+                            Scan to open {container.boxId}
+                          </div>
+
+                          {!container.isArchived && (
+                            <div className="scannable-code-card__actions">
+                              <button
+                                type="button"
+                                className="scannable-code-card__btn"
+                                onClick={() => ident.type === 'QR' ? setIsQrOpen(true) : setIsBarcodeOpen(true)}
+                              >
+                                View
+                              </button>
+                              <button
+                                type="button"
+                                className="scannable-code-card__btn scannable-code-card__btn--print"
+                                onClick={() => ident.type === 'QR' ? setIsQrOpen(true) : setIsBarcodeOpen(true)}
+                              >
+                                Print
+                              </button>
+                              <button
+                                type="button"
+                                className="scannable-code-card__btn scannable-code-card__btn--danger"
+                                onClick={() => setRevokeIdentifierTarget({ id: ident.id, type: ident.type as any, value: ident.value })}
+                              >
+                                Remove
+                              </button>
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="scannable-codes-empty">
+                      No scannable codes generated.
+                    </div>
+                  )}
+
+                  {/* Conditional generation actions & attach master */}
+                  <div className="scannable-codes-gen-actions">
+                    {!identifiers.some((i) => i.type === 'QR') && !container.isArchived && (
+                      <button
+                        type="button"
+                        className="btn btn-secondary btn--md scannable-codes-gen-btn"
+                        onClick={() => setIsQrOpen(true)}
+                      >
+                        📱 + Generate QR Code
+                      </button>
+                    )}
+                    {!identifiers.some((i) => i.type === 'BARCODE') && !container.isArchived && (
+                      <button
+                        type="button"
+                        className="btn btn-secondary btn--md scannable-codes-gen-btn"
+                        onClick={() => setIsBarcodeOpen(true)}
+                      >
+                        ║▌ + Generate Barcode
+                      </button>
+                    )}
+                    {!container.isArchived && (
+                      <button
+                        type="button"
+                        className="btn btn-secondary btn--md scannable-codes-gen-btn"
+                        onClick={() => setIsAttachMasterOpen(true)}
+                      >
+                        + Add Existing Code or Label
+                      </button>
+                    )}
+                  </div>
+                </div>
               </div>
-            )}
-            {referenceUploadError && (
-              <div className="photos-card__error">{referenceUploadError}</div>
-            )}
+
+              {/* Photos Card */}
+              <div className="card photos-card">
+                <div className="photos-card-header">
+                  <div>
+                    <h3 className="photos-card-title">
+                      Photos
+                    </h3>
+                    <p className="photos-card-subtitle">
+                      Reference photos of this box.
+                    </p>
+                  </div>
+                  {!container.isArchived && (
+                    <button
+                      type="button"
+                      className="btn btn-secondary btn--md"
+                      disabled={isUploadingReference}
+                      onClick={triggerReferencePhotoUpload}
+                    >
+                      {isUploadingReference ? 'Uploading...' : '+ Add Photo'}
+                    </button>
+                  )}
+                </div>
+
+                {referenceImages.length > 0 ? (
+                  <>
+                    <div className="photos-grid">
+                      {referenceImages.slice(0, 4).map((img, idx) => (
+                        <div key={img.id} className="photos-grid__thumb-wrapper">
+                          <AuthenticatedImage
+                            src={img.url}
+                            alt="Box reference photo"
+                            className="photos-grid__thumb-img"
+                            onClick={() => setGalleryIndex(idx)}
+                          />
+                          {!container.isArchived && (
+                            <button
+                              type="button"
+                              onClick={() => setImageToDelete({ id: img.id, url: img.url })}
+                              className="photos-grid__delete-btn"
+                              title="Delete reference photo"
+                            >
+                              ×
+                            </button>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+
+                    {referenceImages.length > 4 && (
+                      <div className="photos-card__view-all-wrapper">
+                        <button
+                          type="button"
+                          onClick={() => setGalleryIndex(0)}
+                          className="photos-card__view-all-btn"
+                        >
+                          View all photos
+                        </button>
+                      </div>
+                    )}
+                  </>
+                ) : (
+                  <div className="photos-card__empty">
+                    No reference photos added yet.
+                  </div>
+                )}
+                {referenceUploadError && (
+                  <div className="photos-card__error">{referenceUploadError}</div>
+                )}
+              </div>
+
+              {/* Box History Card */}
+              <BoxHistoryTimeline workspaceId={workspaceId!} containerId={container.id} />
+            </div>
           </div>
-        </div>
-      </div>
+        </>
+      )}
 
       {/* Box Label Modal */}
       {isBoxLabelOpen && (
@@ -903,6 +1019,7 @@ export const ContainerDetailScreen: React.FC = () => {
                 type="button"
                 className="btn btn-secondary btn--md"
                 onClick={() => setIsArchiveBoxConfirmOpen(false)}
+                disabled={archiveMutation.isPending || restoreMutation.isPending}
               >
                 Cancel
               </button>
@@ -910,8 +1027,11 @@ export const ContainerDetailScreen: React.FC = () => {
                 type="button"
                 className="btn btn-primary btn--md"
                 onClick={handleArchiveToggle}
+                disabled={archiveMutation.isPending || restoreMutation.isPending}
               >
-                {container.isArchived ? 'Restore Box' : 'Archive Box'}
+                {archiveMutation.isPending || restoreMutation.isPending
+                  ? (container.isArchived ? 'Restoring...' : 'Archiving...')
+                  : (container.isArchived ? 'Restore Box' : 'Archive Box')}
               </button>
             </div>
           </div>

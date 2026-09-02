@@ -687,6 +687,19 @@ public class ImageManagementService : IImageManagementService
 
         asset.Status = "READY";
         asset.UpdatedAt = DateTimeOffset.UtcNow;
+
+        _dbContext.ActivityHistories.Add(new ActivityHistory
+        {
+            Id = Guid.NewGuid(),
+            WorkspaceId = workspaceId,
+            ActorUserId = identity.FirebaseUid,
+            ActivityType = "PHOTO_ADDED",
+            ContainerId = item.ContainerId,
+            PreviousLocationDisplay = string.Empty,
+            DestinationLocationDisplay = item.Name,
+            OccurredAt = DateTimeOffset.UtcNow
+        });
+
         await _dbContext.SaveChangesAsync(cancellationToken);
 
         return new ImageUploadResponseDto
@@ -717,13 +730,16 @@ public class ImageManagementService : IImageManagementService
             throw new KeyNotFoundException($"Item '{itemId}' was not found in workspace '{workspaceId}'.");
         }
 
-        var itemImages = await _dbContext.ImageAssets
+        var images = await _dbContext.ImageAssets
             .AsNoTracking()
-            .Where(img => img.WorkspaceId == workspaceId && img.ItemId == itemId && img.Status == "READY")
+            .Where(img => img.WorkspaceId == workspaceId &&
+                          img.ItemId == itemId &&
+                          img.Status == "READY" &&
+                          img.ImagePurpose == "ITEM")
             .OrderByDescending(img => img.CreatedAt)
             .ToListAsync(cancellationToken);
 
-        return itemImages.Select(img => new ContainerImageResponseDto(
+        return images.Select(img => new ContainerImageResponseDto(
             img.Id,
             img.WorkspaceId,
             item.ContainerId,
@@ -743,6 +759,9 @@ public class ImageManagementService : IImageManagementService
     {
         await _authService.RequireWorkspaceMembershipAsync(identity, workspaceId, cancellationToken);
 
+        var item = await _dbContext.Items
+            .FirstOrDefaultAsync(i => i.Id == itemId && i.WorkspaceId == workspaceId, cancellationToken);
+
         var asset = await _dbContext.ImageAssets
             .FirstOrDefaultAsync(img => img.Id == imageId && img.WorkspaceId == workspaceId && img.ItemId == itemId, cancellationToken);
 
@@ -761,6 +780,22 @@ public class ImageManagementService : IImageManagementService
         }
 
         _dbContext.ImageAssets.Remove(asset);
+
+        if (item != null)
+        {
+            _dbContext.ActivityHistories.Add(new ActivityHistory
+            {
+                Id = Guid.NewGuid(),
+                WorkspaceId = workspaceId,
+                ActorUserId = identity.FirebaseUid,
+                ActivityType = "PHOTO_REMOVED",
+                ContainerId = item.ContainerId,
+                PreviousLocationDisplay = string.Empty,
+                DestinationLocationDisplay = item.Name,
+                OccurredAt = DateTimeOffset.UtcNow
+            });
+        }
+
         await _dbContext.SaveChangesAsync(cancellationToken);
     }
 

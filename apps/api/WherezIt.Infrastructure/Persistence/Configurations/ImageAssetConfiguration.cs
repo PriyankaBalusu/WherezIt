@@ -68,15 +68,13 @@ public class ImageAssetConfiguration : IEntityTypeConfiguration<ImageAsset>
 
         builder.HasOne(x => x.Container)
             .WithMany()
-            .HasPrincipalKey(c => new { c.WorkspaceId, c.Id })
-            .HasForeignKey(x => new { x.WorkspaceId, x.ContainerId })
+            .HasForeignKey(x => x.ContainerId)
             .OnDelete(DeleteBehavior.Restrict)
             .IsRequired(false);
 
         builder.HasOne(x => x.Item)
             .WithMany()
-            .HasPrincipalKey(i => new { i.WorkspaceId, i.Id })
-            .HasForeignKey(x => new { x.WorkspaceId, x.ItemId })
+            .HasForeignKey(x => x.ItemId)
             .OnDelete(DeleteBehavior.Cascade)
             .IsRequired(false);
     }

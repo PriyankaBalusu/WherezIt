@@ -5,11 +5,10 @@ namespace WherezIt.Application.ActivityHistory.Dtos;
 public record ActivityHistoryDto(
     Guid Id,
     string ActivityType,
+    string Title,
+    string Description,
     Guid ContainerId,
-    Guid? PreviousStorageNodeId,
-    string PreviousLocationDisplay,
-    Guid? DestinationStorageNodeId,
-    string DestinationLocationDisplay,
+    Guid WorkspaceId,
     string ActorUserId,
     DateTimeOffset OccurredAt
 );

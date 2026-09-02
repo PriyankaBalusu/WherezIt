@@ -153,6 +153,7 @@ public class WorkspaceSearchService : IWorkspaceSearchService
                     ContainerId = c.Id,
                     BoxNumber = c.BoxNumber,
                     BoxDisplayId = boxDisplayId,
+                    ContainerName = c.Name,
                     LocationId = locationId,
                     LocationName = locationName,
                     Breadcrumb = breadcrumbSegments,
@@ -184,6 +185,7 @@ public class WorkspaceSearchService : IWorkspaceSearchService
                     ContainerId = item.ContainerId,
                     BoxNumber = item.Container.BoxNumber,
                     BoxDisplayId = boxDisplayId,
+                    ContainerName = item.Container.Name,
                     LocationId = locationId,
                     LocationName = locationName,
                     Breadcrumb = breadcrumbSegments,
@@ -293,7 +295,28 @@ public class WorkspaceSearchService : IWorkspaceSearchService
             }
         }
 
-        return new SearchQueryContext(rawTrimmed, cleanedQuery, components, targetBoxNumber, isShortQuery);
+        bool hasLocationIntent = DetectLocationIntent(rawTrimmed);
+        return new SearchQueryContext(rawTrimmed, cleanedQuery, components, targetBoxNumber, isShortQuery, hasLocationIntent);
+    }
+
+    private static bool DetectLocationIntent(string rawQuery)
+    {
+        if (string.IsNullOrWhiteSpace(rawQuery)) return false;
+        string q = rawQuery.ToLowerInvariant();
+        return q.Contains(" in ") ||
+               q.Contains(" inside ") ||
+               q.Contains(" located in ") ||
+               q.Contains(" under ") ||
+               q.Contains(" on ") ||
+               q.Contains(" at ") ||
+               q.StartsWith("in ") ||
+               q.StartsWith("items in") ||
+               q.StartsWith("boxes in") ||
+               q.StartsWith("stuff in") ||
+               q.StartsWith("things in") ||
+               q.StartsWith("what is in") ||
+               q.StartsWith("whats in") ||
+               q.StartsWith("where is");
     }
 
     private static (string CleanedQuery, List<string> Tokens) NormalizeQuery(string rawQuery)
@@ -490,91 +513,105 @@ public class WorkspaceSearchService : IWorkspaceSearchService
         var iName = (item.Name ?? "").ToLowerInvariant();
         var iCategory = (item.Category ?? "").ToLowerInvariant();
         var locName = (item.Container?.StorageNode?.Name ?? "").ToLowerInvariant();
+        var cName = (item.Container?.Name ?? "").ToLowerInvariant();
+        var cLabel = (item.Container?.PhysicalLabel ?? "").ToLowerInvariant();
         var cDesc = (item.Container?.Description ?? "").ToLowerInvariant();
+
+        bool hasIndependentItemMatch = false;
 
         // 1. Exact Item Name Match (Weight: 95)
         if (iName == context.CleanedQuery || iName == context.RawQuery.ToLowerInvariant())
         {
-            return 95;
+            hasIndependentItemMatch = true;
+            return CalculateScoreWithContextBoost(95, item, context);
         }
 
         // 2. Item Name Prefix Match (Weight: 80)
         if (iName.StartsWith(context.CleanedQuery))
         {
-            return 80;
+            hasIndependentItemMatch = true;
+            return CalculateScoreWithContextBoost(80, item, context);
         }
 
         double rawScore = 0;
-        int matchedComponents = 0;
+        int matchedItemComponents = 0;
         var itemWords = iName.Split(new[] { ' ', '-', '_', '/', '.' }, StringSplitOptions.RemoveEmptyEntries);
 
         foreach (var component in context.Components)
         {
-            bool compMatched = false;
+            bool compMatchedOnItem = false;
             double compScore = 0;
 
             // Direct literal match in item name
             if (iName.Contains(component.Token))
             {
                 compScore += iName.Equals(component.Token) ? 40 : 30;
-                compMatched = true;
+                compMatchedOnItem = true;
             }
             else if (component.Concept != null)
             {
-                // Concept sibling term match in item name
+                // Concept term match in item name
                 foreach (var word in itemWords)
                 {
                     var matchingTerm = component.Concept.FindMatchingTerm(word);
                     if (matchingTerm != null)
                     {
                         compScore += (25 * matchingTerm.Strength * component.Strength);
-                        compMatched = true;
+                        compMatchedOnItem = true;
                         break;
                     }
                 }
 
-                if (!compMatched && component.Concept.MatchesCategory(iCategory))
+                // Concept match in item category
+                if (!compMatchedOnItem && component.Concept.MatchesCategory(iCategory))
                 {
                     compScore += (18 * component.Strength);
-                    compMatched = true;
+                    compMatchedOnItem = true;
                 }
             }
 
-            // Location or description match
-            if (!compMatched)
+            if (compMatchedOnItem)
             {
-                if (locName.Contains(component.Token))
-                {
-                    compScore += 15;
-                    compMatched = true;
-                }
-                else if (cDesc.Contains(component.Token))
-                {
-                    compScore += 10;
-                    compMatched = true;
-                }
-            }
-
-            if (compMatched)
-            {
-                matchedComponents++;
+                matchedItemComponents++;
                 rawScore += compScore;
+                hasIndependentItemMatch = true;
             }
         }
 
-        if (matchedComponents == 0)
+        // Fuzzy match on Item Name
+        if (!hasIndependentItemMatch && !context.IsShortQuery && IsFuzzyMatch(context.CleanedQuery, iName))
         {
-            if (!context.IsShortQuery && IsFuzzyMatch(context.CleanedQuery, iName))
+            hasIndependentItemMatch = true;
+            rawScore = 20;
+            matchedItemComponents = 1;
+        }
+
+        // Explicit Location Intent match (e.g., "items in garage")
+        bool hasLocationIntentMatch = false;
+        if (!hasIndependentItemMatch && context.HasLocationIntent)
+        {
+            foreach (var component in context.Components)
             {
-                return 20;
+                if (!string.IsNullOrEmpty(locName) && locName.Contains(component.Token))
+                {
+                    hasLocationIntentMatch = true;
+                    rawScore += 30;
+                    break;
+                }
             }
-            return 0;
         }
 
-        // Multi-component Coverage Ratio Calculation
-        if (context.Components.Count > 1)
+        // QUALIFICATION CHECK: Item MUST have its own independent match signal (or explicit location intent).
+        // A matching parent Container or Location ALONE must NOT qualify an otherwise unrelated Item!
+        if (!hasIndependentItemMatch && !hasLocationIntentMatch)
         {
-            double coverageRatio = (double)matchedComponents / context.Components.Count;
+            return 0; // Excluded!
+        }
+
+        // Multi-component Coverage Ratio Calculation for Item Signals
+        if (hasIndependentItemMatch && context.Components.Count > 1)
+        {
+            double coverageRatio = (double)matchedItemComponents / context.Components.Count;
 
             if (coverageRatio >= 1.0)
             {
@@ -586,7 +623,45 @@ public class WorkspaceSearchService : IWorkspaceSearchService
             }
         }
 
-        return rawScore;
+        return CalculateScoreWithContextBoost(rawScore, item, context);
+    }
+
+    private static double CalculateScoreWithContextBoost(double baseScore, Item item, SearchQueryContext context)
+    {
+        var locName = (item.Container?.StorageNode?.Name ?? "").ToLowerInvariant();
+        var cName = (item.Container?.Name ?? "").ToLowerInvariant();
+        var cLabel = (item.Container?.PhysicalLabel ?? "").ToLowerInvariant();
+        var cDesc = (item.Container?.Description ?? "").ToLowerInvariant();
+
+        double contextBoost = 0;
+
+        foreach (var component in context.Components)
+        {
+            if ((!string.IsNullOrEmpty(cName) && cName.Contains(component.Token)) ||
+                (!string.IsNullOrEmpty(cLabel) && cLabel.Contains(component.Token)))
+            {
+                contextBoost += 15;
+            }
+            else if (component.Concept != null && !string.IsNullOrEmpty(cName))
+            {
+                var containerWords = cName.Split(new[] { ' ', '-', '_', '/' }, StringSplitOptions.RemoveEmptyEntries);
+                if (containerWords.Any(w => component.Concept.ContainsTerm(w)))
+                {
+                    contextBoost += 15;
+                }
+            }
+            else if (!string.IsNullOrEmpty(locName) && locName.Contains(component.Token))
+            {
+                contextBoost += 10;
+            }
+            else if (!string.IsNullOrEmpty(cDesc) && cDesc.Contains(component.Token))
+            {
+                contextBoost += 10;
+            }
+        }
+
+        contextBoost = Math.Min(20, contextBoost);
+        return baseScore + contextBoost;
     }
 
     private static bool IsFuzzyMatch(string query, string target)

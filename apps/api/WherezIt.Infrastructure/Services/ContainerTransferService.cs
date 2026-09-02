@@ -116,6 +116,8 @@ public class ContainerTransferService : IContainerTransferService
 
             var now = DateTimeOffset.UtcNow;
 
+            var captureIds = captures.Select(c => c.Id).ToList();
+
             // 7. Perform workspace updates across child graph using ExecuteUpdateAsync
             await _dbContext.Items
                 .Where(i => i.ContainerId == containerId && i.WorkspaceId == previousWorkspaceId)
@@ -123,6 +125,24 @@ public class ContainerTransferService : IContainerTransferService
                     .SetProperty(i => i.WorkspaceId, request.DestinationWorkspaceId)
                     .SetProperty(i => i.UpdatedAt, now),
                     cancellationToken);
+
+            if (captureIds.Count > 0)
+            {
+                // Update dependent child entities of InventoryCaptures first to maintain composite FK (WorkspaceId, CaptureId) integrity
+                await _dbContext.DetectionSuggestions
+                    .Where(ds => captureIds.Contains(ds.CaptureId) && ds.WorkspaceId == previousWorkspaceId)
+                    .ExecuteUpdateAsync(s => s
+                        .SetProperty(ds => ds.WorkspaceId, request.DestinationWorkspaceId)
+                        .SetProperty(ds => ds.UpdatedAt, now),
+                        cancellationToken);
+
+                await _dbContext.AIProcessingJobs
+                    .Where(j => captureIds.Contains(j.CaptureId) && j.WorkspaceId == previousWorkspaceId)
+                    .ExecuteUpdateAsync(s => s
+                        .SetProperty(j => j.WorkspaceId, request.DestinationWorkspaceId)
+                        .SetProperty(j => j.UpdatedAt, now),
+                        cancellationToken);
+            }
 
             await _dbContext.InventoryCaptures
                 .Where(c => c.ContainerId == containerId && c.WorkspaceId == previousWorkspaceId)
@@ -169,7 +189,10 @@ public class ContainerTransferService : IContainerTransferService
                     .SetProperty(c => c.UpdatedAt, now),
                     cancellationToken);
 
-            // 9. Append immutable ActivityHistory records
+            // 9. Clear ChangeTracker after bulk direct updates to prevent stale tracked entity conflicts
+            _dbContext.ChangeTracker.Clear();
+
+            // 10. Append immutable ActivityHistory records
             var historyOut = new ActivityHistory
             {
                 Id = Guid.NewGuid(),
@@ -202,7 +225,7 @@ public class ContainerTransferService : IContainerTransferService
             _dbContext.ActivityHistories.Add(historyIn);
 
             await _dbContext.SaveChangesAsync(cancellationToken);
-            await transaction.CommitAsync(cancellationToken);
+            Console.WriteLine("TRANSFER: SaveChanges succeeded");
 
             var updatedContainer = new Container
             {
@@ -220,12 +243,28 @@ public class ContainerTransferService : IContainerTransferService
                 CreatedAt = container.CreatedAt,
                 UpdatedAt = now
             };
+            Console.WriteLine("TRANSFER: About to map response");
 
-            return MapToDto(updatedContainer);
+            // Build the response BEFORE committing.
+            // If mapping fails, the transaction is still able to roll back.
+            var response = MapToDto(updatedContainer);
+            Console.WriteLine("TRANSFER: Response mapped");
+
+await transaction.CommitAsync(cancellationToken);
+Console.WriteLine("TRANSFER: Commit succeeded");
+
+return response;
         }
         catch
         {
-            await transaction.RollbackAsync(cancellationToken);
+            try
+            {
+                await transaction.RollbackAsync(cancellationToken);
+            }
+            catch
+            {
+                // Ignore rollback failures if transaction already committed or aborted by DB
+            }
             throw;
         }
     }
