@@ -11,7 +11,11 @@ public class GoogleCloudImageObjectStorage : IImageObjectStorage
     public GoogleCloudImageObjectStorage(StorageClient storageClient, string bucketName)
     {
         _storageClient = storageClient ?? throw new ArgumentNullException(nameof(storageClient));
-        _bucketName = string.IsNullOrWhiteSpace(bucketName) ? "wherezit-505615-images-dev" : bucketName;
+        if (string.IsNullOrWhiteSpace(bucketName))
+        {
+            throw new ArgumentException("Storage bucket name cannot be empty or whitespace.", nameof(bucketName));
+        }
+        _bucketName = bucketName;
     }
 
     public string CreateObjectPath(Guid workspaceId, string extension)

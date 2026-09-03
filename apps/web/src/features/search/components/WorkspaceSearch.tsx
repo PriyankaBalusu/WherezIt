@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { useGlobalSearch } from '../hooks/useSearch';
-import { useWorkspaceContext } from '../../workspaces/context/WorkspaceContext';
 import { getStorageSpaceDisplayName, formatSearchBreadcrumbDisplay } from '../../workspaces/utils/formatWorkspaceName';
 import './WorkspaceSearch.css';
 
@@ -24,8 +23,6 @@ export const WorkspaceSearch: React.FC<WorkspaceSearchProps> = ({ initialQuery =
   const [currentPage, setCurrentPage] = useState<number>(pageFromUrl);
   const [pageSize, setPageSize] = useState<number>(pageSizeFromUrl);
   const [submitted, setSubmitted] = useState(Boolean(queryFromUrl));
-
-  const workspaceContext = useWorkspaceContext();
 
   useEffect(() => {
     if (queryFromUrl) {

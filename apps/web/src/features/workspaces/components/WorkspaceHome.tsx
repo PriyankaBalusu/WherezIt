@@ -90,8 +90,6 @@ export const WorkspaceHome: React.FC<WorkspaceHomeProps> = ({ activeWorkspace })
   const renameLocationMutation = useRenameStorageLocation(activeWorkspace.id);
   const createBoxMutation = useCreateContainer(activeWorkspace.id);
 
-  const selectedLocation = locations.find(l => l.id === selectedLocationId);
-
   // Close modals on Escape key
   useEffect(() => {
     const handleEscape = (e: KeyboardEvent) => {

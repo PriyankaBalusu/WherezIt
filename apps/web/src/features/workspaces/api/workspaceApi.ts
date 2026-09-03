@@ -7,7 +7,7 @@ export interface WorkspaceAudit {
   workspaceId: string;
   workspaceName: string;
   inventoryNamespaceId: string;
-  eventType: 'WORKSPACE_CREATED' | 'WORKSPACE_DELETED';
+  eventType: 'WORKSPACE_CREATED' | 'WORKSPACE_RENAMED' | 'WORKSPACE_DELETED' | 'LOCATION_CREATED' | 'LOCATION_RENAMED' | 'LOCATION_DELETED' | string;
   actorUserId: string;
   occurredAt: string;
   detailsJson?: string | null;

@@ -1,6 +1,8 @@
 import { useQuery } from '@tanstack/react-query';
 import { searchGlobalWorkspaces, searchWorkspace, SearchResult } from '../api/searchApi';
 
+export type { SearchResult };
+
 export function useGlobalSearch(query: string, enabled: boolean = false) {
   return useQuery<SearchResult[], Error>({
     queryKey: ['globalSearch', query],

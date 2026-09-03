@@ -34,6 +34,7 @@ export interface MobileContainerDetailLayoutProps {
   onSetRevokeIdentifierTarget: (target: any) => void;
   onSetPreviewImageUrl: (url: string) => void;
   onSetGalleryIndex: (index: number) => void;
+  onSetImageToDelete?: (img: any) => void;
   isEditing?: boolean;
   isMoving?: boolean;
   editName?: string;
@@ -370,7 +371,7 @@ export const MobileContainerDetailLayout: React.FC<MobileContainerDetailLayoutPr
                     {!container.isArchived && (
                       <button
                         type="button"
-                        onClick={() => onSetImageToDelete({ id: img.id, url: img.url })}
+                        onClick={() => onSetImageToDelete?.({ id: img.id, url: img.url })}
                         className="mobile-photo-delete-btn"
                         title="Delete reference photo"
                       >

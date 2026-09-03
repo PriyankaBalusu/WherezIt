@@ -19,11 +19,11 @@ describe('WorkspaceSearch (SRCH-002)', () => {
     vi.clearAllMocks();
   });
 
-  const renderComponent = (workspaceId = 'ws-123') => {
+  const renderComponent = () => {
     return render(
       <QueryClientProvider client={queryClient}>
         <MemoryRouter>
-          <WorkspaceSearch workspaceId={workspaceId} />
+          <WorkspaceSearch />
         </MemoryRouter>
       </QueryClientProvider>
     );
@@ -40,6 +40,8 @@ describe('WorkspaceSearch (SRCH-002)', () => {
     const mockResults: searchApi.SearchResult[] = [
       {
         resultType: 'ITEM',
+        workspaceId: 'ws-123',
+        workspaceName: 'Test Workspace',
         itemId: 'item-1',
         itemName: 'Christmas Lights',
         quantity: 2,

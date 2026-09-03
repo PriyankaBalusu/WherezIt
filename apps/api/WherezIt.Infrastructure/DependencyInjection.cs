@@ -1,13 +1,17 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
 using WherezIt.Infrastructure.Persistence;
 
 namespace WherezIt.Infrastructure;
 
 public static class DependencyInjection
 {
-    public static IServiceCollection AddInfrastructure(this IServiceCollection services, IConfiguration configuration)
+    public static IServiceCollection AddInfrastructure(
+        this IServiceCollection services,
+        IConfiguration configuration,
+        IHostEnvironment? environment = null)
     {
         var connectionString = configuration.GetConnectionString("PostgreSQL");
 
@@ -39,7 +43,30 @@ public static class DependencyInjection
         services.AddScoped<WherezIt.Application.Containers.Services.IContainerTransferService, Services.ContainerTransferService>();
         services.AddScoped<WherezIt.Application.Items.Services.IItemService, Services.ItemService>();
         services.AddScoped<WherezIt.Application.Images.Services.IImageManagementService, Services.ImageManagementService>();
-        services.AddSingleton<WherezIt.Application.Storage.Services.IImageObjectStorage, Services.LocalDevImageObjectStorage>();
+
+        var isDevelopment = environment?.IsDevelopment()
+            ?? string.Equals(configuration["ASPNETCORE_ENVIRONMENT"], "Development", StringComparison.OrdinalIgnoreCase);
+
+        if (isDevelopment)
+        {
+            services.AddSingleton<WherezIt.Application.Storage.Services.IImageObjectStorage, Services.LocalDevImageObjectStorage>();
+        }
+        else
+        {
+            var bucketName = configuration["GoogleCloud:StorageBucket"];
+            if (string.IsNullOrWhiteSpace(bucketName))
+            {
+                throw new InvalidOperationException(
+                    "Google Cloud Storage bucket name 'GoogleCloud:StorageBucket' is not configured for non-development environment.");
+            }
+
+            services.AddSingleton(_ => Google.Cloud.Storage.V1.StorageClient.Create());
+            services.AddSingleton<WherezIt.Application.Storage.Services.IImageObjectStorage>(sp =>
+                new Services.GoogleCloudImageObjectStorage(
+                    sp.GetRequiredService<Google.Cloud.Storage.V1.StorageClient>(),
+                    bucketName));
+        }
+
         services.AddScoped<WherezIt.Application.Search.Services.ISearchService, Services.SearchService>();
         services.AddScoped<WherezIt.Application.Search.Services.IWorkspaceSearchService, Services.WorkspaceSearchService>();
         services.Configure<Services.GeminiOptions>(configuration.GetSection("Gemini"));

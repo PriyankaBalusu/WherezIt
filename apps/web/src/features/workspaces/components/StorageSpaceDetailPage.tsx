@@ -116,12 +116,7 @@ export const StorageSpaceDetailPage: React.FC = () => {
           Boxes ({activeBoxes.length})
         </h2>
         <ContainerList
-          containers={activeBoxes}
           workspaceId={workspaceId!}
-          locations={locations}
-          onSelectContainer={(boxId) => {
-            navigate(`/workspaces/${workspaceId}/containers/${boxId}`);
-          }}
         />
       </div>
 

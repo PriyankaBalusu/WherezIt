@@ -3,6 +3,7 @@ import { render, screen } from '@testing-library/react';
 import { MemoryRouter, Routes, Route } from 'react-router-dom';
 import { AuthContext } from '../AuthProvider';
 import { ProtectedRoute } from '../../../routes/ProtectedRoute';
+import { validateNewPassword } from '../utils/authValidation';
 
 describe('AUTH-001 Frontend Authentication Unit Tests', () => {
   it('renders ProtectedRoute loading state when loading is true', () => {

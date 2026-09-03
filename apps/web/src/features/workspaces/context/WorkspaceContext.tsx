@@ -5,7 +5,6 @@ import { useWorkspaces } from '../hooks/useWorkspaces';
 import { WorkspaceLoadingState } from '../components/WorkspaceLoadingState';
 import { WorkspaceErrorState } from '../components/WorkspaceErrorState';
 import { ZeroWorkspaceState } from '../components/ZeroWorkspaceState';
-import { WorkspaceSelector } from '../components/WorkspaceSelector';
 import { CreateWorkspaceModal } from '../components/CreateWorkspaceModal';
 import { WorkspaceHome } from '../components/WorkspaceHome';
 import { AccountMenu } from '../../auth/components/AccountMenu';

@@ -1010,7 +1010,7 @@ describe('QuickPackScreen Phase 2 (Landing, Pack a Box, Move Boxes)', () => {
       vi.mocked(containerApi.createContainer).mockResolvedValue({
         id: 'new-box-1',
         boxNumber: 9,
-        boxDisplayId: 'BOX 009',
+        boxId: 'BOX 009',
         workspaceId: 'ws-other',
         storageNodeId: 'loc-1',
         isPacked: false,

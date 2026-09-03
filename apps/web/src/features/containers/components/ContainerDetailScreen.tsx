@@ -91,9 +91,6 @@ export const ContainerDetailScreen: React.FC = () => {
 
   const isMobile = useIsMobile();
 
-  // Mobile section navigation tab state
-  const [activeMobileTab, setActiveMobileTab] = useState<'contents' | 'photos' | 'codes' | 'history'>('contents');
-
   // Summary counts for mobile row
   const itemCount = container?.itemCount ?? 0;
   const photoCount = referenceImages.length + (labelImage ? 1 : 0);
@@ -535,8 +532,6 @@ export const ContainerDetailScreen: React.FC = () => {
           }}
           onArchiveBox={() => setIsArchiveBoxConfirmOpen(true)}
           onDeleteBox={() => setIsDeleteBoxConfirmOpen(true)}
-          onTriggerPhotoUpload={triggerPhotoUpload}
-          onTriggerReferencePhotoUpload={triggerReferencePhotoUpload}
           onOpenBoxLabel={() => setIsBoxLabelOpen(true)}
           onOpenQr={() => setIsQrOpen(true)}
           onOpenBarcode={() => setIsBarcodeOpen(true)}

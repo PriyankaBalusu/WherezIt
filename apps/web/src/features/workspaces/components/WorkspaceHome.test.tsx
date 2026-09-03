@@ -3,6 +3,7 @@ import { render, screen, fireEvent } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { WorkspaceHome } from './WorkspaceHome';
+import { Workspace } from '../types/workspace';
 
 const mockNavigate = vi.fn();
 vi.mock('react-router-dom', async () => {
@@ -64,12 +65,14 @@ describe('WorkspaceHome Redesign Suite', () => {
   beforeEach(() => {
     mockNavigate.mockClear();
     queryClient = new QueryClient({
-      defaultOptions: { retry: false } },
+      defaultOptions: {
+        queries: { retry: false },
+      },
     });
   });
 
   const renderComponent = () => {
-    const mockWorkspace = {
+    const mockWorkspace: Workspace = {
       id: 'ws-1',
       name: 'Home Workspace',
       inventoryNamespaceId: 'ns-1',

@@ -1,13 +1,12 @@
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
-import React from 'react';
 import { HierarchicalLocationPicker } from '../HierarchicalLocationPicker';
 import { StorageLocation } from '../../types/location';
 
 const mockLocations: StorageLocation[] = [
-  { id: 'loc-1', name: 'Garage', parentId: null, workspaceId: 'ws-1', path: 'Garage' },
-  { id: 'loc-2', name: 'Rack A', parentId: 'loc-1', workspaceId: 'ws-1', path: 'Garage > Rack A' },
-  { id: 'loc-3', name: 'Shelf 1', parentId: 'loc-2', workspaceId: 'ws-1', path: 'Garage > Rack A > Shelf 1' },
+  { id: 'loc-1', name: 'Garage', parentId: null, workspaceId: 'ws-1', createdAt: '2026-01-01T00:00:00Z', updatedAt: '2026-01-01T00:00:00Z' },
+  { id: 'loc-2', name: 'Rack A', parentId: 'loc-1', workspaceId: 'ws-1', createdAt: '2026-01-01T00:00:00Z', updatedAt: '2026-01-01T00:00:00Z' },
+  { id: 'loc-3', name: 'Shelf 1', parentId: 'loc-2', workspaceId: 'ws-1', createdAt: '2026-01-01T00:00:00Z', updatedAt: '2026-01-01T00:00:00Z' },
 ];
 
 describe('HierarchicalLocationPicker Component', () => {

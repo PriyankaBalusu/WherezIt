@@ -1,12 +1,8 @@
 import React from 'react';
 import { NavLink } from 'react-router-dom';
-import { useWorkspaceContext } from '../../workspaces/context/WorkspaceContext';
 import './MobileBottomNav.css';
 
 export const MobileBottomNav: React.FC = () => {
-  const { activeWorkspace } = useWorkspaceContext();
-  const workspaceId = activeWorkspace?.id || '';
-
   return (
     <nav className="mobile-bottom-nav" aria-label="Main mobile navigation">
       <NavLink

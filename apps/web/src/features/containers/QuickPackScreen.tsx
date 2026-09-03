@@ -54,10 +54,6 @@ export const QuickPackScreen: React.FC = () => {
   const sourceWorkspace = workspacesList.find((w) => w.id.toLowerCase() === workspaceId?.toLowerCase()) || workspaceContext?.activeWorkspace;
   const sourceInventoryNamespaceId = sourceWorkspace?.inventoryNamespaceId;
 
-  const sameInventoryWorkspaces = workspacesList.filter(
-    (w) => w.inventoryNamespaceId === sourceInventoryNamespaceId
-  );
-
   const [selectedPackWorkspaceId, setSelectedPackWorkspaceId] = useState<string>(workspaceId || '');
 
   const effectivePackWorkspaceId = selectedPackWorkspaceId || workspaceId || (workspacesList.length > 0 ? workspacesList[0].id : '');
@@ -494,7 +490,7 @@ export const QuickPackScreen: React.FC = () => {
 
     try {
       setSaveState('UPLOADING_CAPTURE');
-      const captureId = await handleUploadCapture(createdContainer.id);
+      const captureId = await handleUploadCapture(createdContainer.workspaceId, createdContainer.id);
       setSaveState('COMPLETE');
       navigate(`/workspaces/${workspaceId}/captures/${captureId}/review`);
     } catch (err: any) {
@@ -1887,26 +1883,6 @@ export const QuickPackScreen: React.FC = () => {
       </div>
     );
   }
-
-  // ----------------------------------------------------
-  // MOVE EXISTING BOXES RENDER
-  // ----------------------------------------------------
-  const workspaceContainers = containers.filter((c) => !c.isArchived);
-
-  // Client-side search filters Box ID, Name, Location Name
-  const filteredSearchContainers = workspaceContainers.filter((c) => {
-    const boxNumText = `BOX ${String(c.boxNumber).padStart(3, '0')}`;
-    const query = searchQuery.toLowerCase().trim();
-    if (!query) return true;
-
-    const locName = locations.find((l) => l.id === c.storageNodeId)?.name || '';
-    return (
-      (c.name || '').toLowerCase().includes(query) ||
-      boxNumText.toLowerCase().includes(query) ||
-      (c.boxId || '').toLowerCase().includes(query) ||
-      locName.toLowerCase().includes(query)
-    );
-  });
 
   const getMoveCTA = () => {
     if (isMovingBoxes) return 'Moving boxes...';
