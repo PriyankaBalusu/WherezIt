@@ -67,6 +67,8 @@ public class VertexAiGeminiVisionProvider : IInventoryVisionProvider
             throw new ArgumentException("Image stream cannot be null or empty.");
         }
 
+        string mimeType = contentType.Equals("image/jpg", StringComparison.OrdinalIgnoreCase) ? "image/jpeg" : contentType.ToLowerInvariant();
+
         if (imageStream.CanSeek)
         {
             imageStream.Position = 0;
@@ -75,7 +77,7 @@ public class VertexAiGeminiVisionProvider : IInventoryVisionProvider
         using var ms = new MemoryStream();
         await imageStream.CopyToAsync(ms, cancellationToken);
         var imageBytes = ms.ToArray();
-        _logger.LogInformation("Image stream copied for analysis. MIME: {MimeType}, Bytes: {ByteCount}, CanSeek: {CanSeek}", contentType, imageBytes.Length, imageStream.CanSeek);
+        _logger.LogInformation("Image stream copied for analysis. MIME: {MimeType}, Bytes: {ByteCount}, CanSeek: {CanSeek}", mimeType, imageBytes.Length, imageStream.CanSeek);
         var base64Image = Convert.ToBase64String(imageBytes);
 
         GoogleCredential credential;
