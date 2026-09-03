@@ -69,12 +69,16 @@ builder.Services.AddRateLimiter(options =>
 });
 
 // CORS Configuration
+var defaultAllowedOrigins = builder.Environment.IsDevelopment()
+    ? new[] { "http://localhost:5173", "http://127.0.0.1:5173" }
+    : new[] { "https://wherezit-505615.web.app", "https://wherezit-505615.firebaseapp.com" };
+
 var allowedOrigins = builder.Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>()
-    ?? new[] { "http://localhost:5173", "http://127.0.0.1:5173" };
+    ?? defaultAllowedOrigins;
 
 builder.Services.AddCors(options =>
 {
-    options.AddPolicy("DevelopmentCors", policy =>
+    options.AddPolicy("WherezItCorsPolicy", policy =>
     {
         policy.WithOrigins(allowedOrigins)
               .AllowAnyHeader()
@@ -94,9 +98,10 @@ using (var scope = app.Services.CreateScope())
 var useMockVision = builder.Configuration.GetValue<bool>("Gemini:UseMockVision", false) || builder.Configuration.GetValue<bool>("AI:UseMockVision", false);
 app.Logger.LogInformation("IInventoryVisionProvider registered as: {Provider}", useMockVision ? "MockInventoryVisionProvider" : "VertexAiGeminiVisionProvider");
 
+app.UseCors("WherezItCorsPolicy");
+
 if (app.Environment.IsDevelopment())
 {
-    app.UseCors("DevelopmentCors");
     app.UseHttpsRedirection();
 }
 
