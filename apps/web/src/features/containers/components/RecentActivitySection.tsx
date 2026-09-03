@@ -75,10 +75,10 @@ export const RecentActivitySection: React.FC<RecentActivitySectionProps> = ({
   if (isLoading) {
     return (
       <div className="card" style={{ padding: '1.25rem' }}>
-        <h3 style={{ margin: '0 0 0.5rem 0', fontSize: '1.1rem', color: '#0f172a', fontWeight: 700 }}>
+        <h3 style={{ margin: '0 0 0.5rem 0', fontSize: '1.1rem', color: 'var(--color-text)', fontWeight: 700 }}>
           {title}
         </h3>
-        <p style={{ color: '#64748b', fontSize: '0.875rem', margin: 0 }}>Loading activity history...</p>
+        <p style={{ color: 'var(--color-text-muted)', fontSize: '0.875rem', margin: 0 }}>Loading activity history...</p>
       </div>
     );
   }
@@ -86,10 +86,10 @@ export const RecentActivitySection: React.FC<RecentActivitySectionProps> = ({
   if (isError) {
     return (
       <div className="card" style={{ padding: '1.25rem' }}>
-        <h3 style={{ margin: '0 0 0.5rem 0', fontSize: '1.1rem', color: '#0f172a', fontWeight: 700 }}>
+        <h3 style={{ margin: '0 0 0.5rem 0', fontSize: '1.1rem', color: 'var(--color-text)', fontWeight: 700 }}>
           {title}
         </h3>
-        <p style={{ color: '#dc2626', fontSize: '0.875rem', margin: 0 }}>Failed to load history.</p>
+        <p style={{ color: 'var(--color-danger, #dc2626)', fontSize: '0.875rem', margin: 0 }}>Failed to load history.</p>
       </div>
     );
   }
@@ -100,25 +100,25 @@ export const RecentActivitySection: React.FC<RecentActivitySectionProps> = ({
     <div className="card box-history-card" style={{ padding: '1.25rem' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
         <div>
-          <h3 style={{ margin: 0, fontSize: '1.1rem', color: '#0f172a', fontWeight: 700 }}>
+          <h3 style={{ margin: 0, fontSize: '1.1rem', color: 'var(--color-text)', fontWeight: 700 }}>
             {title}
           </h3>
           {subtitle && (
-            <p style={{ margin: '0.125rem 0 0 0', fontSize: '0.8rem', color: '#64748b' }}>
+            <p style={{ margin: '0.125rem 0 0 0', fontSize: '0.8rem', color: 'var(--color-text-muted)' }}>
               {subtitle}
             </p>
           )}
         </div>
         {items.length > 0 && (
-          <span style={{ fontSize: '0.75rem', padding: '0.15rem 0.5rem', backgroundColor: '#f1f5f9', color: '#475569', borderRadius: '0.25rem', fontWeight: 600 }}>
+          <span style={{ fontSize: '0.75rem', padding: '0.15rem 0.5rem', backgroundColor: 'var(--color-bg-subtle)', color: 'var(--color-text-muted)', border: '1px solid var(--color-border)', borderRadius: '0.25rem', fontWeight: 600 }}>
             {items.length} {items.length === 1 ? 'event' : 'events'}
           </span>
         )}
       </div>
 
       {items.length === 0 ? (
-        <div style={{ textAlign: 'center', padding: '2rem 1rem', color: '#64748b', backgroundColor: '#f8fafc', borderRadius: '0.375rem', border: '1px dashed #cbd5e1' }}>
-          <h4 style={{ margin: '0 0 0.375rem 0', color: '#0f172a', fontSize: '0.95rem' }}>{emptyText}</h4>
+        <div style={{ textAlign: 'center', padding: '2rem 1rem', color: 'var(--color-text-muted)', backgroundColor: 'var(--color-bg-subtle)', borderRadius: '0.375rem', border: '1px dashed var(--color-border-strong)' }}>
+          <h4 style={{ margin: '0 0 0.375rem 0', color: 'var(--color-text)', fontSize: '0.95rem' }}>{emptyText}</h4>
         </div>
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', position: 'relative' }}>
@@ -144,7 +144,7 @@ export const RecentActivitySection: React.FC<RecentActivitySectionProps> = ({
                       top: '30px',
                       bottom: '0',
                       width: '2px',
-                      backgroundColor: '#e2e8f0',
+                      backgroundColor: 'var(--color-border)',
                       zIndex: 1,
                     }}
                   />
@@ -155,8 +155,8 @@ export const RecentActivitySection: React.FC<RecentActivitySectionProps> = ({
                     width: '32px',
                     height: '32px',
                     borderRadius: '50%',
-                    backgroundColor: '#f1f5f9',
-                    border: '1px solid #cbd5e1',
+                    backgroundColor: 'var(--color-bg-subtle)',
+                    border: '1px solid var(--color-border-strong)',
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
@@ -170,16 +170,16 @@ export const RecentActivitySection: React.FC<RecentActivitySectionProps> = ({
 
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: '0.5rem', flexWrap: 'wrap' }}>
-                    <span style={{ fontSize: '0.9rem', fontWeight: 700, color: '#0f172a' }}>
+                    <span style={{ fontSize: '0.9rem', fontWeight: 700, color: 'var(--color-text)' }}>
                       {item.title}
                     </span>
-                    <span style={{ fontSize: '0.75rem', color: '#94a3b8', whiteSpace: 'nowrap' }}>
+                    <span style={{ fontSize: '0.75rem', color: 'var(--color-text-muted)', whiteSpace: 'nowrap' }}>
                       {formatDate(item.occurredAt)}
                     </span>
                   </div>
 
                   {item.description && (
-                    <p style={{ margin: '0.2rem 0 0 0', fontSize: '0.825rem', color: '#475569', wordBreak: 'break-word', lineHeight: 1.4 }}>
+                    <p style={{ margin: '0.2rem 0 0 0', fontSize: '0.825rem', color: 'var(--color-text-muted)', wordBreak: 'break-word', lineHeight: 1.4 }}>
                       {item.description}
                     </p>
                   )}
@@ -189,7 +189,7 @@ export const RecentActivitySection: React.FC<RecentActivitySectionProps> = ({
           })}
 
           {(hasMore || items.length >= 10) && onViewAll && (
-            <div style={{ textAlign: 'center', marginTop: '1rem', paddingTop: '0.75rem', borderTop: '1px solid #f1f5f9' }}>
+            <div style={{ textAlign: 'center', marginTop: '1rem', paddingTop: '0.75rem', borderTop: '1px solid var(--color-border)' }}>
               <button
                 type="button"
                 className="btn btn-secondary btn--sm"

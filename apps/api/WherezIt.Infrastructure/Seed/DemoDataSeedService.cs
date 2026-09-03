@@ -138,18 +138,78 @@ public class DemoDataSeedService : IDemoDataSeedService
         // Definition of 4 Demo Storage Spaces
         var demoSpaceDefs = new[]
         {
-            new DemoSpaceConfig("Demo Home " + SEED_MARKER, 50, 300, isMovingSpace: false),
-            new DemoSpaceConfig("Demo Storage Unit " + SEED_MARKER, 35, 200, isMovingSpace: false),
-            new DemoSpaceConfig("Demo Family House " + SEED_MARKER, 25, 135, isMovingSpace: false),
-            new DemoSpaceConfig("Demo Moving " + SEED_MARKER, 25, 120, isMovingSpace: true)
+            new DemoSpaceConfig("Demo Home " + SEED_MARKER, 50, 300, IsMovingSpace: false),
+            new DemoSpaceConfig("Demo Storage Unit " + SEED_MARKER, 35, 200, IsMovingSpace: false),
+            new DemoSpaceConfig("Demo Family House " + SEED_MARKER, 25, 135, IsMovingSpace: false),
+            new DemoSpaceConfig("Demo Moving " + SEED_MARKER, 25, 120, IsMovingSpace: true)
         };
 
         foreach (var spaceConfig in demoSpaceDefs)
         {
+            Guid workspaceId;
+            List<StorageLocationResponseDto> locationList;
+            List<ContainerResponseDto> boxes;
+
             var existingWs = existingDemoWorkspaces.FirstOrDefault(w => string.Equals(w.Name, spaceConfig.Name, StringComparison.OrdinalIgnoreCase));
             if (existingWs != null)
             {
-                workspacesSkipped++;
+                var existingItemCount = await _dbContext.Items.CountAsync(i => i.WorkspaceId == existingWs.Id, cancellationToken);
+                if (existingItemCount >= spaceConfig.TargetItemCount - 10)
+                {
+                    workspacesSkipped++;
+                    continue;
+                }
+
+                // Partial run recovery: reuse existing workspace, locations, and boxes
+                workspaceId = existingWs.Id;
+                var existingLocs = await _locationService.GetLocationsAsync(identity, workspaceId, cancellationToken);
+                var existingBoxes = await _containerService.GetContainersAsync(identity, workspaceId, cancellationToken: cancellationToken);
+
+                if (!existingLocs.Any())
+                {
+                    var locationMap = await BuildLocationHierarchyAsync(identity, workspaceId, spaceConfig.Name, cancellationToken);
+                    locationList = locationMap.Values.ToList();
+                    totalLocationsCreated += locationList.Count;
+                }
+                else
+                {
+                    locationList = existingLocs.ToList();
+                }
+
+                if (!existingBoxes.Any())
+                {
+                    var (createdBoxes, packed, openFirst, tempLoc) = await SeedBoxesForWorkspaceAsync(
+                        identity,
+                        workspaceId,
+                        spaceConfig,
+                        locationList,
+                        rand,
+                        cancellationToken);
+
+                    boxes = createdBoxes;
+                    totalBoxesCreated += boxes.Count;
+                    totalPacked += packed;
+                    totalOpenFirst += openFirst;
+                    totalTempLocation += tempLoc;
+                }
+                else
+                {
+                    boxes = existingBoxes.ToList();
+                }
+
+                int remainingItemsToSeed = Math.Max(0, spaceConfig.TargetItemCount - existingItemCount);
+                if (remainingItemsToSeed > 0)
+                {
+                    int bulkItemCount = await BulkSeedItemsForBoxesAsync(
+                        workspaceId,
+                        boxes,
+                        remainingItemsToSeed,
+                        rand,
+                        cancellationToken);
+                    totalItemsCreated += bulkItemCount;
+                }
+
+                workspacesCreated++;
                 continue;
             }
 
@@ -159,45 +219,46 @@ public class DemoDataSeedService : IDemoDataSeedService
                 new CreateWorkspaceRequestDto(spaceConfig.Name),
                 cancellationToken);
             workspacesCreated++;
+            workspaceId = ws.Id;
 
             // 2. Create Location Hierarchy
-            var locationMap = await BuildLocationHierarchyAsync(identity, ws.Id, spaceConfig.Name, cancellationToken);
-            totalLocationsCreated += locationMap.Count;
-
-            var locationList = locationMap.Values.ToList();
+            var newLocationMap = await BuildLocationHierarchyAsync(identity, workspaceId, spaceConfig.Name, cancellationToken);
+            totalLocationsCreated += newLocationMap.Count;
+            locationList = newLocationMap.Values.ToList();
 
             // 3. Create Boxes using Application Service (allocates box numbers via active InventoryNamespace)
-            var (boxes, packed, openFirst, tempLoc) = await SeedBoxesForWorkspaceAsync(
+            var (newBoxes, newPacked, newOpenFirst, newTempLoc) = await SeedBoxesForWorkspaceAsync(
                 identity,
-                ws.Id,
+                workspaceId,
                 spaceConfig,
                 locationList,
                 rand,
                 cancellationToken);
 
+            boxes = newBoxes;
             totalBoxesCreated += boxes.Count;
-            totalPacked += packed;
-            totalOpenFirst += openFirst;
-            totalTempLocation += tempLoc;
+            totalPacked += newPacked;
+            totalOpenFirst += newOpenFirst;
+            totalTempLocation += newTempLoc;
 
             // 4. Seed Representative Items through ItemService (naturally generates ITEM_ADDED ActivityHistory)
-            int representativeItemCount = await SeedRepresentativeItemsAsync(identity, ws.Id, boxes, cancellationToken);
+            int representativeItemCount = await SeedRepresentativeItemsAsync(identity, workspaceId, boxes, cancellationToken);
             totalItemsCreated += representativeItemCount;
             totalActivityEvents += representativeItemCount;
 
             // 5. Bulk Create Remaining Items using Direct EF Core for performance
-            int bulkItemCount = await BulkSeedItemsForBoxesAsync(
-                ws.Id,
+            int createdBulkItemCount = await BulkSeedItemsForBoxesAsync(
+                workspaceId,
                 boxes,
                 spaceConfig.TargetItemCount - representativeItemCount,
                 rand,
                 cancellationToken);
-            totalItemsCreated += bulkItemCount;
+            totalItemsCreated += createdBulkItemCount;
 
             // 6. Seed Box Reference & Item Photos ONLY if source image binaries exist on disk
             var imageResult = await SeedVerifiedImagesAsync(
                 identity,
-                ws.Id,
+                workspaceId,
                 boxes,
                 cancellationToken);
 
@@ -229,13 +290,13 @@ public class DemoDataSeedService : IDemoDataSeedService
         );
     }
 
-    private async Task<Dictionary<string, StorageLocationDto>> BuildLocationHierarchyAsync(
+    private async Task<Dictionary<string, StorageLocationResponseDto>> BuildLocationHierarchyAsync(
         AuthenticatedIdentity identity,
         Guid workspaceId,
         string workspaceName,
         CancellationToken cancellationToken)
     {
-        var result = new Dictionary<string, StorageLocationDto>();
+        var result = new Dictionary<string, StorageLocationResponseDto>();
 
         if (workspaceName.Contains("Demo Home"))
         {
@@ -311,11 +372,11 @@ public class DemoDataSeedService : IDemoDataSeedService
         return result;
     }
 
-    private async Task<(List<ContainerDto> Boxes, int Packed, int OpenFirst, int TempLocation)> SeedBoxesForWorkspaceAsync(
+    private async Task<(List<ContainerResponseDto> Boxes, int Packed, int OpenFirst, int TempLocation)> SeedBoxesForWorkspaceAsync(
         AuthenticatedIdentity identity,
         Guid workspaceId,
         DemoSpaceConfig config,
-        List<StorageLocationDto> locations,
+        List<StorageLocationResponseDto> locations,
         Random rand,
         CancellationToken cancellationToken)
     {
@@ -327,7 +388,7 @@ public class DemoDataSeedService : IDemoDataSeedService
             "Keepsakes & Photos", "Craft Supplies", "Pots & Pans", "Board Games"
         };
 
-        var boxes = new List<ContainerDto>();
+        var boxes = new List<ContainerResponseDto>();
         int packedCount = 0;
         int openFirstCount = 0;
         int tempLocCount = 0;
@@ -355,7 +416,6 @@ public class DemoDataSeedService : IDemoDataSeedService
                 var updateReq = new UpdateContainerRequestDto(
                     Name: box.Name,
                     Description: box.Description,
-                    StorageNodeId: box.StorageNodeId,
                     DestinationStorageNodeId: isPacked ? locations[(i + 1) % locations.Count].Id : null,
                     IsPacked: isPacked,
                     MovingPriority: priority
@@ -374,7 +434,7 @@ public class DemoDataSeedService : IDemoDataSeedService
     private async Task<int> SeedRepresentativeItemsAsync(
         AuthenticatedIdentity identity,
         Guid workspaceId,
-        List<ContainerDto> boxes,
+        List<ContainerResponseDto> boxes,
         CancellationToken cancellationToken)
     {
         if (boxes.Count == 0) return 0;
@@ -399,7 +459,7 @@ public class DemoDataSeedService : IDemoDataSeedService
 
     private async Task<int> BulkSeedItemsForBoxesAsync(
         Guid workspaceId,
-        List<ContainerDto> boxes,
+        List<ContainerResponseDto> boxes,
         int targetTotalItems,
         Random rand,
         CancellationToken cancellationToken)
@@ -435,7 +495,7 @@ public class DemoDataSeedService : IDemoDataSeedService
                     Name = itemName,
                     Quantity = rand.Next(1, 4),
                     Category = category,
-                    Source = "DEMO-SEEDER",
+                    Source = "MANUAL",
                     IsVerified = true,
                     IsArchived = false,
                     CreatedAt = DateTimeOffset.UtcNow,
@@ -457,8 +517,8 @@ public class DemoDataSeedService : IDemoDataSeedService
 
     private string ResolveSeedImagesDirectory()
     {
-        // 1. Try repository root relative to API ContentRootPath (apps/api/WherezIt.Api -> ../..)
-        var repoRootCandidate = Path.GetFullPath(Path.Combine(_environment.ContentRootPath, "..", "..", "seed-assets", "demo-images"));
+        // 1. Try repository root relative to API ContentRootPath (apps/api/WherezIt.Api -> ../../..)
+        var repoRootCandidate = Path.GetFullPath(Path.Combine(_environment.ContentRootPath, "..", "..", "..", "seed-assets", "demo-images"));
         if (Directory.Exists(repoRootCandidate))
         {
             return repoRootCandidate;
@@ -478,7 +538,7 @@ public class DemoDataSeedService : IDemoDataSeedService
     private async Task<(int RefCreated, int RefSkipped, int ItemPhotosCreated, int ItemPhotosSkipped)> SeedVerifiedImagesAsync(
         AuthenticatedIdentity identity,
         Guid workspaceId,
-        List<ContainerDto> boxes,
+        List<ContainerResponseDto> boxes,
         CancellationToken cancellationToken)
     {
         int refCreated = 0;
@@ -526,9 +586,8 @@ public class DemoDataSeedService : IDemoDataSeedService
                         ActivityType = "PHOTO_ADDED",
                         ContainerId = box.Id,
                         PreviousLocationDisplay = string.Empty,
-                        NewLocationDisplay = string.Empty,
-                        MetadataJson = $"{{\"imageAssetId\":\"{asset.Id}\",\"purpose\":\"REFERENCE\"}}",
-                        Timestamp = DateTimeOffset.UtcNow
+                        DestinationLocationDisplay = string.Empty,
+                        OccurredAt = DateTimeOffset.UtcNow
                     });
 
                     refCreated++;
@@ -540,7 +599,65 @@ public class DemoDataSeedService : IDemoDataSeedService
             }
         }
 
-        if (refCreated > 0)
+        // Seed Item Photos for candidate items in workspace
+        var workspaceItems = await _dbContext.Items
+            .Where(i => i.WorkspaceId == workspaceId)
+            .OrderBy(i => i.CreatedAt)
+            .Take(50)
+            .ToListAsync(cancellationToken);
+
+        for (int j = 0; j < workspaceItems.Count; j++)
+        {
+            if (j % 5 == 0) // Attempt item photo on 1 in 5 items
+            {
+                var item = workspaceItems[j];
+                string itemFileName = $"item-photo-{(itemPhotosCreated % 10) + 1}.jpg";
+                string itemFilePath = Path.Combine(baseSeedDir, itemFileName);
+
+                if (File.Exists(itemFilePath))
+                {
+                    using var stream = File.OpenRead(itemFilePath);
+                    var objectPath = _storage.CreateObjectPath(workspaceId, "jpg");
+                    await _storage.UploadObjectAsync(objectPath, stream, "image/jpeg", cancellationToken);
+
+                    var asset = new ImageAsset
+                    {
+                        Id = Guid.NewGuid(),
+                        WorkspaceId = workspaceId,
+                        ContainerId = item.ContainerId,
+                        ItemId = item.Id,
+                        ObjectPath = objectPath,
+                        ContentType = "image/jpeg",
+                        SizeBytes = new FileInfo(itemFilePath).Length,
+                        Status = "READY",
+                        ImagePurpose = "ITEM",
+                        CreatedAt = DateTimeOffset.UtcNow,
+                        UpdatedAt = DateTimeOffset.UtcNow
+                    };
+
+                    _dbContext.ImageAssets.Add(asset);
+                    _dbContext.ActivityHistories.Add(new ActivityHistory
+                    {
+                        Id = Guid.NewGuid(),
+                        WorkspaceId = workspaceId,
+                        ActorUserId = identity.FirebaseUid,
+                        ActivityType = "PHOTO_ADDED",
+                        ContainerId = item.ContainerId,
+                        PreviousLocationDisplay = string.Empty,
+                        DestinationLocationDisplay = string.Empty,
+                        OccurredAt = DateTimeOffset.UtcNow
+                    });
+
+                    itemPhotosCreated++;
+                }
+                else
+                {
+                    itemPhotosSkipped++;
+                }
+            }
+        }
+
+        if (refCreated > 0 || itemPhotosCreated > 0)
         {
             await _dbContext.SaveChangesAsync(cancellationToken);
         }
@@ -562,10 +679,24 @@ public class DemoDataSeedService : IDemoDataSeedService
             throw new ArgumentException("Firebase UID is required for demo data cleanup.", nameof(firebaseUid));
         }
 
+        var user = await _dbContext.Users.FirstOrDefaultAsync(u => u.FirebaseUid == firebaseUid, cancellationToken);
+        if (user == null)
+        {
+            return new DemoCleanupResult(
+                Success: true,
+                WorkspacesRemoved: 0,
+                LocationsRemoved: 0,
+                BoxesRemoved: 0,
+                ItemsRemoved: 0,
+                ImageAssetsRemoved: 0,
+                Message: "User not found for demo cleanup."
+            );
+        }
+
         // Find demo workspaces matching SEED_MARKER for user
         var demoWorkspaces = await _dbContext.Workspaces
             .Include(w => w.Members)
-            .Where(w => w.Name.Contains(SEED_MARKER) && w.Members.Any(m => m.FirebaseUid == firebaseUid))
+            .Where(w => w.Name.Contains(SEED_MARKER) && w.Members.Any(m => m.UserId == user.Id))
             .ToListAsync(cancellationToken);
 
         if (demoWorkspaces.Count == 0)

@@ -9,6 +9,7 @@ public class WherezItDbContextFactory : IDesignTimeDbContextFactory<WherezItDbCo
     {
         var optionsBuilder = new DbContextOptionsBuilder<WherezItDbContext>();
         var connectionString = Environment.GetEnvironmentVariable("ConnectionStrings__PostgreSQL")
+            ?? Environment.GetEnvironmentVariable("ConnectionStrings:PostgreSQL")
             ?? "Host=localhost;Port=5432;Database=wherezit_dev;Username=wherezit;Password=wherezit_dev_password";
 
         optionsBuilder.UseNpgsql(connectionString);

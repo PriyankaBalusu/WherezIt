@@ -360,10 +360,10 @@ export const WorkspaceManageMenu: React.FC<WorkspaceManageMenuProps> = ({
                 </div>
               </div>
               <div className="modal-footer">
-                <button type="button" className="btn-secondary" onClick={() => setIsRenameModalOpen(false)}>
+                <button type="button" className="btn btn-secondary btn--md" onClick={() => setIsRenameModalOpen(false)}>
                   Cancel
                 </button>
-                <button type="submit" className="btn-primary" disabled={renameMutation.isPending}>
+                <button type="submit" className="btn btn-primary btn--md" disabled={renameMutation.isPending}>
                   {renameMutation.isPending ? 'Saving...' : 'Save Name'}
                 </button>
               </div>
@@ -396,12 +396,12 @@ export const WorkspaceManageMenu: React.FC<WorkspaceManageMenuProps> = ({
               </p>
             </div>
             <div className="modal-footer">
-              <button type="button" className="btn-secondary" onClick={() => setIsLeaveModalOpen(false)}>
+              <button type="button" className="btn btn-secondary btn--md" onClick={() => setIsLeaveModalOpen(false)}>
                 Cancel
               </button>
               <button
                 type="button"
-                className="btn-primary"
+                className="btn btn-primary btn--md"
                 onClick={handleLeaveConfirm}
                 disabled={leaveMutation.isPending}
               >
@@ -471,7 +471,7 @@ export const WorkspaceManageMenu: React.FC<WorkspaceManageMenuProps> = ({
                 </div>
               </div>
               <div className="modal-footer">
-                <button type="button" className="btn-secondary" onClick={() => setIsDeleteModalOpen(false)}>
+                <button type="button" className="btn btn-secondary btn--md" onClick={() => setIsDeleteModalOpen(false)}>
                   Cancel
                 </button>
                 <button

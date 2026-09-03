@@ -80,7 +80,7 @@ export const ActivityHistoryModal: React.FC<ActivityHistoryModalProps> = ({
         left: 0,
         right: 0,
         bottom: 0,
-        backgroundColor: 'rgba(15, 23, 42, 0.5)',
+        backgroundColor: 'var(--color-modal-overlay)',
         zIndex: 1200,
         display: 'flex',
         alignItems: 'center',
@@ -91,15 +91,15 @@ export const ActivityHistoryModal: React.FC<ActivityHistoryModalProps> = ({
     >
       <div
         style={{
-          backgroundColor: '#ffffff',
-          border: '1px solid #cbd5e1',
+          backgroundColor: 'var(--color-modal-bg)',
+          border: '1px solid var(--color-border-strong)',
           borderRadius: '0.75rem',
           width: '100%',
           maxWidth: '550px',
           maxHeight: '85vh',
           display: 'flex',
           flexDirection: 'column',
-          boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1)',
+          boxShadow: 'var(--shadow-xl, 0 20px 25px -5px rgba(0, 0, 0, 0.1))',
           overflow: 'hidden',
         }}
         onClick={(e) => e.stopPropagation()}
@@ -111,15 +111,15 @@ export const ActivityHistoryModal: React.FC<ActivityHistoryModalProps> = ({
             alignItems: 'center',
             justifyContent: 'space-between',
             padding: '1rem 1.25rem',
-            borderBottom: '1px solid #e2e8f0',
+            borderBottom: '1px solid var(--color-border)',
           }}
         >
-          <h3 style={{ margin: 0, fontSize: '1.1rem', fontWeight: 700, color: '#0f172a' }}>
+          <h3 style={{ margin: 0, fontSize: '1.1rem', fontWeight: 700, color: 'var(--color-text)' }}>
             {title}
           </h3>
           <button
             type="button"
-            style={{ background: 'none', border: 'none', fontSize: '1.1rem', color: '#64748b', cursor: 'pointer' }}
+            style={{ background: 'none', border: 'none', fontSize: '1.1rem', color: 'var(--color-text-muted)', cursor: 'pointer' }}
             onClick={onClose}
           >
             ✕
@@ -129,7 +129,7 @@ export const ActivityHistoryModal: React.FC<ActivityHistoryModalProps> = ({
         {/* Content List */}
         <div style={{ flex: 1, overflowY: 'auto', padding: '1.25rem' }}>
           {items.length === 0 ? (
-            <div style={{ textAlign: 'center', padding: '2rem 1rem', color: '#64748b' }}>
+            <div style={{ textAlign: 'center', padding: '2rem 1rem', color: 'var(--color-text-muted)' }}>
               No activity recorded yet.
             </div>
           ) : (
@@ -156,7 +156,7 @@ export const ActivityHistoryModal: React.FC<ActivityHistoryModalProps> = ({
                           top: '30px',
                           bottom: '0',
                           width: '2px',
-                          backgroundColor: '#e2e8f0',
+                          backgroundColor: 'var(--color-border)',
                           zIndex: 1,
                         }}
                       />
@@ -167,8 +167,8 @@ export const ActivityHistoryModal: React.FC<ActivityHistoryModalProps> = ({
                         width: '32px',
                         height: '32px',
                         borderRadius: '50%',
-                        backgroundColor: '#f1f5f9',
-                        border: '1px solid #cbd5e1',
+                        backgroundColor: 'var(--color-bg-subtle)',
+                        border: '1px solid var(--color-border-strong)',
                         display: 'flex',
                         alignItems: 'center',
                         justifyContent: 'center',
@@ -182,16 +182,16 @@ export const ActivityHistoryModal: React.FC<ActivityHistoryModalProps> = ({
 
                     <div style={{ flex: 1, minWidth: 0 }}>
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: '0.5rem', flexWrap: 'wrap' }}>
-                        <span style={{ fontSize: '0.9rem', fontWeight: 700, color: '#0f172a' }}>
+                        <span style={{ fontSize: '0.9rem', fontWeight: 700, color: 'var(--color-text)' }}>
                           {item.title}
                         </span>
-                        <span style={{ fontSize: '0.75rem', color: '#94a3b8', whiteSpace: 'nowrap' }}>
+                        <span style={{ fontSize: '0.75rem', color: 'var(--color-text-muted)', whiteSpace: 'nowrap' }}>
                           {formatDate(item.occurredAt)}
                         </span>
                       </div>
 
                       {item.description && (
-                        <p style={{ margin: '0.2rem 0 0 0', fontSize: '0.825rem', color: '#475569', wordBreak: 'break-word', lineHeight: 1.4 }}>
+                        <p style={{ margin: '0.2rem 0 0 0', fontSize: '0.825rem', color: 'var(--color-text-muted)', wordBreak: 'break-word', lineHeight: 1.4 }}>
                           {item.description}
                         </p>
                       )}
@@ -201,7 +201,7 @@ export const ActivityHistoryModal: React.FC<ActivityHistoryModalProps> = ({
               })}
 
               {hasMore && onLoadMore && (
-                <div style={{ textAlign: 'center', marginTop: '1rem', paddingTop: '0.75rem', borderTop: '1px solid #f1f5f9' }}>
+                <div style={{ textAlign: 'center', marginTop: '1rem', paddingTop: '0.75rem', borderTop: '1px solid var(--color-border)' }}>
                   <button
                     type="button"
                     className="btn btn-secondary btn--sm"

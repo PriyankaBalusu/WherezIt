@@ -46,7 +46,7 @@ public class DemoSeedService : IDemoSeedService
         _logger = logger;
     }
 
-    public async Task<DemoSeedResult> SeedDemoDataAsync(string firebaseUid, string userEmail, CancellationToken cancellationToken = default)
+    public async Task<LegacyDemoSeedResult> SeedDemoDataAsync(string firebaseUid, string userEmail, CancellationToken cancellationToken = default)
     {
         if (_environment.IsProduction())
         {
@@ -68,7 +68,7 @@ public class DemoSeedService : IDemoSeedService
         if (existingDemoWs != null)
         {
             _logger.LogInformation("Demo workspace already exists for user {Uid}. Skipping creation.", firebaseUid);
-            return new DemoSeedResult(true, existingDemoWs.Id.ToString(), existingDemoWs.Name, 0, 0, 0, "Demo workspace already exists. No duplicates created.");
+            return new LegacyDemoSeedResult(true, existingDemoWs.Id.ToString(), existingDemoWs.Name, 0, 0, 0, "Demo workspace already exists. No duplicates created.");
         }
 
         // 1. Create Workspace
@@ -108,6 +108,6 @@ public class DemoSeedService : IDemoSeedService
         await _itemService.CreateItemAsync(identity, ws.Id, box2.Id, new CreateItemRequestDto("Lantern", 2, "Camping"), cancellationToken);
 
         _logger.LogInformation("Demo seed complete for workspace {WorkspaceId}.", ws.Id);
-        return new DemoSeedResult(true, ws.Id.ToString(), ws.Name, 4, 2, 5, "Demo seed completed successfully.");
+        return new LegacyDemoSeedResult(true, ws.Id.ToString(), ws.Name, 4, 2, 5, "Demo seed completed successfully.");
     }
 }

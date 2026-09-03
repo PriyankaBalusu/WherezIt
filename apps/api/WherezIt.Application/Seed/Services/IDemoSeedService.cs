@@ -4,7 +4,7 @@ using WherezIt.Application.Workspaces.Dtos;
 
 namespace WherezIt.Application.Seed.Services;
 
-public record DemoSeedResult(
+public record LegacyDemoSeedResult(
     bool Success,
     string WorkspaceId,
     string WorkspaceName,
@@ -16,5 +16,5 @@ public record DemoSeedResult(
 
 public interface IDemoSeedService
 {
-    Task<DemoSeedResult> SeedDemoDataAsync(string firebaseUid, string userEmail, CancellationToken cancellationToken = default);
+    Task<LegacyDemoSeedResult> SeedDemoDataAsync(string firebaseUid, string userEmail, CancellationToken cancellationToken = default);
 }

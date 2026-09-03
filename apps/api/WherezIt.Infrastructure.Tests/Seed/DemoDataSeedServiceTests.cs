@@ -65,15 +65,17 @@ public class DemoDataSeedServiceTests
         envMock.Setup(e => e.EnvironmentName).Returns("Development");
 
         var userUid = "test-user-123";
+        var user = new User { Id = Guid.NewGuid(), FirebaseUid = userUid, Email = "test@example.com" };
+        dbContext.Users.Add(user);
 
         var normalWs = new Workspace { Id = Guid.NewGuid(), Name = "My Real Home" };
         var demoWs = new Workspace { Id = Guid.NewGuid(), Name = "Demo Home [DEMO-SEED]" };
 
         dbContext.Workspaces.AddRange(normalWs, demoWs);
-        dbContext.WorkspaceMembers.Add(new WorkspaceMember { WorkspaceId = normalWs.Id, FirebaseUid = userUid, Role = "OWNER" });
-        dbContext.WorkspaceMembers.Add(new WorkspaceMember { WorkspaceId = demoWs.Id, FirebaseUid = userUid, Role = "OWNER" });
+        dbContext.WorkspaceMembers.Add(new WorkspaceMember { WorkspaceId = normalWs.Id, UserId = user.Id, Role = WherezIt.Domain.Enums.WorkspaceRole.OWNER });
+        dbContext.WorkspaceMembers.Add(new WorkspaceMember { WorkspaceId = demoWs.Id, UserId = user.Id, Role = WherezIt.Domain.Enums.WorkspaceRole.OWNER });
 
-        var demoItem = new Item { Id = Guid.NewGuid(), WorkspaceId = demoWs.Id, ContainerId = Guid.NewGuid(), Name = "Blender", Source = "DEMO-SEEDER" };
+        var demoItem = new Item { Id = Guid.NewGuid(), WorkspaceId = demoWs.Id, ContainerId = Guid.NewGuid(), Name = "Blender", Source = "MANUAL" };
         var realItem = new Item { Id = Guid.NewGuid(), WorkspaceId = normalWs.Id, ContainerId = Guid.NewGuid(), Name = "Family Heirloom", Source = "MANUAL" };
 
         var demoImageAsset = new ImageAsset
@@ -121,6 +123,7 @@ public class DemoDataSeedServiceTests
         Assert.Single(remainingWorkspaces);
         Assert.Equal("My Real Home", remainingWorkspaces[0].Name);
 
+        // Verify normal user item remains intact
         var remainingItems = await dbContext.Items.ToListAsync();
         Assert.Single(remainingItems);
         Assert.Equal("Family Heirloom", remainingItems[0].Name);
