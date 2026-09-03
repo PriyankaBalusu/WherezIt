@@ -1,12 +1,12 @@
-# Runtime base stage for Cloud Run (.NET 10)
-FROM mcr.microsoft.com/dotnet/aspnet:10.0 AS base
+# Runtime base stage for Cloud Run (.NET 8)
+FROM mcr.microsoft.com/dotnet/aspnet:8.0 AS base
 WORKDIR /app
 EXPOSE 8080
 ENV ASPNETCORE_HTTP_PORTS=8080
 ENV ASPNETCORE_ENVIRONMENT=Production
 
-# Build stage (.NET 10 SDK, root context required)
-FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build
+# Build stage (.NET 8 SDK, root context required)
+FROM mcr.microsoft.com/dotnet/sdk:8.0 AS build
 WORKDIR /src
 
 # Copy Central Package Management file for restore layer caching
