@@ -82,4 +82,21 @@ public class AiVisionProviderTests
             VertexAiGeminiVisionProvider.ParseAndValidateStructuredResponse(malformedJson);
         });
     }
+
+    [Fact]
+    public void BuildEndpointUrl_ConstructsCorrectRegionalVertexAiHostname()
+    {
+        var options = new GeminiOptions
+        {
+            Location = "us-central1",
+            ProjectId = "wherezit-505615",
+            ModelName = "gemini-2.0-flash-lite"
+        };
+
+        var url = VertexAiGeminiVisionProvider.BuildEndpointUrl(options);
+
+        Assert.Equal("https://us-central1-aiplatform.googleapis.com/v1/projects/wherezit-505615/locations/us-central1/publishers/google/models/gemini-2.0-flash-lite:generateContent", url);
+        Assert.DoesNotContain("rep.googleapis.com", url);
+        Assert.StartsWith("https://us-central1-aiplatform.googleapis.com/", url);
+    }
 }

@@ -39,6 +39,15 @@ public class VertexAiGeminiVisionProvider : IInventoryVisionProvider
         _logger = logger;
     }
 
+    public static string BuildEndpointUrl(GeminiOptions options)
+    {
+        if (options == null) throw new ArgumentNullException(nameof(options));
+        var location = string.IsNullOrWhiteSpace(options.Location) ? "us-central1" : options.Location;
+        var projectId = string.IsNullOrWhiteSpace(options.ProjectId) ? "wherezit-505615" : options.ProjectId;
+        var modelName = string.IsNullOrWhiteSpace(options.ModelName) ? "gemini-2.0-flash-lite" : options.ModelName;
+        return $"https://{location}-aiplatform.googleapis.com/v1/projects/{projectId}/locations/{location}/publishers/google/models/{modelName}:generateContent";
+    }
+
     public async Task<IReadOnlyList<RawDetectionSuggestionDto>> AnalyzeImageAsync(
         Stream imageStream,
         string contentType,
@@ -50,15 +59,13 @@ public class VertexAiGeminiVisionProvider : IInventoryVisionProvider
              !contentType.Equals("image/png", StringComparison.OrdinalIgnoreCase) &&
              !contentType.Equals("image/webp", StringComparison.OrdinalIgnoreCase)))
         {
-            throw new ArgumentException($"Unsupported image content-type: '{contentType}'.");
+            throw new ArgumentException("Unsupported content type for vision analysis. Only JPEG, PNG, and WebP are supported.");
         }
 
         if (imageStream == null || imageStream.Length == 0)
         {
-            throw new ArgumentException("Image stream must not be empty.");
+            throw new ArgumentException("Image stream cannot be null or empty.");
         }
-
-        string mimeType = contentType.Equals("image/jpg", StringComparison.OrdinalIgnoreCase) ? "image/jpeg" : contentType.ToLowerInvariant();
 
         if (imageStream.CanSeek)
         {
@@ -68,7 +75,7 @@ public class VertexAiGeminiVisionProvider : IInventoryVisionProvider
         using var ms = new MemoryStream();
         await imageStream.CopyToAsync(ms, cancellationToken);
         var imageBytes = ms.ToArray();
-        _logger.LogInformation("Image stream copied for analysis. MIME: {MimeType}, Bytes: {ByteCount}, CanSeek: {CanSeek}", mimeType, imageBytes.Length, imageStream.CanSeek);
+        _logger.LogInformation("Image stream copied for analysis. MIME: {MimeType}, Bytes: {ByteCount}, CanSeek: {CanSeek}", contentType, imageBytes.Length, imageStream.CanSeek);
         var base64Image = Convert.ToBase64String(imageBytes);
 
         GoogleCredential credential;
@@ -88,7 +95,7 @@ public class VertexAiGeminiVisionProvider : IInventoryVisionProvider
 
         var accessToken = await credential.UnderlyingCredential.GetAccessTokenForRequestAsync(cancellationToken: cancellationToken);
 
-        var endpointUrl = $"https://aiplatform.{_options.Location}.rep.googleapis.com/v1/projects/{_options.ProjectId}/locations/{_options.Location}/publishers/google/models/{_options.ModelName}:generateContent";
+        var endpointUrl = BuildEndpointUrl(_options);
 
         var promptText = @"You are analyzing a photo of household/storage contents for a personal storage inventory application.
 
@@ -326,7 +333,7 @@ Rules:
         }
 
         var accessToken = await credential.UnderlyingCredential.GetAccessTokenForRequestAsync(cancellationToken: cancellationToken);
-        var endpointUrl = $"https://aiplatform.{_options.Location}.rep.googleapis.com/v1/projects/{_options.ProjectId}/locations/{_options.Location}/publishers/google/models/{_options.ModelName}:generateContent";
+        var endpointUrl = BuildEndpointUrl(_options);
 
         var promptText = @"You are reading a photograph of a physical label, tag, sticker, handwritten marking, or printed packaging text on an item or container.
 
