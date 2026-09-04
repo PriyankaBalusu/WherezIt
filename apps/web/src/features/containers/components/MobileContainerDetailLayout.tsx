@@ -102,9 +102,8 @@ export const MobileContainerDetailLayout: React.FC<MobileContainerDetailLayoutPr
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
 
-  const hasActiveQr = identifiers.some((i: any) => i.type === 'QR' && !i.isRevoked);
-  const hasActiveBarcode = identifiers.some((i: any) => i.type === 'BARCODE' && !i.isRevoked);
-  const hasActivePhysicalLabel = Boolean(container?.physicalLabel || labelImage);
+  const hasActiveQr = identifiers.some((i: any) => i.type === 'QR');
+  const hasActiveBarcode = identifiers.some((i: any) => i.type === 'BARCODE');
 
   useEffect(() => {
     if (!isMenuOpen) return;

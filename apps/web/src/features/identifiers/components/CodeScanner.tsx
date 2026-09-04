@@ -3,6 +3,7 @@ import {
   MultiFormatReader,
   BarcodeFormat,
   DecodeHintType,
+  LuminanceSource,
   RGBLuminanceSource,
   HybridBinarizer,
   GlobalHistogramBinarizer,
@@ -102,7 +103,7 @@ export const CodeScanner: React.FC<CodeScannerProps> = ({
     }
   };
 
-  const triggerGenericLookup = async (rawValue: string, format: string, key: string) => {
+  const triggerGenericLookup = async (rawValue: string, key: string) => {
     const trimmed = rawValue.trim();
     if (!trimmed) return;
 
@@ -328,7 +329,7 @@ export const CodeScanner: React.FC<CodeScannerProps> = ({
                         }
                       };
 
-                      const tryDecodeSource = (source: RGBLuminanceSource) => {
+                      const tryDecodeSource = (source: LuminanceSource) => {
                         try {
                           return tryDecodeBitmap(new BinaryBitmap(new HybridBinarizer(source)));
                         } catch (err) {
@@ -463,7 +464,7 @@ export const CodeScanner: React.FC<CodeScannerProps> = ({
 
                         if (!isResolvingAsyncRef.current) {
                           history.delete(key);
-                          triggerGenericLookup(candidate.rawValue, candidate.format, key);
+                          triggerGenericLookup(candidate.rawValue, key);
                         }
                       }
                     }

@@ -92,8 +92,8 @@ export const ContainerDetailScreen: React.FC = () => {
 
   const isMobile = useIsMobile();
 
-  const hasActiveQr = identifiers.some((i) => i.type === 'QR' && !i.isRevoked);
-  const hasActiveBarcode = identifiers.some((i) => i.type === 'BARCODE' && !i.isRevoked);
+  const hasActiveQr = identifiers.some((i) => i.type === 'QR');
+  const hasActiveBarcode = identifiers.some((i) => i.type === 'BARCODE');
   const hasActivePhysicalLabel = Boolean(container?.physicalLabel || labelImage);
 
   // Summary counts for mobile row
