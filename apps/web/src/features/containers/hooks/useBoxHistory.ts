@@ -1,5 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import { useAuth } from '../../auth/useAuth';
+import { API_BASE_URL } from '../../../config/api';
 
 export interface BoxHistoryItem {
   id: string;
@@ -11,8 +12,6 @@ export interface BoxHistoryItem {
   actorUserId: string;
   occurredAt: string;
 }
-
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || import.meta.env.VITE_API_URL || '/api/v1';
 
 export function useBoxHistory(workspaceId?: string, containerId?: string, page: number = 1, pageSize: number = 10) {
   const { getIdToken } = useAuth();

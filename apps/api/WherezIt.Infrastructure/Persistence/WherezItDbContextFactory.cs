@@ -9,8 +9,13 @@ public class WherezItDbContextFactory : IDesignTimeDbContextFactory<WherezItDbCo
     {
         var optionsBuilder = new DbContextOptionsBuilder<WherezItDbContext>();
         var connectionString = Environment.GetEnvironmentVariable("ConnectionStrings__PostgreSQL")
-            ?? Environment.GetEnvironmentVariable("ConnectionStrings:PostgreSQL")
-            ?? "Host=localhost;Port=5432;Database=wherezit_dev;Username=wherezit;Password=wherezit_dev_password";
+            ?? Environment.GetEnvironmentVariable("ConnectionStrings:PostgreSQL");
+
+        if (string.IsNullOrWhiteSpace(connectionString))
+        {
+            throw new InvalidOperationException(
+                "ConnectionStrings:PostgreSQL is not configured. Set environment variable ConnectionStrings__PostgreSQL or configure dotnet user-secrets.");
+        }
 
         optionsBuilder.UseNpgsql(connectionString);
 

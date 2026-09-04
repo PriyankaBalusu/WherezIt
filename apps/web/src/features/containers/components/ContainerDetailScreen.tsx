@@ -20,6 +20,7 @@ import { getStorageSpaceDisplayName } from '../../workspaces/utils/formatWorkspa
 import { AuthenticatedImage } from '../../images/components/AuthenticatedImage';
 import { BoxHistoryTimeline } from './BoxHistoryTimeline';
 import { MobileContainerDetailLayout } from './MobileContainerDetailLayout';
+import { API_BASE_URL } from '../../../config/api';
 import './ContainerDetailScreen.css';
 
 function useIsMobile(breakpoint = 768): boolean {
@@ -233,7 +234,7 @@ export const ContainerDetailScreen: React.FC = () => {
     if (!newLocationId) return;
     try {
       const token = await getIdToken();
-      const response = await fetch(`/api/v1/workspaces/${encodeURIComponent(workspaceId!)}/containers/${encodeURIComponent(container.id)}/move`, {
+      const response = await fetch(`${API_BASE_URL}/workspaces/${encodeURIComponent(workspaceId!)}/containers/${encodeURIComponent(container.id)}/move`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -278,7 +279,6 @@ export const ContainerDetailScreen: React.FC = () => {
       const token = await getIdToken();
       setUploadStep('analyzing');
 
-      const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || import.meta.env.VITE_API_URL || '/api/v1';
       const response = await fetch(`${API_BASE_URL}/workspaces/${encodeURIComponent(workspaceId)}/containers/${encodeURIComponent(containerId)}/captures`, {
         method: 'POST',
         headers: {

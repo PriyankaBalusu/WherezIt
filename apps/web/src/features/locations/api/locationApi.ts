@@ -4,8 +4,7 @@ import {
   RenameStorageLocationRequest,
   MoveStorageLocationRequest,
 } from '../types/location';
-
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || import.meta.env.VITE_API_URL || '/api/v1';
+import { API_BASE_URL } from '../../../config/api';
 
 export async function fetchLocations(
   workspaceId: string,

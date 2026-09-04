@@ -70,12 +70,11 @@ Start local PostgreSQL container using Docker Compose:
 docker compose up -d
 ```
 
-Connection details for development (`appsettings.Development.json`):
-- **Host**: `localhost`
-- **Port**: `5432`
-- **Database**: `wherezit_dev`
-- **Username**: `wherezit`
-- **Password**: `wherezit_dev_password`
+Configure your local database connection string using .NET User Secrets:
+
+```bash
+dotnet user-secrets set "ConnectionStrings:PostgreSQL" "Host=localhost;Port=5432;Database=wherezit_dev;Username=wherezit;Password=<LOCAL_PASSWORD>" --project apps/api/WherezIt.Api/WherezIt.Api.csproj
+```
 
 ### 2. Entity Framework Core Migrations
 

@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../auth/useAuth';
+import { API_BASE_URL } from '../../../config/api';
 
 interface AuthenticatedImageProps extends React.ImgHTMLAttributes<HTMLImageElement> {
   src: string;
@@ -56,9 +57,8 @@ export const AuthenticatedImage: React.FC<AuthenticatedImageProps> = ({
         // Prepend API origin if src is a relative path starting with /api
         let fetchUrl = src;
         if (src.startsWith('/') && !src.startsWith('http://') && !src.startsWith('https://')) {
-          const envApiUrl = import.meta.env.VITE_API_BASE_URL || import.meta.env.VITE_API_URL || '';
-          if (envApiUrl.startsWith('http://') || envApiUrl.startsWith('https://')) {
-            const apiOrigin = new URL(envApiUrl).origin;
+          if (API_BASE_URL.startsWith('http://') || API_BASE_URL.startsWith('https://')) {
+            const apiOrigin = new URL(API_BASE_URL).origin;
             fetchUrl = `${apiOrigin}${src}`;
           }
         }

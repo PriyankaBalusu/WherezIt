@@ -1,5 +1,6 @@
 import { getIdToken } from 'firebase/auth';
 import { auth } from '../../../config/firebase';
+import { API_BASE_URL } from '../../../config/api';
 
 export interface QrIdentifierResponse {
   identifierId: string;
@@ -24,8 +25,6 @@ export interface ResolvedContainerResponse {
   breadcrumbDisplay: string;
   items: ResolvedContainerItem[];
 }
-
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || import.meta.env.VITE_API_URL || '/api/v1';
 
 export async function acquireContainerQrIdentifier(
   workspaceId: string,

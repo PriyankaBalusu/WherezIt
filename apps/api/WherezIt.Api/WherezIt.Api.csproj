@@ -5,6 +5,7 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
     <RootNamespace>WherezIt.Api</RootNamespace>
+    <UserSecretsId>wherezit-api-local-dev</UserSecretsId>
   </PropertyGroup>
 
   <ItemGroup>

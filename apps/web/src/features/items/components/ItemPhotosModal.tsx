@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { AuthenticatedImage } from '../../images/components/AuthenticatedImage';
 import { useAuth } from '../../auth/useAuth';
 import { uploadItemImage } from '../api/itemApi';
+import { API_BASE_URL } from '../../../config/api';
 
 interface ItemPhotosModalProps {
   workspaceId: string;
@@ -40,7 +41,6 @@ export const ItemPhotosModal: React.FC<ItemPhotosModalProps> = ({
       setIsLoading(true);
       setError(null);
       const token = await getIdToken();
-      const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || import.meta.env.VITE_API_URL || '/api/v1';
       const res = await fetch(`${API_BASE_URL}/workspaces/${encodeURIComponent(workspaceId)}/items/${encodeURIComponent(itemId)}/images`, {
         headers: { Authorization: `Bearer ${token}` },
       });
@@ -91,7 +91,6 @@ export const ItemPhotosModal: React.FC<ItemPhotosModalProps> = ({
     try {
       setError(null);
       const token = await getIdToken();
-      const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || import.meta.env.VITE_API_URL || '/api/v1';
       const res = await fetch(`${API_BASE_URL}/workspaces/${encodeURIComponent(workspaceId)}/items/${encodeURIComponent(itemId)}/images/${encodeURIComponent(imageToDelete.id)}`, {
         method: 'DELETE',
         headers: { Authorization: `Bearer ${token}` },

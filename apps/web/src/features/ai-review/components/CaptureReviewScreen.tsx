@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useCaptureReview } from '../hooks/useCaptureReview';
 import { confirmCaptureReview, ConfirmItemPayload } from '../api/captureReviewApi';
 import { useAuth } from '../../auth/useAuth';
+import { API_BASE_URL } from '../../../config/api';
 import './CaptureReviewScreen.css';
 
 export interface DraftItem {
@@ -61,7 +62,6 @@ export const CaptureReviewScreen: React.FC<CaptureReviewScreenProps> = ({
       setIsImageLoading(true);
       try {
         const token = await getIdToken();
-        const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || import.meta.env.VITE_API_URL || '/api/v1';
         const imageUrl = `${API_BASE_URL}/workspaces/${encodeURIComponent(workspaceId)}/images/${encodeURIComponent(reviewData.imageId!)}`;
 
         const response = await fetch(imageUrl, {

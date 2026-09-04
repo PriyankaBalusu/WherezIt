@@ -1,5 +1,6 @@
 import { getIdToken } from 'firebase/auth';
 import { auth } from '../../../config/firebase';
+import { API_BASE_URL } from '../../../config/api';
 
 export interface SearchResult {
   resultType: 'ITEM' | 'CONTAINER';
@@ -17,8 +18,6 @@ export interface SearchResult {
   breadcrumb: string[];
   breadcrumbDisplay: string;
 }
-
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || import.meta.env.VITE_API_URL || '/api/v1';
 
 export async function searchGlobalWorkspaces(query: string): Promise<SearchResult[]> {
   const currentUser = auth.currentUser;
