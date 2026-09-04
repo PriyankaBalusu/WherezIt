@@ -31,7 +31,11 @@ export const GlobalScanScreen: React.FC = () => {
         </p>
       </div>
 
-      <CodeScanner onResolve={handleResolve} />
+      <CodeScanner
+        onResolve={handleResolve}
+        scanMode="WHEREZIT_PREFER"
+        expectedFormats={['qr_code', 'code_128', 'ean_13', 'ean_8', 'upc_a', 'upc_e', 'code_39']}
+      />
     </div>
   );
 };

@@ -80,6 +80,7 @@ export const ContainerDetailScreen: React.FC = () => {
   const [isPhysicalLabelOpen, setIsPhysicalLabelOpen] = useState(false);
   const [isTakePhotoLabelOpen, setIsTakePhotoLabelOpen] = useState(false);
   const [revokeIdentifierTarget, setRevokeIdentifierTarget] = useState<{ id: string; type: 'QR' | 'BARCODE'; value: string } | null>(null);
+  const [selectedIdentifierId, setSelectedIdentifierId] = useState<string | undefined>(undefined);
   const [isEditing, setIsEditing] = useState(false);
   const [isMoving, setIsMoving] = useState(false);
   const [isArchiveBoxConfirmOpen, setIsArchiveBoxConfirmOpen] = useState(false);
@@ -90,6 +91,10 @@ export const ContainerDetailScreen: React.FC = () => {
   const [galleryIndex, setGalleryIndex] = useState<number | null>(null);
 
   const isMobile = useIsMobile();
+
+  const hasActiveQr = identifiers.some((i) => i.type === 'QR' && !i.isRevoked);
+  const hasActiveBarcode = identifiers.some((i) => i.type === 'BARCODE' && !i.isRevoked);
+  const hasActivePhysicalLabel = Boolean(container?.physicalLabel || labelImage);
 
   // Summary counts for mobile row
   const itemCount = container?.itemCount ?? 0;
@@ -543,6 +548,7 @@ export const ContainerDetailScreen: React.FC = () => {
           onSetPreviewImageUrl={setPreviewImageUrl}
           onSetGalleryIndex={setGalleryIndex}
           onSetImageToDelete={setImageToDelete}
+          onSetSelectedIdentifierId={setSelectedIdentifierId}
           isEditing={isEditing}
           isMoving={isMoving}
           editName={editName}
@@ -853,15 +859,21 @@ export const ContainerDetailScreen: React.FC = () => {
                             <div className="scannable-code-card__actions">
                               <button
                                 type="button"
-                                className="scannable-code-card__btn"
-                                onClick={() => ident.type === 'QR' ? setIsQrOpen(true) : setIsBarcodeOpen(true)}
+                                className="scannable-code-card__btn scannable-code-card__btn--view"
+                                onClick={() => {
+                                  setSelectedIdentifierId(ident.id);
+                                  ident.type === 'QR' ? setIsQrOpen(true) : setIsBarcodeOpen(true);
+                                }}
                               >
                                 View
                               </button>
                               <button
                                 type="button"
                                 className="scannable-code-card__btn scannable-code-card__btn--print"
-                                onClick={() => ident.type === 'QR' ? setIsQrOpen(true) : setIsBarcodeOpen(true)}
+                                onClick={() => {
+                                  setSelectedIdentifierId(ident.id);
+                                  ident.type === 'QR' ? setIsQrOpen(true) : setIsBarcodeOpen(true);
+                                }}
                               >
                                 Print
                               </button>
@@ -883,9 +895,20 @@ export const ContainerDetailScreen: React.FC = () => {
                     </div>
                   )}
 
+                  {hasActiveQr && (
+                    <div style={{ fontSize: '0.75rem', color: 'var(--color-text-muted, #64748b)', marginTop: '0.5rem' }}>
+                      This box already has an active QR code. Revoke it before adding another.
+                    </div>
+                  )}
+                  {hasActiveBarcode && (
+                    <div style={{ fontSize: '0.75rem', color: 'var(--color-text-muted, #64748b)', marginTop: '0.5rem' }}>
+                      This box already has an active barcode. Revoke it before adding another.
+                    </div>
+                  )}
+
                   {/* Conditional generation actions & attach master */}
-                  <div className="scannable-codes-gen-actions">
-                    {!identifiers.some((i) => i.type === 'QR') && !container.isArchived && (
+                  <div className="scannable-codes-gen-actions" style={{ marginTop: '0.75rem' }}>
+                    {!hasActiveQr && !container.isArchived && (
                       <button
                         type="button"
                         className="btn btn-secondary btn--md scannable-codes-gen-btn"
@@ -894,7 +917,7 @@ export const ContainerDetailScreen: React.FC = () => {
                         📱 + Generate QR Code
                       </button>
                     )}
-                    {!identifiers.some((i) => i.type === 'BARCODE') && !container.isArchived && (
+                    {!hasActiveBarcode && !container.isArchived && (
                       <button
                         type="button"
                         className="btn btn-secondary btn--md scannable-codes-gen-btn"
@@ -1020,7 +1043,11 @@ export const ContainerDetailScreen: React.FC = () => {
           workspaceId={workspaceId!}
           containerId={container.id}
           boxDisplayId={container.boxId}
-          onClose={() => setIsQrOpen(false)}
+          selectedIdentifierId={selectedIdentifierId}
+          onClose={() => {
+            setIsQrOpen(false);
+            setSelectedIdentifierId(undefined);
+          }}
         />
       )}
 
@@ -1030,8 +1057,12 @@ export const ContainerDetailScreen: React.FC = () => {
           workspaceId={workspaceId!}
           containerId={container.id}
           boxDisplayId={container.boxId}
+          selectedIdentifierId={selectedIdentifierId}
           isOpen={isBarcodeOpen}
-          onClose={() => setIsBarcodeOpen(false)}
+          onClose={() => {
+            setIsBarcodeOpen(false);
+            setSelectedIdentifierId(undefined);
+          }}
         />
       )}
 
@@ -1191,12 +1222,19 @@ export const ContainerDetailScreen: React.FC = () => {
       {isAttachMasterOpen && (
         <AttachMasterModal
           boxDisplayId={container.boxId}
+          hasActiveQr={hasActiveQr}
+          hasActiveBarcode={hasActiveBarcode}
+          hasActivePhysicalLabel={hasActivePhysicalLabel}
           isOpen={isAttachMasterOpen}
           onClose={() => setIsAttachMasterOpen(false)}
           onSelectOption={(option) => {
             setIsAttachMasterOpen(false);
             if (option === 'SCAN') {
-              setAttachCodeType('QR');
+              if (!hasActiveQr) {
+                setAttachCodeType('QR');
+              } else if (!hasActiveBarcode) {
+                setAttachCodeType('BARCODE');
+              }
               setIsAttachCodeOpen(true);
             } else if (option === 'LABEL') {
               setIsPhysicalLabelOpen(true);
@@ -1214,6 +1252,8 @@ export const ContainerDetailScreen: React.FC = () => {
           containerId={container.id}
           boxDisplayId={container.boxId}
           initialType={attachCodeType}
+          hasActiveQr={hasActiveQr}
+          hasActiveBarcode={hasActiveBarcode}
           isOpen={isAttachCodeOpen}
           onClose={() => setIsAttachCodeOpen(false)}
         />

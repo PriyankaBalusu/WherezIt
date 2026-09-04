@@ -1,4 +1,5 @@
 import React, { useEffect } from 'react';
+import { createPortal } from 'react-dom';
 
 interface PrintBoxLabelModalProps {
   boxDisplayId: string;
@@ -6,6 +7,16 @@ interface PrintBoxLabelModalProps {
   locationPath?: string;
   isOpen: boolean;
   onClose: () => void;
+}
+
+function getPrintRoot(): HTMLElement {
+  let root = document.getElementById('print-root');
+  if (!root) {
+    root = document.createElement('div');
+    root.id = 'print-root';
+    document.body.appendChild(root);
+  }
+  return root;
 }
 
 export const PrintBoxLabelModal: React.FC<PrintBoxLabelModalProps> = ({
@@ -27,7 +38,7 @@ export const PrintBoxLabelModal: React.FC<PrintBoxLabelModalProps> = ({
 
   if (!isOpen) return null;
 
-  return (
+  const modalContent = (
     <div
       className="container-modal-backdrop"
       role="dialog"
@@ -37,35 +48,6 @@ export const PrintBoxLabelModal: React.FC<PrintBoxLabelModalProps> = ({
         if (e.target === e.currentTarget) onClose();
       }}
     >
-      <style>{`
-        @media print {
-          body * {
-            visibility: hidden;
-          }
-          .box-label-printable, .box-label-printable * {
-            visibility: visible;
-          }
-          .box-label-printable {
-            position: absolute;
-            left: 0;
-            top: 0;
-            width: 100%;
-            display: flex !important;
-            flex-direction: column !important;
-            justify-content: center;
-            align-items: center;
-            box-shadow: none !important;
-            border: 2px solid #000 !important;
-          }
-          .container-modal-backdrop {
-            background: transparent !important;
-          }
-          .no-print {
-            display: none !important;
-          }
-        }
-      `}</style>
-
       <div
         className="container-modal-surface container-modal-surface--md"
         style={{
@@ -206,4 +188,7 @@ export const PrintBoxLabelModal: React.FC<PrintBoxLabelModalProps> = ({
       </div>
     </div>
   );
+
+  return createPortal(modalContent, getPrintRoot());
 };
+

@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useCaptureReview } from '../hooks/useCaptureReview';
 import { confirmCaptureReview, ConfirmItemPayload } from '../api/captureReviewApi';
 import { useAuth } from '../../auth/useAuth';
+import './CaptureReviewScreen.css';
 
 export interface DraftItem {
   id: string; // suggestion ID or client temp ID
@@ -49,55 +50,64 @@ export const CaptureReviewScreen: React.FC<CaptureReviewScreenProps> = ({
     }
   }, [reviewData]);
 
-  // Fetch authorized image blob safely
+  // Fetch image blob with authorization header
   useEffect(() => {
-    const imageId = reviewData?.imageId;
-    if (!workspaceId || !imageId) return;
-    let active = true;
+    let isMounted = true;
     let createdUrl: string | null = null;
 
-    async function loadImage() {
+    async function fetchImageBlob() {
+      if (!reviewData?.imageId) return;
+
+      setIsImageLoading(true);
       try {
-        setIsImageLoading(true);
         const token = await getIdToken();
         const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || import.meta.env.VITE_API_URL || '/api/v1';
-        const res = await fetch(`${API_BASE_URL}/workspaces/${encodeURIComponent(workspaceId)}/images/${encodeURIComponent(imageId!)}`, {
-          headers: { Authorization: `Bearer ${token}` },
+        const imageUrl = `${API_BASE_URL}/workspaces/${encodeURIComponent(workspaceId)}/images/${encodeURIComponent(reviewData.imageId!)}`;
+
+        const response = await fetch(imageUrl, {
+          headers: token ? { Authorization: `Bearer ${token}` } : {},
         });
 
-        if (res.ok && active) {
-          const blob = await res.blob();
+        if (!response.ok) {
+          throw new Error(`Failed to load image: ${response.statusText}`);
+        }
+
+        const blob = await response.blob();
+        if (isMounted) {
           createdUrl = URL.createObjectURL(blob);
           setImageBlobUrl(createdUrl);
         }
       } catch (err) {
-        // Fallback
+        console.error('Error loading capture image blob:', err);
       } finally {
-        if (active) setIsImageLoading(false);
+        if (isMounted) {
+          setIsImageLoading(false);
+        }
       }
     }
 
-    loadImage();
+    fetchImageBlob();
 
     return () => {
-      active = false;
+      isMounted = false;
       if (createdUrl) {
         URL.revokeObjectURL(createdUrl);
       }
     };
-  }, [workspaceId, reviewData?.imageId]);
+  }, [reviewData?.imageId, workspaceId, getIdToken]);
 
   if (isLoading) {
     return (
-      <div style={{ textAlign: 'center', padding: '3rem', color: '#64748b' }}>
-        Loading AI capture review...
+      <div className="capture-review-loading-state">
+        <div className="spinner" />
+        <span>Loading AI capture review...</span>
       </div>
     );
   }
 
   if (isError || !reviewData) {
     return (
-      <div role="alert" style={{ backgroundColor: '#fef2f2', border: '1px solid #fca5a5', color: '#dc2626', padding: '1rem', borderRadius: '0.5rem', maxWidth: '600px', margin: '2rem auto' }}>
+      <div role="alert" className="capture-review-error-state">
         {error?.message || 'Failed to load capture review.'}
       </div>
     );
@@ -106,9 +116,9 @@ export const CaptureReviewScreen: React.FC<CaptureReviewScreenProps> = ({
   // 1. Status == PROCESSING
   if (reviewData.status === 'PROCESSING') {
     return (
-      <div style={{ textAlign: 'center', padding: '3rem', backgroundColor: '#e0f2fe', borderRadius: '0.75rem', maxWidth: '600px', margin: '2rem auto', border: '1px solid #7dd3fc' }}>
-        <h3 style={{ color: '#0369a1', marginTop: 0 }}>AI Processing in Progress</h3>
-        <p style={{ color: '#0c4a6e' }}>
+      <div className="capture-review-processing-state">
+        <h3>AI Processing in Progress</h3>
+        <p>
           Photo processing for container <strong>{reviewData.boxDisplayId}</strong> is still underway. Please check back shortly.
         </p>
       </div>
@@ -118,9 +128,9 @@ export const CaptureReviewScreen: React.FC<CaptureReviewScreenProps> = ({
   // 2. Status == FAILED
   if (reviewData.status === 'FAILED') {
     return (
-      <div style={{ padding: '2rem', backgroundColor: '#fef2f2', border: '1px solid #fca5a5', borderRadius: '0.75rem', maxWidth: '600px', margin: '2rem auto' }}>
-        <h3 style={{ color: '#dc2626', marginTop: 0 }}>AI Processing Failed</h3>
-        <p style={{ color: '#7f1d1d', marginBottom: '1.5rem' }}>
+      <div className="capture-review-failed-state">
+        <h3>AI Processing Failed</h3>
+        <p>
           {reviewData.failureReason || 'AI was unable to detect items in this photo.'}
         </p>
         {onNavigateToManualEntry && (
@@ -208,187 +218,157 @@ export const CaptureReviewScreen: React.FC<CaptureReviewScreenProps> = ({
   };
 
   return (
-    <div style={{ maxWidth: '900px', margin: '0 auto', padding: '1rem' }}>
-      <div style={{ marginBottom: '1.5rem', borderBottom: '1px solid #e2e8f0', paddingBottom: '1rem' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '0.25rem' }}>
-          <h2 style={{ margin: 0, color: '#0f172a', fontSize: '1.75rem', fontWeight: 800 }}>
+    <div className="capture-review-container">
+      <div className="capture-review-header">
+        <div className="capture-review-title-row">
+          <h2 className="capture-review-title">
             {isReadOnly ? 'Confirmed Container Photo' : 'Review AI Suggestions'}
           </h2>
           {!isReadOnly && <span className="badge badge-ai-suggested">✨ AI Suggested</span>}
         </div>
-        <div style={{ fontSize: '0.875rem', color: '#64748b' }}>
-          Container: <strong style={{ color: '#0f172a' }}>{reviewData.boxDisplayId}</strong>
+        <div className="capture-review-breadcrumb">
+          Container: <strong>{reviewData.boxDisplayId}</strong>
           {reviewData.breadcrumbDisplay && ` • 📍 ${reviewData.breadcrumbDisplay}`}
         </div>
       </div>
 
       {confirmError && (
-        <div role="alert" style={{ backgroundColor: '#fef2f2', border: '1px solid #fca5a5', color: '#dc2626', padding: '1rem', borderRadius: '0.5rem', marginBottom: '1rem' }}>
+        <div role="alert" className="capture-review-error">
           {confirmError}
         </div>
       )}
 
       {confirmedSuccess && (
-        <div role="status" style={{ backgroundColor: '#f0fdf4', border: '1px solid #86efac', color: '#166534', padding: '1rem', borderRadius: '0.5rem', marginBottom: '1rem', fontWeight: 600 }}>
+        <div role="status" className="capture-review-success">
           ✓ Inventory confirmed successfully! Trusted items have been created for container {reviewData.boxDisplayId}.
         </div>
       )}
 
-      {/* Flagship Two-Column Review Composition */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(340px, 1fr))', gap: '1.5rem' }}>
-        {/* Left Column: Authorized Image Preview */}
-        <div className="card" style={{ padding: '1rem', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '260px' }}>
+      <div className="capture-review-grid">
+        <div className="card capture-review-image-card">
           {isImageLoading ? (
-            <div style={{ color: '#64748b', textAlign: 'center', padding: '2rem' }}>
-              <div className="spinner" style={{ width: '24px', height: '24px', border: '3px solid #cbd5e1', borderTopColor: '#0284c7', borderRadius: '50%', animation: 'spin 1s linear infinite', margin: '0 auto 0.75rem auto' }} />
+            <div className="capture-review-loading">
+              <div className="spinner" />
               📷 Loading photo preview...
             </div>
           ) : imageBlobUrl ? (
             <img
               src={imageBlobUrl}
               alt={`Container ${reviewData.boxDisplayId}`}
-              style={{
-                maxWidth: '100%',
-                maxHeight: '380px',
-                borderRadius: '0.5rem',
-                objectFit: 'cover',
-              }}
+              className="capture-review-photo"
             />
           ) : (
-            <div style={{ color: '#94a3b8', textAlign: 'center', padding: '2rem' }}>
-              <div style={{ fontSize: '2.5rem', marginBottom: '0.5rem' }}>🖼️</div>
-              <div style={{ fontSize: '0.875rem' }}>Photo preview unavailable</div>
+            <div className="capture-review-no-photo">
+              <div className="capture-review-no-photo-icon">🖼️</div>
+              <div className="capture-review-no-photo-text">Photo preview unavailable</div>
             </div>
           )}
-          <span style={{ fontSize: '0.75rem', color: '#64748b', marginTop: '0.75rem' }}>
+          <span className="capture-review-photo-label">
             Uploaded Container Photo
           </span>
         </div>
 
-        {/* Right Column: AI Suggestions Review Draft */}
-        <div className="card" style={{ padding: '1.5rem' }}>
-          <h3 style={{ marginTop: 0, fontSize: '1.25rem', color: '#0f172a', fontWeight: 700 }}>
+        <div className="card capture-review-draft-card">
+          <h3 className="capture-review-draft-title">
             Detected Items Draft ({draftItems.length})
           </h3>
-          <p style={{ fontSize: '0.875rem', color: '#64748b', marginBottom: '1.25rem' }}>
+          <p className="capture-review-draft-subtitle">
             Review and adjust AI-suggested items before explicit confirmation.
           </p>
 
           {draftItems.length === 0 ? (
-            <div style={{ padding: '1.5rem', backgroundColor: '#f8fafc', borderRadius: '0.5rem', textAlign: 'center', color: '#64748b', border: '1px dashed #cbd5e1' }}>
+            <div className="capture-review-empty-draft">
               No items in current review draft.
             </div>
           ) : (
-            <div style={{ display: 'grid', gap: '0.75rem', marginBottom: '1.5rem' }}>
+            <div className="capture-review-items-list">
               {draftItems.map((item) => (
-                <div
-                  key={item.id}
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '0.5rem',
-                    padding: '0.75rem',
-                    backgroundColor: '#f8fafc',
-                    border: '1px solid #e2e8f0',
-                    borderRadius: '0.5rem',
-                  }}
-                >
+                <div key={item.id} className="capture-review-item-row">
                   <input
                     type="text"
                     value={item.name}
                     onChange={(e) => handleNameChange(item.id, e.target.value)}
                     disabled={isReadOnly}
                     aria-label="Item name"
-                    style={{
-                      flex: 1,
-                      padding: '0.5rem',
-                      border: '1px solid #cbd5e1',
-                      borderRadius: '0.375rem',
-                      fontSize: '0.875rem',
-                    }}
+                    className="capture-review-item-name-input"
                   />
 
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
-                    <button
-                      type="button"
-                      className="btn-secondary"
-                      onClick={() => handleQuantityChange(item.id, item.quantity - 1)}
-                      disabled={isReadOnly || item.quantity <= 1}
-                      aria-label="Decrease quantity"
-                      style={{ padding: '0.25rem 0.5rem', fontSize: '0.75rem' }}
-                    >
-                      -
-                    </button>
-                    <span style={{ minWidth: '2rem', textAlign: 'center', fontWeight: 700, fontSize: '0.875rem' }}>
-                      {item.quantity}
-                    </span>
-                    <button
-                      type="button"
-                      className="btn-secondary"
-                      onClick={() => handleQuantityChange(item.id, item.quantity + 1)}
-                      disabled={isReadOnly}
-                      aria-label="Increase quantity"
-                      style={{ padding: '0.25rem 0.5rem', fontSize: '0.75rem' }}
-                    >
-                      +
-                    </button>
-                  </div>
+                  <div className="capture-review-item-actions">
+                    <div className="capture-review-qty-group">
+                      <button
+                        type="button"
+                        className="btn-secondary capture-review-qty-btn"
+                        onClick={() => handleQuantityChange(item.id, item.quantity - 1)}
+                        disabled={isReadOnly || item.quantity <= 1}
+                        aria-label="Decrease quantity"
+                      >
+                        -
+                      </button>
+                      <span className="capture-review-qty-val">{item.quantity}</span>
+                      <button
+                        type="button"
+                        className="btn-secondary capture-review-qty-btn"
+                        onClick={() => handleQuantityChange(item.id, item.quantity + 1)}
+                        disabled={isReadOnly}
+                        aria-label="Increase quantity"
+                      >
+                        +
+                      </button>
+                    </div>
 
-                  {!isReadOnly && (
-                    <button
-                      type="button"
-                      className="btn-secondary"
-                      onClick={() => handleRemove(item.id)}
-                      aria-label="Remove item"
-                      style={{ padding: '0.35rem 0.65rem', color: '#dc2626', fontSize: '0.75rem' }}
-                    >
-                      Remove
-                    </button>
-                  )}
+                    {!isReadOnly && (
+                      <button
+                        type="button"
+                        className="btn-secondary capture-review-remove-btn"
+                        onClick={() => handleRemove(item.id)}
+                        aria-label="Remove item"
+                      >
+                        Remove
+                      </button>
+                    )}
+                  </div>
                 </div>
               ))}
             </div>
           )}
 
-          {/* Add missing item draft form */}
           {!isReadOnly && (
-            <form onSubmit={handleAddMissingItem} style={{ display: 'flex', gap: '0.5rem', borderTop: '1px solid #f1f5f9', paddingTop: '1rem', marginBottom: '1.5rem' }}>
+            <form onSubmit={handleAddMissingItem} className="capture-review-add-form">
               <input
                 type="text"
                 value={newItemName}
                 onChange={(e) => setNewItemName(e.target.value)}
                 placeholder="Add missing item name..."
                 aria-label="Missing item name"
-                style={{ flex: 1, padding: '0.5rem', border: '1px solid #cbd5e1', borderRadius: '0.375rem', fontSize: '0.875rem' }}
+                className="capture-review-add-name-input"
               />
-              <input
-                type="number"
-                min={1}
-                value={newItemQuantity}
-                onChange={(e) => setNewItemQuantity(parseInt(e.target.value, 10) || 1)}
-                style={{ width: '60px', padding: '0.5rem', border: '1px solid #cbd5e1', borderRadius: '0.375rem', fontSize: '0.875rem' }}
-                aria-label="Missing item quantity"
-              />
-              <button
-                type="submit"
-                className="btn-primary"
-                disabled={!newItemName.trim()}
-                style={{ padding: '0.5rem 1rem', fontSize: '0.875rem' }}
-              >
-                + Add Item
-              </button>
+              <div className="capture-review-add-controls">
+                <input
+                  type="number"
+                  min={1}
+                  value={newItemQuantity}
+                  onChange={(e) => setNewItemQuantity(parseInt(e.target.value, 10) || 1)}
+                  className="capture-review-add-qty-input"
+                  aria-label="Missing item quantity"
+                />
+                <button
+                  type="submit"
+                  className="btn-primary capture-review-add-btn"
+                  disabled={!newItemName.trim()}
+                >
+                  + Add Item
+                </button>
+              </div>
             </form>
           )}
 
-          {/* Action Confirm Button */}
           {!isReadOnly && (
-            <div style={{ display: 'flex', justifyContent: 'flex-end', borderTop: '1px solid #f1f5f9', paddingTop: '1rem' }}>
+            <div className="capture-review-footer">
               <button
                 type="button"
-                className="btn-primary"
+                className="btn-primary capture-review-confirm-btn"
                 onClick={handleConfirmSubmission}
                 disabled={draftItems.length === 0 || isSubmittingConfirm}
-                style={{ padding: '0.75rem 1.5rem', fontSize: '1rem' }}
               >
                 {isSubmittingConfirm ? 'Confirming Inventory...' : 'Confirm Inventory'}
               </button>

@@ -16,10 +16,10 @@ export const ErrorState: React.FC<ErrorStateProps> = ({
       role="alert"
       style={{
         padding: '1.25rem',
-        backgroundColor: '#fff5f5',
-        border: '1px solid #feb2b2',
+        backgroundColor: 'var(--color-danger-bg, #fff5f5)',
+        border: '1px solid var(--color-danger, #feb2b2)',
         borderRadius: '0.5rem',
-        color: '#9b2c2c',
+        color: 'var(--color-danger, #9b2c2c)',
         margin: '1rem 0',
       }}
     >
@@ -31,7 +31,7 @@ export const ErrorState: React.FC<ErrorStateProps> = ({
           onClick={onRetry}
           style={{
             padding: '0.375rem 0.875rem',
-            backgroundColor: '#c53030',
+            backgroundColor: 'var(--color-danger, #c53030)',
             color: '#fff',
             border: 'none',
             borderRadius: '0.25rem',

@@ -55,7 +55,7 @@ public class IdentifiersController : ControllerBase
         }
         catch (InvalidOperationException ex)
         {
-            return BadRequest(new { error = ex.Message });
+            return Conflict(new { error = ex.Message });
         }
         catch (ArgumentException ex)
         {
@@ -97,7 +97,7 @@ public class IdentifiersController : ControllerBase
         }
         catch (InvalidOperationException ex)
         {
-            return BadRequest(new { error = ex.Message });
+            return Conflict(new { error = ex.Message });
         }
         catch (ArgumentException ex)
         {

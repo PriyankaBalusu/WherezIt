@@ -132,7 +132,7 @@ export const AddItemModal: React.FC<AddItemModalProps> = ({
         left: 0,
         right: 0,
         bottom: 0,
-        backgroundColor: 'rgba(0, 0, 0, 0.5)',
+        backgroundColor: 'var(--color-modal-overlay, rgba(0, 0, 0, 0.5))',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
@@ -163,37 +163,38 @@ export const AddItemModal: React.FC<AddItemModalProps> = ({
       />
 
       <div
+        className="add-item-modal-dialog modal-surface"
         style={{
-          backgroundColor: '#ffffff',
           borderRadius: '0.75rem',
           padding: '1.5rem',
           maxWidth: '440px',
           width: '100%',
-          boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1)',
+          maxHeight: 'calc(100vh - 2rem)',
+          overflowY: 'auto',
         }}
       >
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
-          <h3 id="add-item-modal-title" style={{ margin: 0, fontSize: '1.125rem', fontWeight: 700, color: '#0f172a' }}>
+          <h3 id="add-item-modal-title" style={{ margin: 0, fontSize: '1.125rem', fontWeight: 700, color: 'var(--color-text, #0f172a)' }}>
             Add Item to Box
           </h3>
           <button
             type="button"
             onClick={handleClose}
-            style={{ background: 'none', border: 'none', fontSize: '1.25rem', color: '#64748b', cursor: 'pointer' }}
+            style={{ background: 'none', border: 'none', fontSize: '1.25rem', color: 'var(--color-text-muted, #64748b)', cursor: 'pointer' }}
           >
             ✕
           </button>
         </div>
 
         {formError && (
-          <div role="alert" style={{ backgroundColor: '#fef2f2', color: '#991b1b', borderLeft: '4px solid #ef4444', padding: '0.625rem 0.875rem', borderRadius: '0.375rem', marginBottom: '1rem', fontSize: '0.875rem' }}>
+          <div role="alert" style={{ backgroundColor: 'var(--color-danger-bg, #fef2f2)', color: 'var(--color-danger, #991b1b)', borderLeft: '4px solid var(--color-danger, #ef4444)', padding: '0.625rem 0.875rem', borderRadius: '0.375rem', marginBottom: '1rem', fontSize: '0.875rem' }}>
             {formError}
           </div>
         )}
 
         <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
           <div className="form-group" style={{ marginBottom: 0 }}>
-            <label style={{ fontSize: '0.875rem', fontWeight: 600, color: '#334155', marginBottom: '0.375rem', display: 'block' }}>
+            <label style={{ fontSize: '0.875rem', fontWeight: 600, color: 'var(--color-text, #334155)', marginBottom: '0.375rem', display: 'block' }}>
               Item Name *
             </label>
             <input
@@ -204,12 +205,12 @@ export const AddItemModal: React.FC<AddItemModalProps> = ({
               onChange={(e) => setName(e.target.value)}
               required
               disabled={isSubmitting}
-              style={{ width: '100%', padding: '0.625rem', borderRadius: '0.375rem', border: '1px solid #cbd5e1', fontSize: '0.875rem', boxSizing: 'border-box' }}
+              style={{ width: '100%', padding: '0.625rem', borderRadius: '0.375rem', fontSize: '0.875rem', boxSizing: 'border-box' }}
             />
           </div>
 
           <div className="form-group" style={{ marginBottom: 0 }}>
-            <label style={{ fontSize: '0.875rem', fontWeight: 600, color: '#334155', marginBottom: '0.375rem', display: 'block' }}>
+            <label style={{ fontSize: '0.875rem', fontWeight: 600, color: 'var(--color-text, #334155)', marginBottom: '0.375rem', display: 'block' }}>
               Category
             </label>
             <input
@@ -219,12 +220,12 @@ export const AddItemModal: React.FC<AddItemModalProps> = ({
               value={category}
               onChange={(e) => setCategory(e.target.value)}
               disabled={isSubmitting}
-              style={{ width: '100%', padding: '0.625rem', borderRadius: '0.375rem', border: '1px solid #cbd5e1', fontSize: '0.875rem', boxSizing: 'border-box' }}
+              style={{ width: '100%', padding: '0.625rem', borderRadius: '0.375rem', fontSize: '0.875rem', boxSizing: 'border-box' }}
             />
           </div>
 
           <div className="form-group" style={{ marginBottom: 0 }}>
-            <label style={{ fontSize: '0.875rem', fontWeight: 600, color: '#334155', marginBottom: '0.375rem', display: 'block' }}>
+            <label style={{ fontSize: '0.875rem', fontWeight: 600, color: 'var(--color-text, #334155)', marginBottom: '0.375rem', display: 'block' }}>
               Quantity
             </label>
             <input
@@ -236,32 +237,32 @@ export const AddItemModal: React.FC<AddItemModalProps> = ({
                 setQuantity(isNaN(val) ? 0 : val);
               }}
               disabled={isSubmitting}
-              style={{ width: '100px', padding: '0.625rem', borderRadius: '0.375rem', border: '1px solid #cbd5e1', fontSize: '0.875rem', boxSizing: 'border-box' }}
+              style={{ width: '100px', padding: '0.625rem', borderRadius: '0.375rem', fontSize: '0.875rem', boxSizing: 'border-box' }}
             />
           </div>
 
           {/* Optional Item Photo Section */}
           <div className="form-group" style={{ marginBottom: 0 }}>
-            <label style={{ fontSize: '0.875rem', fontWeight: 600, color: '#334155', marginBottom: '0.375rem', display: 'block' }}>
-              Item Photo <span style={{ color: '#64748b', fontWeight: 400 }}>(optional)</span>
+            <label style={{ fontSize: '0.875rem', fontWeight: 600, color: 'var(--color-text, #334155)', marginBottom: '0.375rem', display: 'block' }}>
+              Item Photo <span style={{ color: 'var(--color-text-muted, #64748b)', fontWeight: 400 }}>(optional)</span>
             </label>
 
             {selectedPhotoFile && photoPreviewUrl ? (
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', padding: '0.5rem', border: '1px solid #e2e8f0', borderRadius: '0.375rem', backgroundColor: '#f8fafc' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', padding: '0.5rem', border: '1px solid var(--color-border-strong, #cbd5e1)', borderRadius: '0.375rem', backgroundColor: 'var(--color-surface-raised, #f8fafc)' }}>
                 <img
                   src={photoPreviewUrl}
                   alt="Item photo preview"
-                  style={{ width: '52px', height: '52px', objectFit: 'cover', borderRadius: '0.25rem', border: '1px solid #cbd5e1' }}
+                  style={{ width: '52px', height: '52px', objectFit: 'cover', borderRadius: '0.25rem', border: '1px solid var(--color-border-strong, #cbd5e1)' }}
                 />
                 <div style={{ flex: 1, overflow: 'hidden' }}>
-                  <p style={{ margin: 0, fontSize: '0.8rem', color: '#0f172a', fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  <p style={{ margin: 0, fontSize: '0.8rem', color: 'var(--color-text, #0f172a)', fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                     {selectedPhotoFile.name}
                   </p>
                   <button
                     type="button"
                     onClick={handleRemovePhoto}
                     disabled={isSubmitting}
-                    style={{ background: 'none', border: 'none', color: '#dc2626', fontSize: '0.75rem', padding: 0, cursor: 'pointer', fontWeight: 600, marginTop: '0.2rem' }}
+                    style={{ background: 'none', border: 'none', color: 'var(--color-danger, #dc2626)', fontSize: '0.75rem', padding: 0, cursor: 'pointer', fontWeight: 600, marginTop: '0.2rem' }}
                   >
                     Remove photo
                   </button>

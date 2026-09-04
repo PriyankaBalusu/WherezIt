@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { QRCodeSVG } from 'qrcode.react';
 import { acquireContainerQrIdentifier, QrIdentifierResponse } from '../api/identifierApi';
 import { useContainerIdentifiers } from '../hooks/useIdentifiers';
@@ -8,13 +9,25 @@ interface PrintQrLabelModalProps {
   workspaceId: string;
   containerId: string;
   boxDisplayId: string;
+  selectedIdentifierId?: string | null;
   onClose: () => void;
+}
+
+function getPrintRoot(): HTMLElement {
+  let root = document.getElementById('print-root');
+  if (!root) {
+    root = document.createElement('div');
+    root.id = 'print-root';
+    document.body.appendChild(root);
+  }
+  return root;
 }
 
 export const PrintQrLabelModal: React.FC<PrintQrLabelModalProps> = ({
   workspaceId,
   containerId,
   boxDisplayId,
+  selectedIdentifierId,
   onClose,
 }) => {
   const queryClient = useQueryClient();
@@ -25,7 +38,7 @@ export const PrintQrLabelModal: React.FC<PrintQrLabelModalProps> = ({
 
   useEffect(() => {
     if (identifiers && !identifier) {
-      const activeQr = identifiers.find(i => i.type === 'QR');
+      const activeQr = (selectedIdentifierId ? identifiers.find(i => i.id === selectedIdentifierId) : null) || identifiers.find(i => i.type === 'QR');
       if (activeQr) {
         setIdentifier({
           identifierId: activeQr.id,
@@ -35,7 +48,7 @@ export const PrintQrLabelModal: React.FC<PrintQrLabelModalProps> = ({
         });
       }
     }
-  }, [identifiers, identifier, workspaceId, containerId]);
+  }, [identifiers, identifier, workspaceId, containerId, selectedIdentifierId]);
 
   const handleGenerate = async () => {
     try {
@@ -69,6 +82,9 @@ export const PrintQrLabelModal: React.FC<PrintQrLabelModalProps> = ({
       const { revokeIdentifier } = await import('../api/identifierApi');
       await revokeIdentifier(workspaceId, identifier.identifierId);
       setIdentifier(null);
+      queryClient.invalidateQueries({ queryKey: ['containerIdentifiers', workspaceId, containerId] });
+      queryClient.invalidateQueries({ queryKey: ['container', workspaceId, containerId] });
+      queryClient.invalidateQueries({ queryKey: ['containers', workspaceId] });
       setError('Label revoked successfully. Close or re-open to acquire a new active label.');
     } catch (err: any) {
       setError(err.message || 'Failed to revoke identifier.');
@@ -85,7 +101,7 @@ export const PrintQrLabelModal: React.FC<PrintQrLabelModalProps> = ({
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [onClose]);
 
-  return (
+  const modalContent = (
     <div
       style={{
         position: 'fixed',
@@ -105,34 +121,6 @@ export const PrintQrLabelModal: React.FC<PrintQrLabelModalProps> = ({
       aria-modal="true"
       aria-labelledby="qr-modal-title"
     >
-      <style>{`
-        @media print {
-          body * {
-            visibility: hidden;
-          }
-          .qr-label-printable, .qr-label-printable * {
-            visibility: visible;
-          }
-          .qr-label-printable {
-            position: absolute;
-            left: 0;
-            top: 0;
-            width: 100%;
-            display: flex !important;
-            justify-content: center;
-            align-items: center;
-            box-shadow: none !important;
-            border: 2px solid #000 !important;
-          }
-          .qr-modal-backdrop {
-            background: transparent !important;
-          }
-          .no-print {
-            display: none !important;
-          }
-        }
-      `}</style>
-
       <div
         style={{
           backgroundColor: '#fff',
@@ -254,4 +242,7 @@ export const PrintQrLabelModal: React.FC<PrintQrLabelModalProps> = ({
       </div>
     </div>
   );
+
+  return createPortal(modalContent, getPrintRoot());
 };
+

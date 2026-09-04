@@ -14,6 +14,7 @@ import { HierarchicalLocationPicker } from '../locations/components/Hierarchical
 import { fetchContainers } from './api/containerApi';
 import { fetchLocations } from '../locations/api/locationApi';
 import { ThemedSelect } from '../../components/ui/ThemedSelect';
+import { createCapture } from '../ai-review/api/captureReviewApi';
 import './QuickPackScreen.css';
 
 type SaveState = 'IDLE' | 'CREATING_BOX' | 'BOX_CREATED' | 'UPLOADING_CAPTURE' | 'COMPLETE' | 'PARTIAL_SUCCESS' | 'ERROR';
@@ -386,27 +387,8 @@ export const QuickPackScreen: React.FC = () => {
     if (!selectedFile || !targetWsId) throw new Error('No photo or workspace context.');
 
     const compressed = await compressImage(selectedFile);
-    const formData = new FormData();
-    formData.append('file', compressed.file);
+    const captureData = await createCapture(targetWsId, containerId, compressed.file);
 
-    const token = await getIdToken();
-    const uploadRes = await fetch(
-      `/api/v1/workspaces/${encodeURIComponent(targetWsId)}/containers/${encodeURIComponent(containerId)}/captures`,
-      {
-        method: 'POST',
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-        body: formData,
-      }
-    );
-
-    if (!uploadRes.ok) {
-      const errText = await uploadRes.json().catch(() => ({}));
-      throw new Error(errText.error || `Upload failed: ${uploadRes.statusText}`);
-    }
-
-    const captureData = await uploadRes.json();
     if (!captureData.captureId) {
       throw new Error('Capture ID was not returned by the server.');
     }
@@ -1012,16 +994,16 @@ export const QuickPackScreen: React.FC = () => {
                   style={{
                     marginBottom: '1.5rem',
                     padding: '1rem',
-                    border: '1px solid #cbd5e1',
+                    border: '1px solid var(--color-border, #cbd5e1)',
                     borderRadius: '0.5rem',
-                    backgroundColor: '#f8fafc',
+                    backgroundColor: 'var(--color-bg-subtle, #f8fafc)',
                   }}
                 >
-                  <h4 style={{ margin: '0 0 0.75rem 0', fontSize: '1rem', fontWeight: 700 }}>
+                  <h4 style={{ margin: '0 0 0.75rem 0', fontSize: '1rem', fontWeight: 700, color: 'var(--color-text, #0f172a)' }}>
                     Add a Storage Location
                   </h4>
                   {locationAddError && (
-                    <div style={{ color: '#dc2626', fontSize: '0.85rem', marginBottom: '0.5rem' }}>
+                    <div style={{ color: '#ef4444', fontSize: '0.85rem', marginBottom: '0.5rem' }}>
                       {locationAddError}
                     </div>
                   )}
@@ -1251,7 +1233,7 @@ export const QuickPackScreen: React.FC = () => {
                     AI can suggest the items it sees. You'll review everything before it's added.
                   </p>
 
-                  <div style={{ marginTop: '1.25rem', paddingTop: '1rem', borderTop: '1px solid #e2e8f0' }}>
+                  <div style={{ marginTop: '1.25rem', paddingTop: '1rem', borderTop: '1px solid var(--color-border, #e2e8f0)' }}>
                     <button
                       type="button"
                       className="btn btn-secondary btn--sm"
@@ -1264,7 +1246,7 @@ export const QuickPackScreen: React.FC = () => {
                     {manualNote && (
                       <p
                         className="quickpack-help-text"
-                        style={{ color: '#0284c7', marginTop: '0.5rem', fontWeight: 600 }}
+                        style={{ color: 'var(--color-primary, #0284c7)', marginTop: '0.5rem', fontWeight: 600 }}
                       >
                         {manualNote}
                       </p>
@@ -1272,8 +1254,8 @@ export const QuickPackScreen: React.FC = () => {
                   </div>
                 </div>
               ) : (
-                <div className="quickpack-photo-box" style={{ backgroundColor: '#ffffff', borderStyle: 'solid' }}>
-                  <p style={{ fontWeight: 700, margin: '0 0 0.5rem 0', color: '#0f172a' }}>
+                <div className="quickpack-photo-box" style={{ backgroundColor: 'var(--color-surface, #ffffff)', borderStyle: 'solid' }}>
+                  <p style={{ fontWeight: 700, margin: '0 0 0.5rem 0', color: 'var(--color-text, #0f172a)' }}>
                     Photo Selected ({selectedFile.name})
                   </p>
                   {previewUrl && (

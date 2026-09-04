@@ -71,7 +71,9 @@ export async function getPhysicalLabelImage(
   const res = await fetch(`${API_BASE_URL}/workspaces/${workspaceId}/containers/${containerId}/physical-label-image`, {
     headers: { Authorization: `Bearer ${token}` },
   });
-  if (res.status === 404) return null;
+  if (res.status === 204 || res.status === 404) {
+    return null;
+  }
   if (!res.ok) {
     throw new Error(`Failed to fetch physical label photo: ${res.statusText}`);
   }

@@ -157,7 +157,7 @@ export const ChangePasswordModal: React.FC<ChangePasswordModalProps> = ({
         left: 0,
         right: 0,
         bottom: 0,
-        backgroundColor: 'rgba(0, 0, 0, 0.5)',
+        backgroundColor: 'var(--color-modal-overlay, rgba(0, 0, 0, 0.5))',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
@@ -169,43 +169,44 @@ export const ChangePasswordModal: React.FC<ChangePasswordModalProps> = ({
       aria-labelledby="change-password-modal-title"
     >
       <div
+        className="change-password-modal-dialog modal-surface"
         style={{
-          backgroundColor: '#ffffff',
           borderRadius: '0.75rem',
           padding: '1.75rem',
           maxWidth: '420px',
           width: '100%',
-          boxShadow: '0 20px 25px -5px rgba(0,0,0,0.1)',
+          maxHeight: 'calc(100vh - 2rem)',
+          overflowY: 'auto',
         }}
       >
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem' }}>
-          <h2 id="change-password-modal-title" style={{ margin: 0, fontSize: '1.25rem', fontWeight: 800, color: '#0f172a' }}>
+          <h2 id="change-password-modal-title" style={{ margin: 0, fontSize: '1.25rem', fontWeight: 800, color: 'var(--color-text, #0f172a)' }}>
             {showResetConfirm ? 'Reset Password' : 'Change Password'}
           </h2>
           <button
             type="button"
             onClick={handleClose}
             aria-label="Close Change Password"
-            style={{ background: 'none', border: 'none', fontSize: '1.5rem', color: '#64748b', cursor: 'pointer' }}
+            style={{ background: 'none', border: 'none', fontSize: '1.5rem', color: 'var(--color-text-muted, #64748b)', cursor: 'pointer' }}
           >
             ×
           </button>
         </div>
 
         {error && (
-          <div role="alert" style={{ backgroundColor: '#fef2f2', border: '1px solid #fca5a5', color: '#dc2626', padding: '0.75rem 1rem', borderRadius: '0.375rem', marginBottom: '1rem', fontSize: '0.85rem' }}>
+          <div role="alert" style={{ backgroundColor: 'var(--color-danger-bg, #fef2f2)', border: '1px solid var(--color-danger, #fca5a5)', color: 'var(--color-danger, #dc2626)', padding: '0.75rem 1rem', borderRadius: '0.375rem', marginBottom: '1rem', fontSize: '0.85rem' }}>
             {error}
           </div>
         )}
 
         {successMessage && (
-          <div role="status" style={{ backgroundColor: '#f0fdf4', border: '1px solid #86efac', color: '#166534', padding: '0.75rem 1rem', borderRadius: '0.375rem', marginBottom: '1rem', fontSize: '0.85rem' }}>
+          <div role="status" style={{ backgroundColor: 'var(--color-success-bg, #f0fdf4)', border: '1px solid var(--color-success, #86efac)', color: 'var(--color-success, #166534)', padding: '0.75rem 1rem', borderRadius: '0.375rem', marginBottom: '1rem', fontSize: '0.85rem' }}>
             ✓ {successMessage}
           </div>
         )}
 
         {resetEmailMessage && (
-          <div role="status" style={{ backgroundColor: '#f0f9ff', border: '1px solid #7dd3fc', color: '#0369a1', padding: '0.75rem 1rem', borderRadius: '0.375rem', marginBottom: '1rem', fontSize: '0.85rem' }}>
+          <div role="status" style={{ backgroundColor: 'var(--color-primary-light, #f0f9ff)', border: '1px solid var(--color-primary, #7dd3fc)', color: 'var(--color-primary-text, #0369a1)', padding: '0.75rem 1rem', borderRadius: '0.375rem', marginBottom: '1rem', fontSize: '0.85rem' }}>
             ✉ {resetEmailMessage}
           </div>
         )}
@@ -213,17 +214,17 @@ export const ChangePasswordModal: React.FC<ChangePasswordModalProps> = ({
         {showResetConfirm ? (
           /* Lightweight Reset Password Confirmation View */
           <div style={{ padding: '0.5rem 0' }}>
-            <p style={{ fontSize: '0.875rem', color: '#334155', marginBottom: '1rem', lineHeight: 1.5 }}>
+            <p style={{ fontSize: '0.875rem', color: 'var(--color-text-muted, #334155)', marginBottom: '1rem', lineHeight: 1.5 }}>
               Send a password reset link to:
             </p>
-            <div style={{ fontSize: '0.95rem', fontWeight: 700, color: '#0f172a', backgroundColor: '#f8fafc', padding: '0.75rem 1rem', borderRadius: '0.5rem', border: '1px solid #e2e8f0', marginBottom: '1.5rem' }}>
+            <div style={{ fontSize: '0.95rem', fontWeight: 700, color: 'var(--color-text, #0f172a)', backgroundColor: 'var(--color-surface-raised, #f8fafc)', padding: '0.75rem 1rem', borderRadius: '0.5rem', border: '1px solid var(--color-border-strong, #e2e8f0)', marginBottom: '1.5rem' }}>
               {userEmail}
             </div>
 
             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.75rem' }}>
               <button
                 type="button"
-                className="btn-secondary"
+                className="btn btn-secondary btn--md"
                 onClick={() => setShowResetConfirm(false)}
                 style={{ padding: '0.5rem 1rem', fontSize: '0.875rem' }}
               >
@@ -231,7 +232,7 @@ export const ChangePasswordModal: React.FC<ChangePasswordModalProps> = ({
               </button>
               <button
                 type="button"
-                className="btn-primary"
+                className="btn btn-primary btn--md"
                 onClick={handleSendResetEmail}
                 disabled={isSendingReset}
                 style={{ padding: '0.5rem 1.25rem', fontSize: '0.875rem' }}
@@ -243,8 +244,8 @@ export const ChangePasswordModal: React.FC<ChangePasswordModalProps> = ({
         ) : (
           /* Primary Change Password Form */
           <form onSubmit={handleUpdatePassword}>
-            <div style={{ marginBottom: '1rem' }}>
-              <label htmlFor="currentPassword" style={{ display: 'block', fontSize: '0.875rem', fontWeight: 600, color: '#334155', marginBottom: '0.375rem' }}>
+            <div className="form-group" style={{ marginBottom: '1rem' }}>
+              <label htmlFor="currentPassword" style={{ display: 'block', fontSize: '0.875rem', fontWeight: 600, color: 'var(--color-text, #334155)', marginBottom: '0.375rem' }}>
                 Current Password
               </label>
               <input
@@ -262,7 +263,9 @@ export const ChangePasswordModal: React.FC<ChangePasswordModalProps> = ({
                   padding: '0.625rem 0.75rem',
                   fontSize: '0.875rem',
                   borderRadius: '0.375rem',
-                  border: '1px solid #cbd5e1',
+                  border: '1px solid var(--color-input-border, #cbd5e1)',
+                  backgroundColor: 'var(--color-input-bg, #ffffff)',
+                  color: 'var(--color-input-text, #0f172a)',
                   outline: 'none',
                   boxSizing: 'border-box',
                 }}
@@ -274,8 +277,8 @@ export const ChangePasswordModal: React.FC<ChangePasswordModalProps> = ({
               )}
             </div>
 
-            <div style={{ marginBottom: '1rem' }}>
-              <label htmlFor="newPassword" style={{ display: 'block', fontSize: '0.875rem', fontWeight: 600, color: '#334155', marginBottom: '0.375rem' }}>
+            <div className="form-group" style={{ marginBottom: '1rem' }}>
+              <label htmlFor="newPassword" style={{ display: 'block', fontSize: '0.875rem', fontWeight: 600, color: 'var(--color-text, #334155)', marginBottom: '0.375rem' }}>
                 New Password
               </label>
               <input
@@ -292,7 +295,9 @@ export const ChangePasswordModal: React.FC<ChangePasswordModalProps> = ({
                   padding: '0.625rem 0.75rem',
                   fontSize: '0.875rem',
                   borderRadius: '0.375rem',
-                  border: '1px solid #cbd5e1',
+                  border: '1px solid var(--color-input-border, #cbd5e1)',
+                  backgroundColor: 'var(--color-input-bg, #ffffff)',
+                  color: 'var(--color-input-text, #0f172a)',
                   outline: 'none',
                   boxSizing: 'border-box',
                 }}
@@ -305,8 +310,8 @@ export const ChangePasswordModal: React.FC<ChangePasswordModalProps> = ({
               )}
             </div>
 
-            <div style={{ marginBottom: '1.25rem' }}>
-              <label htmlFor="confirmPassword" style={{ display: 'block', fontSize: '0.875rem', fontWeight: 600, color: '#334155', marginBottom: '0.375rem' }}>
+            <div className="form-group" style={{ marginBottom: '1.25rem' }}>
+              <label htmlFor="confirmPassword" style={{ display: 'block', fontSize: '0.875rem', fontWeight: 600, color: 'var(--color-text, #334155)', marginBottom: '0.375rem' }}>
                 Confirm New Password
               </label>
               <input
@@ -323,7 +328,9 @@ export const ChangePasswordModal: React.FC<ChangePasswordModalProps> = ({
                   padding: '0.625rem 0.75rem',
                   fontSize: '0.875rem',
                   borderRadius: '0.375rem',
-                  border: '1px solid #cbd5e1',
+                  border: '1px solid var(--color-input-border, #cbd5e1)',
+                  backgroundColor: 'var(--color-input-bg, #ffffff)',
+                  color: 'var(--color-input-text, #0f172a)',
                   outline: 'none',
                   boxSizing: 'border-box',
                 }}
@@ -346,7 +353,7 @@ export const ChangePasswordModal: React.FC<ChangePasswordModalProps> = ({
                   background: 'none',
                   border: 'none',
                   padding: 0,
-                  color: '#0284c7',
+                  color: 'var(--color-primary, #0284c7)',
                   textDecoration: 'underline',
                   cursor: 'pointer',
                   fontSize: '0.8125rem',

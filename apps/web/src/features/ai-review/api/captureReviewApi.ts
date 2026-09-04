@@ -86,3 +86,42 @@ export async function confirmCaptureReview(
   return response.json();
 }
 
+export interface CreateCaptureResponse {
+  captureId: string;
+  imageId: string;
+  status: string;
+}
+
+export async function createCapture(
+  workspaceId: string,
+  containerId: string,
+  file: File
+): Promise<CreateCaptureResponse> {
+  const currentUser = auth.currentUser;
+  if (!currentUser) {
+    throw new Error('User must be authenticated to create capture.');
+  }
+
+  const token = await getIdToken(currentUser);
+  const formData = new FormData();
+  formData.append('file', file);
+
+  const response = await fetch(
+    `${API_BASE_URL}/workspaces/${encodeURIComponent(workspaceId)}/containers/${encodeURIComponent(containerId)}/captures`,
+    {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+      body: formData,
+    }
+  );
+
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(errorData.error || `Upload failed with status ${response.status}`);
+  }
+
+  return response.json();
+}
+

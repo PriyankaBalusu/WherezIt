@@ -136,7 +136,7 @@ export const EditItemModal: React.FC<EditItemModalProps> = ({
         left: 0,
         right: 0,
         bottom: 0,
-        backgroundColor: 'rgba(0, 0, 0, 0.5)',
+        backgroundColor: 'var(--color-modal-overlay, rgba(0, 0, 0, 0.5))',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
@@ -148,23 +148,24 @@ export const EditItemModal: React.FC<EditItemModalProps> = ({
       aria-labelledby="edit-item-modal-title"
     >
       <div
+        className="edit-item-modal-dialog modal-surface"
         style={{
-          backgroundColor: '#ffffff',
           borderRadius: '0.75rem',
           padding: '1.75rem',
           maxWidth: '480px',
           width: '100%',
-          boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1)',
+          maxHeight: 'calc(100vh - 2rem)',
+          overflowY: 'auto',
         }}
       >
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem' }}>
-          <h2 id="edit-item-modal-title" style={{ margin: 0, fontSize: '1.25rem', fontWeight: 800, color: '#0f172a' }}>
+          <h2 id="edit-item-modal-title" style={{ margin: 0, fontSize: '1.25rem', fontWeight: 800, color: 'var(--color-text, #0f172a)' }}>
             Edit Item
           </h2>
           <button
             type="button"
             onClick={onClose}
-            style={{ background: 'none', border: 'none', fontSize: '1.5rem', color: '#64748b', cursor: 'pointer' }}
+            style={{ background: 'none', border: 'none', fontSize: '1.5rem', color: 'var(--color-text-muted, #64748b)', cursor: 'pointer' }}
           >
             ×
           </button>
@@ -174,9 +175,9 @@ export const EditItemModal: React.FC<EditItemModalProps> = ({
           <div
             role="alert"
             style={{
-              backgroundColor: '#fef2f2',
-              color: '#991b1b',
-              borderLeft: '4px solid #ef4444',
+              backgroundColor: 'var(--color-danger-bg, #fef2f2)',
+              color: 'var(--color-danger, #991b1b)',
+              borderLeft: '4px solid var(--color-danger, #ef4444)',
               padding: '0.75rem 1rem',
               borderRadius: '0.375rem',
               marginBottom: '1.25rem',
@@ -190,7 +191,7 @@ export const EditItemModal: React.FC<EditItemModalProps> = ({
         <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
           {/* Item Name */}
           <div className="form-group" style={{ marginBottom: 0 }}>
-            <label htmlFor="edit-item-name" style={{ fontWeight: 700, fontSize: '0.875rem' }}>
+            <label htmlFor="edit-item-name" style={{ fontWeight: 700, fontSize: '0.875rem', color: 'var(--color-text, #0f172a)' }}>
               Item Name *
             </label>
             <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.25rem' }}>
@@ -210,9 +211,9 @@ export const EditItemModal: React.FC<EditItemModalProps> = ({
                 type="button"
                 onClick={handleVoiceInput}
                 style={{
-                  backgroundColor: isListening ? '#ef4444' : '#f1f5f9',
-                  color: isListening ? '#ffffff' : '#475569',
-                  border: '1px solid #cbd5e1',
+                  backgroundColor: isListening ? 'var(--color-danger, #ef4444)' : 'var(--color-surface-raised, #f1f5f9)',
+                  color: isListening ? '#ffffff' : 'var(--color-text-muted, #475569)',
+                  border: '1px solid var(--color-border-strong, #cbd5e1)',
                   borderRadius: '0.375rem',
                   padding: '0 0.75rem',
                   cursor: 'pointer',
@@ -225,7 +226,7 @@ export const EditItemModal: React.FC<EditItemModalProps> = ({
               </button>
             </div>
             {isListening && (
-              <span style={{ fontSize: '0.75rem', color: '#ef4444', fontWeight: 600, marginTop: '0.25rem', display: 'block' }}>
+              <span style={{ fontSize: '0.75rem', color: 'var(--color-danger, #ef4444)', fontWeight: 600, marginTop: '0.25rem', display: 'block' }}>
                 🔴 Listening... Speak item name clearly
               </span>
             )}
@@ -233,7 +234,7 @@ export const EditItemModal: React.FC<EditItemModalProps> = ({
 
           {/* Quantity */}
           <div className="form-group" style={{ marginBottom: 0 }}>
-            <label htmlFor="edit-item-quantity" style={{ fontWeight: 700, fontSize: '0.875rem' }}>
+            <label htmlFor="edit-item-quantity" style={{ fontWeight: 700, fontSize: '0.875rem', color: 'var(--color-text, #0f172a)' }}>
               Quantity *
             </label>
             <input
@@ -250,7 +251,7 @@ export const EditItemModal: React.FC<EditItemModalProps> = ({
 
           {/* Category */}
           <div className="form-group" style={{ marginBottom: 0 }}>
-            <label htmlFor="edit-item-category" style={{ fontWeight: 700, fontSize: '0.875rem' }}>
+            <label htmlFor="edit-item-category" style={{ fontWeight: 700, fontSize: '0.875rem', color: 'var(--color-text, #0f172a)' }}>
               Category (Optional)
             </label>
             <input
@@ -265,7 +266,7 @@ export const EditItemModal: React.FC<EditItemModalProps> = ({
 
             {/* Category Suggestion Pills */}
             <div style={{ marginTop: '0.625rem' }}>
-              <span style={{ fontSize: '0.7rem', fontWeight: 700, color: '#64748b', textTransform: 'uppercase' }}>
+              <span style={{ fontSize: '0.7rem', fontWeight: 700, color: 'var(--color-text-muted, #64748b)', textTransform: 'uppercase' }}>
                 Suggested Categories
               </span>
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.375rem', marginTop: '0.375rem' }}>
@@ -275,9 +276,9 @@ export const EditItemModal: React.FC<EditItemModalProps> = ({
                     type="button"
                     onClick={() => setCategory(cat)}
                     style={{
-                      backgroundColor: category === cat ? '#0284c7' : '#f1f5f9',
-                      color: category === cat ? '#ffffff' : '#334155',
-                      border: '1px solid #cbd5e1',
+                      backgroundColor: category === cat ? 'var(--color-primary, #0284c7)' : 'var(--color-surface-raised, #f1f5f9)',
+                      color: category === cat ? '#ffffff' : 'var(--color-text, #334155)',
+                      border: '1px solid var(--color-border-strong, #cbd5e1)',
                       borderRadius: '1rem',
                       padding: '0.2rem 0.625rem',
                       fontSize: '0.75rem',

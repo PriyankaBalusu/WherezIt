@@ -124,10 +124,10 @@ export const WorkspaceSearch: React.FC<WorkspaceSearchProps> = ({ initialQuery =
 
   return (
     <div style={{ maxWidth: '850px', margin: '0 auto', padding: '1rem' }}>
-      <h1 style={{ marginBottom: '0.25rem', color: '#0f172a', fontSize: '2rem', fontWeight: 800 }}>
+      <h1 style={{ marginBottom: '0.25rem', color: 'var(--color-text, #0f172a)', fontSize: '2rem', fontWeight: 800 }}>
         Where is it?
       </h1>
-      <p style={{ color: '#64748b', fontSize: '1rem', marginBottom: '1.25rem' }}>
+      <p style={{ color: 'var(--color-text-muted, #64748b)', fontSize: '1rem', marginBottom: '1.25rem' }}>
         Find anything you've stored.
       </p>
 
@@ -144,10 +144,10 @@ export const WorkspaceSearch: React.FC<WorkspaceSearchProps> = ({ initialQuery =
               width: '100%',
               padding: '0.75rem 2.5rem 0.75rem 1rem',
               fontSize: '1rem',
-              border: '1px solid #cbd5e1',
+              border: '1px solid var(--color-border, #cbd5e1)',
               borderRadius: '0.5rem',
-              backgroundColor: '#ffffff',
-              color: '#0f172a',
+              backgroundColor: 'var(--color-surface, #ffffff)',
+              color: 'var(--color-text, #0f172a)',
               boxSizing: 'border-box',
             }}
           />
@@ -159,7 +159,7 @@ export const WorkspaceSearch: React.FC<WorkspaceSearchProps> = ({ initialQuery =
                 position: 'absolute',
                 right: '0.5rem',
                 backgroundColor: isListening ? '#ef4444' : 'transparent',
-                color: isListening ? '#ffffff' : '#64748b',
+                color: isListening ? '#ffffff' : 'var(--color-text-muted, #64748b)',
                 border: 'none',
                 borderRadius: '0.25rem',
                 padding: '0.25rem 0.5rem',
@@ -185,21 +185,21 @@ export const WorkspaceSearch: React.FC<WorkspaceSearchProps> = ({ initialQuery =
         </button>
       </form>
 
-      <div style={{ marginTop: '-0.25rem', marginBottom: '1.25rem', fontSize: '0.825rem', color: '#64748b' }}>
+      <div style={{ marginTop: '-0.25rem', marginBottom: '1.25rem', fontSize: '0.825rem', color: 'var(--color-text-muted, #64748b)' }}>
         🔍 Searching all your Storage Spaces
       </div>
 
       {/* Results Toolbar (Count, Type Filter, Page Size) */}
       {submitted && !isLoading && !isError && results && (
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.75rem', marginBottom: '1.25rem', paddingBottom: '0.75rem', borderBottom: '1px solid #f1f5f9' }}>
-          <div style={{ fontSize: '1.05rem', fontWeight: 700, color: '#0f172a' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.75rem', marginBottom: '1.25rem', paddingBottom: '0.75rem', borderBottom: '1px solid var(--color-border, #f1f5f9)' }}>
+          <div style={{ fontSize: '1.05rem', fontWeight: 700, color: 'var(--color-text, #0f172a)' }}>
             {totalCount} {totalCount === 1 ? 'result' : 'results'}
           </div>
 
           <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', flexWrap: 'wrap' }}>
             {/* Result-Type Filter */}
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.375rem' }}>
-              <label htmlFor="search-type-filter" style={{ fontSize: '0.825rem', color: '#64748b', fontWeight: 600 }}>
+              <label htmlFor="search-type-filter" style={{ fontSize: '0.825rem', color: 'var(--color-text-muted, #64748b)', fontWeight: 600 }}>
                 Filter:
               </label>
               <select
@@ -215,10 +215,10 @@ export const WorkspaceSearch: React.FC<WorkspaceSearchProps> = ({ initialQuery =
                 style={{
                   padding: '0.35rem 0.625rem',
                   fontSize: '0.85rem',
-                  border: '1px solid #cbd5e1',
+                  border: '1px solid var(--color-border, #cbd5e1)',
                   borderRadius: '0.375rem',
-                  backgroundColor: '#ffffff',
-                  color: '#0f172a',
+                  backgroundColor: 'var(--color-surface, #ffffff)',
+                  color: 'var(--color-text, #0f172a)',
                   outline: 'none',
                 }}
               >
@@ -230,7 +230,7 @@ export const WorkspaceSearch: React.FC<WorkspaceSearchProps> = ({ initialQuery =
 
             {/* Page Size Selector */}
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.375rem' }}>
-              <label htmlFor="search-page-size" style={{ fontSize: '0.825rem', color: '#64748b', fontWeight: 600 }}>
+              <label htmlFor="search-page-size" style={{ fontSize: '0.825rem', color: 'var(--color-text-muted, #64748b)', fontWeight: 600 }}>
                 Show:
               </label>
               <select
@@ -246,10 +246,10 @@ export const WorkspaceSearch: React.FC<WorkspaceSearchProps> = ({ initialQuery =
                 style={{
                   padding: '0.35rem 0.625rem',
                   fontSize: '0.85rem',
-                  border: '1px solid #cbd5e1',
+                  border: '1px solid var(--color-border, #cbd5e1)',
                   borderRadius: '0.375rem',
-                  backgroundColor: '#ffffff',
-                  color: '#0f172a',
+                  backgroundColor: 'var(--color-surface, #ffffff)',
+                  color: 'var(--color-text, #0f172a)',
                   outline: 'none',
                 }}
               >
@@ -264,14 +264,14 @@ export const WorkspaceSearch: React.FC<WorkspaceSearchProps> = ({ initialQuery =
 
       {/* Loading state */}
       {isLoading && (
-        <div style={{ textAlign: 'center', padding: '2.5rem', color: '#64748b' }}>
+        <div style={{ textAlign: 'center', padding: '2.5rem', color: 'var(--color-text-muted, #64748b)' }}>
           Searching across authorized storage spaces...
         </div>
       )}
 
       {/* Error state */}
       {isError && (
-        <div role="alert" style={{ backgroundColor: '#fef2f2', border: '1px solid #fca5a5', color: '#dc2626', padding: '1rem', borderRadius: '0.5rem', marginBottom: '1rem' }}>
+        <div role="alert" style={{ backgroundColor: 'rgba(239, 68, 68, 0.15)', border: '1px solid rgba(239, 68, 68, 0.3)', color: '#ef4444', padding: '1rem', borderRadius: '0.5rem', marginBottom: '1rem' }}>
           {error?.message || 'Search failed. Please try again.'}
         </div>
       )}
@@ -280,8 +280,8 @@ export const WorkspaceSearch: React.FC<WorkspaceSearchProps> = ({ initialQuery =
       {submitted && !isLoading && !isError && results && (
         <div>
           {results.length === 0 ? (
-            <div style={{ textAlign: 'center', padding: '3rem 1.5rem', color: '#64748b', backgroundColor: '#f8fafc', borderRadius: '0.5rem', border: '1px dashed #cbd5e1' }}>
-              <h3 style={{ margin: '0 0 0.5rem 0', color: '#0f172a', fontSize: '1.1rem' }}>
+            <div style={{ textAlign: 'center', padding: '3rem 1.5rem', color: 'var(--color-text-muted, #64748b)', backgroundColor: 'var(--color-bg-subtle, #f8fafc)', borderRadius: '0.5rem', border: '1px dashed var(--color-border-strong, #cbd5e1)' }}>
+              <h3 style={{ margin: '0 0 0.5rem 0', color: 'var(--color-text, #0f172a)', fontSize: '1.1rem' }}>
                 No results found for "{activeQuery}"
               </h3>
               <p style={{ margin: 0, fontSize: '0.875rem' }}>
@@ -289,8 +289,8 @@ export const WorkspaceSearch: React.FC<WorkspaceSearchProps> = ({ initialQuery =
               </p>
             </div>
           ) : filteredResults.length === 0 ? (
-            <div style={{ textAlign: 'center', padding: '3rem 1.5rem', color: '#64748b', backgroundColor: '#f8fafc', borderRadius: '0.5rem', border: '1px dashed #cbd5e1' }}>
-              <h3 style={{ margin: '0 0 0.5rem 0', color: '#0f172a', fontSize: '1.1rem' }}>
+            <div style={{ textAlign: 'center', padding: '3rem 1.5rem', color: 'var(--color-text-muted, #64748b)', backgroundColor: 'var(--color-bg-subtle, #f8fafc)', borderRadius: '0.5rem', border: '1px dashed var(--color-border-strong, #cbd5e1)' }}>
+              <h3 style={{ margin: '0 0 0.5rem 0', color: 'var(--color-text, #0f172a)', fontSize: '1.1rem' }}>
                 No {filterType === 'ITEM' ? 'item' : 'box'} results found for "{activeQuery}"
               </h3>
               <button
@@ -319,7 +319,7 @@ export const WorkspaceSearch: React.FC<WorkspaceSearchProps> = ({ initialQuery =
                       <div
                         className="card search-result-card-desktop"
                         style={{
-                          backgroundColor: '#ffffff',
+                          backgroundColor: 'var(--color-surface, #ffffff)',
                           borderLeft: res.resultType === 'ITEM' ? '4px solid #0284c7' : '4px solid #f59e0b',
                         }}
                       >
@@ -342,9 +342,9 @@ export const WorkspaceSearch: React.FC<WorkspaceSearchProps> = ({ initialQuery =
                             <span
                               className="badge"
                               style={{
-                                backgroundColor: res.resultType === 'ITEM' ? '#e0f2fe' : '#fef3c7',
-                                color: res.resultType === 'ITEM' ? '#0369a1' : '#d97706',
-                                border: res.resultType === 'ITEM' ? '1px solid rgba(2, 132, 199, 0.2)' : '1px solid rgba(217, 119, 6, 0.2)',
+                                backgroundColor: res.resultType === 'ITEM' ? 'rgba(2, 132, 199, 0.15)' : 'rgba(217, 119, 6, 0.15)',
+                                color: res.resultType === 'ITEM' ? 'var(--color-primary, #0284c7)' : 'var(--color-warning, #d97706)',
+                                border: res.resultType === 'ITEM' ? '1px solid rgba(2, 132, 199, 0.3)' : '1px solid rgba(217, 119, 6, 0.3)',
                               }}
                             >
                               {res.resultType}
@@ -353,21 +353,21 @@ export const WorkspaceSearch: React.FC<WorkspaceSearchProps> = ({ initialQuery =
                         </div>
 
                         {res.resultType === 'ITEM' && res.quantity != null && (
-                          <div style={{ fontSize: '0.875rem', color: '#475569', marginBottom: '0.75rem' }}>
+                          <div style={{ fontSize: '0.875rem', color: 'var(--color-text-muted, #475569)', marginBottom: '0.75rem' }}>
                             Quantity: <strong>{res.quantity}</strong>
                           </div>
                         )}
 
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '0.75rem', paddingTop: '0.75rem', borderTop: '1px solid #f1f5f9', flexWrap: 'wrap', gap: '0.5rem' }}>
-                          <div style={{ display: 'flex', gap: '1.5rem', fontSize: '0.875rem', color: '#334155', flexWrap: 'wrap', alignItems: 'center' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '0.75rem', paddingTop: '0.75rem', borderTop: '1px solid var(--color-border, #f1f5f9)', flexWrap: 'wrap', gap: '0.5rem' }}>
+                          <div style={{ display: 'flex', gap: '1.5rem', fontSize: '0.875rem', color: 'var(--color-text, #334155)', flexWrap: 'wrap', alignItems: 'center' }}>
                             <div style={{ display: 'flex', alignItems: 'center', gap: '0.375rem' }}>
-                              <span style={{ color: '#64748b' }}>Container:</span>
+                              <span style={{ color: 'var(--color-text-muted, #64748b)' }}>Container:</span>
                               <span className="badge badge-boxid">{res.boxDisplayId}</span>
                             </div>
                             {res.breadcrumbDisplay && (
                               <div style={{ display: 'flex', alignItems: 'center', gap: '0.375rem' }}>
-                                <span style={{ color: '#64748b' }}>Location:</span>
-                                <strong style={{ color: '#d97706' }}>{formattedBreadcrumb}</strong>
+                                <span style={{ color: 'var(--color-text-muted, #64748b)' }}>Location:</span>
+                                <strong style={{ color: 'var(--color-warning, #d97706)' }}>{formattedBreadcrumb}</strong>
                               </div>
                             )}
                           </div>
@@ -389,22 +389,22 @@ export const WorkspaceSearch: React.FC<WorkspaceSearchProps> = ({ initialQuery =
                         className="search-result-card-mobile"
                         style={{
                           textDecoration: 'none',
-                          backgroundColor: '#ffffff',
+                          backgroundColor: 'var(--color-surface, #ffffff)',
                           borderRadius: '0.5rem',
                           padding: '0.75rem 0.875rem',
                           boxShadow: '0 1px 3px rgba(0, 0, 0, 0.05)',
-                          border: '1px solid #e2e8f0',
+                          border: '1px solid var(--color-border, #e2e8f0)',
                           borderLeft: res.resultType === 'ITEM' ? '3px solid #0284c7' : '3px solid #f59e0b',
                         }}
                       >
                         {/* Top Row: Title / Box ID Pill + Type Badge */}
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.25rem' }}>
                           {res.resultType === 'CONTAINER' ? (
-                            <span style={{ fontWeight: 800, fontSize: '0.95rem', color: '#0f172a', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                            <span style={{ fontWeight: 800, fontSize: '0.95rem', color: 'var(--color-text, #0f172a)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                               {res.containerName || res.boxDisplayId}
                             </span>
                           ) : (
-                            <span style={{ fontWeight: 800, fontSize: '0.95rem', color: '#0f172a', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                            <span style={{ fontWeight: 800, fontSize: '0.95rem', color: 'var(--color-text, #0f172a)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                               {res.itemName}
                             </span>
                           )}
@@ -414,9 +414,9 @@ export const WorkspaceSearch: React.FC<WorkspaceSearchProps> = ({ initialQuery =
                               padding: '0.1rem 0.4rem',
                               borderRadius: '0.25rem',
                               fontWeight: 700,
-                              backgroundColor: res.resultType === 'ITEM' ? '#e0f2fe' : '#fef3c7',
-                              color: res.resultType === 'ITEM' ? '#0369a1' : '#d97706',
-                              border: res.resultType === 'ITEM' ? '1px solid rgba(2, 132, 199, 0.2)' : '1px solid rgba(217, 119, 6, 0.2)',
+                              backgroundColor: res.resultType === 'ITEM' ? 'rgba(2, 132, 199, 0.15)' : 'rgba(217, 119, 6, 0.15)',
+                              color: res.resultType === 'ITEM' ? 'var(--color-primary, #0284c7)' : 'var(--color-warning, #d97706)',
+                              border: res.resultType === 'ITEM' ? '1px solid rgba(2, 132, 199, 0.3)' : '1px solid rgba(217, 119, 6, 0.3)',
                               flexShrink: 0,
                             }}
                           >
@@ -425,7 +425,7 @@ export const WorkspaceSearch: React.FC<WorkspaceSearchProps> = ({ initialQuery =
                         </div>
 
                         {/* Middle Metadata Row */}
-                        <div style={{ fontSize: '0.825rem', color: '#475569', fontWeight: 600, marginBottom: '0.35rem' }}>
+                        <div style={{ fontSize: '0.825rem', color: 'var(--color-text-muted, #475569)', fontWeight: 600, marginBottom: '0.35rem' }}>
                           {res.resultType === 'CONTAINER'
                             ? res.boxDisplayId
                             : `${res.quantity != null ? `Qty ${res.quantity} · ` : ''}${res.boxDisplayId}`}
@@ -433,10 +433,10 @@ export const WorkspaceSearch: React.FC<WorkspaceSearchProps> = ({ initialQuery =
 
                         {/* Bottom Row: Full Location Breadcrumb + Chevron */}
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '0.25rem' }}>
-                          <div style={{ fontSize: '0.785rem', color: '#64748b', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1, paddingRight: '0.5rem' }}>
+                          <div style={{ fontSize: '0.785rem', color: 'var(--color-text-muted, #64748b)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1, paddingRight: '0.5rem' }}>
                             {formattedBreadcrumb}
                           </div>
-                          <span style={{ color: '#94a3b8', fontSize: '1rem', fontWeight: 700, flexShrink: 0 }}>›</span>
+                          <span style={{ color: 'var(--color-text-muted, #94a3b8)', fontSize: '1rem', fontWeight: 700, flexShrink: 0 }}>›</span>
                         </div>
                       </Link>
                     </React.Fragment>
@@ -446,8 +446,8 @@ export const WorkspaceSearch: React.FC<WorkspaceSearchProps> = ({ initialQuery =
 
               {/* Pagination Controls */}
               {totalCount > 0 && (
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '1.5rem', paddingTop: '1rem', borderTop: '1px solid #f1f5f9', flexWrap: 'wrap', gap: '0.75rem' }}>
-                  <div style={{ fontSize: '0.85rem', color: '#64748b', fontWeight: 500 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '1.5rem', paddingTop: '1rem', borderTop: '1px solid var(--color-border, #f1f5f9)', flexWrap: 'wrap', gap: '0.75rem' }}>
+                  <div style={{ fontSize: '0.85rem', color: 'var(--color-text-muted, #64748b)', fontWeight: 500 }}>
                     Showing {startIndex}–{endIndex} of {totalCount}
                   </div>
 
@@ -465,7 +465,7 @@ export const WorkspaceSearch: React.FC<WorkspaceSearchProps> = ({ initialQuery =
                     >
                       Previous
                     </button>
-                    <span style={{ fontSize: '0.85rem', color: '#0f172a', fontWeight: 600, padding: '0 0.35rem' }} aria-current="page">
+                    <span style={{ fontSize: '0.85rem', color: 'var(--color-text, #0f172a)', fontWeight: 600, padding: '0 0.35rem' }} aria-current="page">
                       Page {currentPage} of {totalPages}
                     </span>
                     <button

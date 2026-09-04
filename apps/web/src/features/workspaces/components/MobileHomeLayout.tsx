@@ -29,6 +29,7 @@ interface MobileHomeLayoutProps {
   onCreateWorkspace: () => void;
   onOpenAddLocation: (parentId: string | null) => void;
   onOpenAddBox: () => void;
+  onRenameLocation?: (id: string, name: string) => void;
 }
 
 export const MobileHomeLayout: React.FC<MobileHomeLayoutProps> = ({
@@ -42,6 +43,7 @@ export const MobileHomeLayout: React.FC<MobileHomeLayoutProps> = ({
   onCreateWorkspace,
   onOpenAddLocation,
   onOpenAddBox,
+  onRenameLocation,
 }) => {
   const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState('');
@@ -258,7 +260,7 @@ export const MobileHomeLayout: React.FC<MobileHomeLayoutProps> = ({
             ‹ Back
           </button>
           <h1 className="mobile-top-bar-title">{selectedLocation.name}</h1>
-          <WorkspaceManageMenu workspace={activeWorkspace} />
+          <span style={{ width: '44px' }} />
         </header>
 
         {/* Dynamic Breadcrumbs */}
@@ -279,17 +281,29 @@ export const MobileHomeLayout: React.FC<MobileHomeLayoutProps> = ({
 
         {/* Current Location Summary Card */}
         <section className="mobile-card mobile-current-location-card">
-          <div className="mobile-current-location-header">
-            <span className="mobile-current-location-icon">
-              {getLocationIcon(selectedLocation.name)}
-            </span>
-            <div className="mobile-current-location-info">
-              <h2 className="mobile-current-location-title">{selectedLocation.name}</h2>
-              <span className="mobile-current-location-meta">
-                {totalBoxesInTree} {totalBoxesInTree === 1 ? 'box' : 'boxes'}
-                {subCount > 0 && ` · ${subCount} ${subCount === 1 ? 'sublocation' : 'sublocations'}`}
+          <div className="mobile-current-location-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+              <span className="mobile-current-location-icon">
+                {getLocationIcon(selectedLocation.name)}
               </span>
+              <div className="mobile-current-location-info">
+                <h2 className="mobile-current-location-title" style={{ margin: 0 }}>{selectedLocation.name}</h2>
+                <span className="mobile-current-location-meta">
+                  {totalBoxesInTree} {totalBoxesInTree === 1 ? 'box' : 'boxes'}
+                  {subCount > 0 && ` · ${subCount} ${subCount === 1 ? 'sublocation' : 'sublocations'}`}
+                </span>
+              </div>
             </div>
+            {onRenameLocation && (
+              <button
+                type="button"
+                className="btn btn-secondary btn--sm"
+                onClick={() => onRenameLocation(selectedLocation.id, selectedLocation.name)}
+                style={{ padding: '0.35rem 0.65rem', fontSize: '0.8rem' }}
+              >
+                ✏️ Rename
+              </button>
+            )}
           </div>
         </section>
 

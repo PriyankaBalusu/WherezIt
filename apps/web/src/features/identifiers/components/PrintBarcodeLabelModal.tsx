@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import JsBarcode from 'jsbarcode';
 import { acquireContainerBarcodeIdentifier, BarcodeIdentifierResponse } from '../api/barcodeApi';
 import { useContainerIdentifiers } from '../hooks/useIdentifiers';
@@ -8,14 +9,26 @@ interface PrintBarcodeLabelModalProps {
   workspaceId: string;
   containerId: string;
   boxDisplayId: string;
+  selectedIdentifierId?: string | null;
   isOpen: boolean;
   onClose: () => void;
+}
+
+function getPrintRoot(): HTMLElement {
+  let root = document.getElementById('print-root');
+  if (!root) {
+    root = document.createElement('div');
+    root.id = 'print-root';
+    document.body.appendChild(root);
+  }
+  return root;
 }
 
 export const PrintBarcodeLabelModal: React.FC<PrintBarcodeLabelModalProps> = ({
   workspaceId,
   containerId,
   boxDisplayId,
+  selectedIdentifierId,
   isOpen,
   onClose,
 }) => {
@@ -28,7 +41,7 @@ export const PrintBarcodeLabelModal: React.FC<PrintBarcodeLabelModalProps> = ({
 
   useEffect(() => {
     if (isOpen && identifiers && !identifier) {
-      const activeBarcode = identifiers.find(i => i.type === 'BARCODE');
+      const activeBarcode = (selectedIdentifierId ? identifiers.find(i => i.id === selectedIdentifierId) : null) || identifiers.find(i => i.type === 'BARCODE');
       if (activeBarcode) {
         setIdentifier({
           identifierId: activeBarcode.id,
@@ -38,7 +51,7 @@ export const PrintBarcodeLabelModal: React.FC<PrintBarcodeLabelModalProps> = ({
         });
       }
     }
-  }, [isOpen, identifiers, identifier, workspaceId, containerId]);
+  }, [isOpen, identifiers, identifier, workspaceId, containerId, selectedIdentifierId]);
 
   const handleGenerate = async () => {
     setIsLoading(true);
@@ -56,19 +69,29 @@ export const PrintBarcodeLabelModal: React.FC<PrintBarcodeLabelModalProps> = ({
   };
 
   useEffect(() => {
-    if (identifier && svgRef.current) {
+    if (!isOpen || !identifier) return;
+
+    const renderBarcode = () => {
+      if (!svgRef.current) return;
       try {
         JsBarcode(svgRef.current, identifier.value, {
           format: 'CODE128',
-          displayValue: false,
+          width: 2,
+          height: 80,
           margin: 10,
-          height: 50,
+          displayValue: false,
+          background: '#ffffff',
+          lineColor: '#000000',
         });
       } catch (err) {
         console.error('JsBarcode rendering error:', err);
       }
-    }
-  }, [identifier]);
+    };
+
+    renderBarcode();
+    const timer = setTimeout(renderBarcode, 50);
+    return () => clearTimeout(timer);
+  }, [isOpen, identifier]);
 
   const handleRevoke = async () => {
     if (!identifier) return;
@@ -79,6 +102,9 @@ export const PrintBarcodeLabelModal: React.FC<PrintBarcodeLabelModalProps> = ({
       const { revokeIdentifier } = await import('../api/identifierApi');
       await revokeIdentifier(workspaceId, identifier.identifierId);
       setIdentifier(null);
+      queryClient.invalidateQueries({ queryKey: ['containerIdentifiers', workspaceId, containerId] });
+      queryClient.invalidateQueries({ queryKey: ['container', workspaceId, containerId] });
+      queryClient.invalidateQueries({ queryKey: ['containers', workspaceId] });
       setError('Label revoked successfully. Close or re-open to acquire a new active label.');
     } catch (err: any) {
       setError(err.message || 'Failed to revoke identifier.');
@@ -98,7 +124,7 @@ export const PrintBarcodeLabelModal: React.FC<PrintBarcodeLabelModalProps> = ({
 
   if (!isOpen) return null;
 
-  return (
+  const modalContent = (
     <div
       style={{
         position: 'fixed',
@@ -118,40 +144,12 @@ export const PrintBarcodeLabelModal: React.FC<PrintBarcodeLabelModalProps> = ({
       aria-modal="true"
       aria-labelledby="barcode-modal-title"
     >
-      <style>{`
-        @media print {
-          body * {
-            visibility: hidden;
-          }
-          .barcode-label-printable, .barcode-label-printable * {
-            visibility: visible;
-          }
-          .barcode-label-printable {
-            position: absolute;
-            left: 0;
-            top: 0;
-            width: 100%;
-            display: flex !important;
-            justify-content: center;
-            align-items: center;
-            box-shadow: none !important;
-            border: 2px solid #000 !important;
-          }
-          .barcode-modal-backdrop {
-            background: transparent !important;
-          }
-          .no-print {
-            display: none !important;
-          }
-        }
-      `}</style>
-
       <div
         style={{
           backgroundColor: '#fff',
           borderRadius: '0.5rem',
-          padding: '1.5rem',
-          maxWidth: '420px',
+          padding: '1.5rem 1.25rem',
+          maxWidth: '580px',
           width: '100%',
           boxShadow: '0 10px 25px rgba(0,0,0,0.2)',
         }}
@@ -216,10 +214,10 @@ export const PrintBarcodeLabelModal: React.FC<PrintBarcodeLabelModalProps> = ({
               style={{
                 border: '2px solid #2d3748',
                 borderRadius: '0.5rem',
-                padding: '1.25rem 1rem',
+                padding: '1.25rem 0.625rem',
                 backgroundColor: '#fff',
                 margin: '0 auto 1.5rem auto',
-                maxWidth: '300px',
+                maxWidth: '535px',
                 width: '100%',
                 boxSizing: 'border-box',
                 display: 'flex',
@@ -239,10 +237,10 @@ export const PrintBarcodeLabelModal: React.FC<PrintBarcodeLabelModalProps> = ({
               </div>
 
               <div style={{ width: '100%', display: 'flex', justifyContent: 'center', overflow: 'hidden', marginBottom: '0.25rem' }}>
-                <svg ref={svgRef} style={{ maxWidth: '100%', height: 'auto', display: 'block' }} />
+                <svg ref={svgRef} style={{ maxWidth: '100%', height: 'auto', display: 'block', shapeRendering: 'crispEdges' }} />
               </div>
 
-              <div style={{ fontFamily: 'monospace', fontSize: '0.7rem', color: '#475569', marginTop: '0.25rem', maxWidth: '100%', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+              <div style={{ fontFamily: 'monospace', fontSize: '0.75rem', color: '#475569', marginTop: '0.25rem', width: '100%', wordBreak: 'break-all', overflowWrap: 'anywhere', whiteSpace: 'pre-wrap', userSelect: 'all' }}>
                 {identifier.value}
               </div>
               <div style={{ fontSize: '0.7rem', color: '#94a3b8', marginTop: '0.25rem' }}>
@@ -280,4 +278,7 @@ export const PrintBarcodeLabelModal: React.FC<PrintBarcodeLabelModalProps> = ({
       </div>
     </div>
   );
+
+  return createPortal(modalContent, getPrintRoot());
 };
+

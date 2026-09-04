@@ -574,6 +574,7 @@ body {
 }
 
 .form-group input[type="text"],
+.form-group input[type="number"],
 .form-group input[type="email"],
 .form-group input[type="password"],
 .form-group select,
@@ -581,9 +582,9 @@ body {
   width: 100%;
   padding: 0.625rem 0.875rem;
   border-radius: var(--radius-md);
-  border: 1px solid var(--color-border);
-  background-color: var(--color-surface);
-  color: var(--color-text);
+  border: 1px solid var(--color-input-border, var(--color-border));
+  background-color: var(--color-input-bg, var(--color-surface));
+  color: var(--color-input-text, var(--color-text));
   font-size: 0.875rem;
   font-family: inherit;
   transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
@@ -1126,5 +1127,134 @@ body {
   }
 }
 
+/* Global Print Layout Optimization - Dedicated #print-root Portal Architecture */
+@media print {
+  @page {
+    margin: 10mm;
+  }
 
+  /* 1. Hide main application tree completely during print */
+  #root,
+  .no-print {
+    display: none !important;
+  }
 
+  /* 2. Reset html & body layout so document height equals printable content */
+  html, body {
+    height: auto !important;
+    min-height: 0 !important;
+    max-height: none !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    background: #ffffff !important;
+    color: #000000 !important;
+    overflow: visible !important;
+    position: static !important;
+  }
+
+  /* 3. Display dedicated print portal root containing active printable modal */
+  #print-root {
+    display: block !important;
+    visibility: visible !important;
+    position: static !important;
+    width: 100% !important;
+    height: auto !important;
+    min-height: 0 !important;
+    background: transparent !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+
+  /* 4. Strip modal backdrops and surface containers of fixed overlays during print */
+  .qr-modal-backdrop,
+  .barcode-modal-backdrop,
+  .container-modal-backdrop {
+    display: block !important;
+    visibility: visible !important;
+    position: static !important;
+    width: 100% !important;
+    height: auto !important;
+    min-height: 0 !important;
+    background: transparent !important;
+    box-shadow: none !important;
+    padding: 0 !important;
+    margin: 0 !important;
+  }
+
+  .qr-modal-backdrop > div,
+  .barcode-modal-backdrop > div,
+  .container-modal-backdrop > div,
+  .container-modal-surface {
+    display: block !important;
+    visibility: visible !important;
+    position: static !important;
+    width: 100% !important;
+    height: auto !important;
+    min-height: 0 !important;
+    background: transparent !important;
+    box-shadow: none !important;
+    border: none !important;
+    padding: 0 !important;
+    margin: 0 !important;
+  }
+
+  /* 5. Target printable label card */
+  .qr-label-printable,
+  .box-label-printable {
+    display: block !important;
+    visibility: visible !important;
+    position: relative !important;
+    margin: 0 auto !important;
+    max-width: 300px !important;
+    width: 100% !important;
+    height: auto !important;
+    min-height: 0 !important;
+    box-shadow: none !important;
+    border: 2px solid #000000 !important;
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+  }
+
+  .barcode-label-printable {
+    display: block !important;
+    visibility: visible !important;
+    position: relative !important;
+    margin: 0 auto !important;
+    max-width: 535px !important;
+    width: 100% !important;
+    height: auto !important;
+    min-height: 0 !important;
+    box-shadow: none !important;
+    border: 2px solid #000000 !important;
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+  }
+
+  .qr-label-printable svg {
+    aspect-ratio: 1 / 1 !important;
+    max-width: 160px !important;
+    height: auto !important;
+    margin: 0 auto !important;
+  }
+
+  .barcode-label-printable svg {
+    max-width: 100% !important;
+    height: auto !important;
+    shape-rendering: crispEdges !important;
+  }
+}
+
+/* Reusable Theme-Safe Modal Surface */
+.modal-surface {
+  background-color: var(--color-modal-bg, #ffffff);
+  color: var(--color-text, #0f172a);
+  border: 1px solid var(--color-border, #e2e8f0);
+  box-shadow: var(--shadow-xl, 0 20px 25px -5px rgba(0, 0, 0, 0.1));
+}
+
+[data-theme='dark'] .modal-surface {
+  background-color: var(--color-modal-bg, #1e293b);
+  color: var(--color-text, #f8fafc);
+  border-color: var(--color-border, #334155);
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.5), 0 8px 10px -6px rgba(0, 0, 0, 0.5);
+}

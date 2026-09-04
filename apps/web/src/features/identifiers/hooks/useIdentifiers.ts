@@ -35,6 +35,8 @@ export function useRevokeIdentifier(workspaceId: string, containerId: string) {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['containerIdentifiers', workspaceId, containerId] });
       queryClient.invalidateQueries({ queryKey: ['container', workspaceId, containerId] });
+      queryClient.invalidateQueries({ queryKey: ['containers', workspaceId] });
     },
   });
 }
+

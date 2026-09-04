@@ -443,7 +443,7 @@ export const ItemList: React.FC<ItemListProps> = ({
             left: 0,
             right: 0,
             bottom: 0,
-            backgroundColor: 'rgba(0, 0, 0, 0.5)',
+            backgroundColor: 'var(--color-modal-overlay, rgba(0, 0, 0, 0.5))',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
@@ -455,19 +455,18 @@ export const ItemList: React.FC<ItemListProps> = ({
           aria-labelledby="archive-item-modal-title"
         >
           <div
+            className="archive-item-modal-dialog modal-surface"
             style={{
-              backgroundColor: '#fff',
               borderRadius: '0.5rem',
               padding: '1.5rem',
               maxWidth: '400px',
               width: '100%',
-              boxShadow: '0 10px 25px rgba(0,0,0,0.2)',
             }}
           >
-            <h3 id="archive-item-modal-title" style={{ margin: '0 0 0.75rem 0', fontSize: '1.125rem', color: '#0f172a', fontWeight: 700 }}>
+            <h3 id="archive-item-modal-title" style={{ margin: '0 0 0.75rem 0', fontSize: '1.125rem', color: 'var(--color-text, #0f172a)', fontWeight: 700 }}>
               Archive item?
             </h3>
-            <p style={{ fontSize: '0.875rem', color: '#475569', marginBottom: '1.5rem', marginTop: 0 }}>
+            <p style={{ fontSize: '0.875rem', color: 'var(--color-text-muted, #475569)', marginBottom: '1.5rem', marginTop: 0 }}>
               This item will be hidden from active box contents. You can restore it later.
             </p>
             <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'flex-end' }}>
@@ -500,7 +499,7 @@ export const ItemList: React.FC<ItemListProps> = ({
             left: 0,
             right: 0,
             bottom: 0,
-            backgroundColor: 'rgba(0, 0, 0, 0.5)',
+            backgroundColor: 'var(--color-modal-overlay, rgba(0, 0, 0, 0.5))',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
@@ -512,19 +511,18 @@ export const ItemList: React.FC<ItemListProps> = ({
           aria-labelledby="delete-item-modal-title"
         >
           <div
+            className="delete-item-modal-dialog modal-surface"
             style={{
-              backgroundColor: '#fff',
               borderRadius: '0.5rem',
               padding: '1.5rem',
               maxWidth: '400px',
               width: '100%',
-              boxShadow: '0 10px 25px rgba(0,0,0,0.2)',
             }}
           >
-            <h3 id="delete-item-modal-title" style={{ margin: '0 0 0.75rem 0', fontSize: '1.125rem', color: '#dc2626', fontWeight: 700 }}>
+            <h3 id="delete-item-modal-title" style={{ margin: '0 0 0.75rem 0', fontSize: '1.125rem', color: 'var(--color-danger, #dc2626)', fontWeight: 700 }}>
               Delete this item permanently?
             </h3>
-            <p style={{ fontSize: '0.875rem', color: '#475569', marginBottom: '1.5rem', marginTop: 0 }}>
+            <p style={{ fontSize: '0.875rem', color: 'var(--color-text-muted, #475569)', marginBottom: '1.5rem', marginTop: 0 }}>
               This permanently removes this item from WherezIt. This action cannot be undone.
             </p>
             <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'flex-end' }}>

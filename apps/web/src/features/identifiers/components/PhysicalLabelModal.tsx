@@ -69,6 +69,7 @@ export const PhysicalLabelModal: React.FC<PhysicalLabelModalProps> = ({
         zIndex: 1000,
         padding: '1rem',
       }}
+      className="physical-label-modal-backdrop"
       role="dialog"
       aria-modal="true"
       aria-labelledby="physical-label-modal-title"

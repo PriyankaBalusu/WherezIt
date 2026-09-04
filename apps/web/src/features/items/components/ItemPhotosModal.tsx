@@ -128,8 +128,9 @@ export const ItemPhotosModal: React.FC<ItemPhotosModalProps> = ({
       aria-labelledby="item-photos-modal-title"
     >
       <div
+        className="modal-surface"
         style={{
-          backgroundColor: '#ffffff',
+          backgroundColor: 'var(--color-surface, #ffffff)',
           borderRadius: '0.75rem',
           padding: '1.75rem',
           maxWidth: '540px',
@@ -140,24 +141,24 @@ export const ItemPhotosModal: React.FC<ItemPhotosModalProps> = ({
         {/* Header */}
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem' }}>
           <div>
-            <span style={{ fontSize: '0.7rem', fontWeight: 700, color: '#0284c7', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+            <span style={{ fontSize: '0.7rem', fontWeight: 700, color: 'var(--color-primary, #0284c7)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
               ITEM PHOTOS
             </span>
-            <h2 id="item-photos-modal-title" style={{ margin: '0.2rem 0 0 0', fontSize: '1.25rem', fontWeight: 800, color: '#0f172a' }}>
+            <h2 id="item-photos-modal-title" style={{ margin: '0.2rem 0 0 0', fontSize: '1.25rem', fontWeight: 800, color: 'var(--color-text, #0f172a)' }}>
               {itemName}
             </h2>
           </div>
           <button
             type="button"
             onClick={onClose}
-            style={{ background: 'none', border: 'none', fontSize: '1.5rem', color: '#64748b', cursor: 'pointer' }}
+            style={{ background: 'none', border: 'none', fontSize: '1.5rem', color: 'var(--color-text-muted, #64748b)', cursor: 'pointer' }}
           >
             ×
           </button>
         </div>
 
         {error && (
-          <div role="alert" style={{ backgroundColor: '#fef2f2', color: '#dc2626', border: '1px solid #fca5a5', padding: '0.75rem 1rem', borderRadius: '0.375rem', marginBottom: '1rem', fontSize: '0.85rem' }}>
+          <div role="alert" style={{ backgroundColor: 'rgba(239, 68, 68, 0.15)', color: '#ef4444', border: '1px solid rgba(239, 68, 68, 0.3)', padding: '0.75rem 1rem', borderRadius: '0.375rem', marginBottom: '1rem', fontSize: '0.85rem' }}>
             {error}
           </div>
         )}
@@ -182,12 +183,12 @@ export const ItemPhotosModal: React.FC<ItemPhotosModalProps> = ({
         {/* Photo Gallery Grid */}
         <div style={{ marginBottom: '1.5rem' }}>
           {isLoading ? (
-            <div style={{ color: '#64748b', textAlign: 'center', padding: '2rem' }}>Loading photos...</div>
+            <div style={{ color: 'var(--color-text-muted, #64748b)', textAlign: 'center', padding: '2rem' }}>Loading photos...</div>
           ) : images.length === 0 ? (
-            <div style={{ textAlign: 'center', padding: '2.5rem 1.5rem', color: '#64748b', backgroundColor: '#f8fafc', borderRadius: '0.5rem', border: '1px dashed #cbd5e1' }}>
+            <div style={{ textAlign: 'center', padding: '2.5rem 1.5rem', color: 'var(--color-text-muted, #64748b)', backgroundColor: 'var(--color-bg-subtle, #f8fafc)', borderRadius: '0.5rem', border: '1px dashed var(--color-border-strong, #cbd5e1)' }}>
               <div style={{ fontSize: '2rem', marginBottom: '0.5rem' }}>🖼️</div>
-              <div style={{ fontWeight: 600, color: '#334155' }}>No photos added yet</div>
-              <p style={{ fontSize: '0.8rem', margin: '0.25rem 0 0 0', color: '#64748b' }}>Add clear photos of this item for quick visual identification.</p>
+              <div style={{ fontWeight: 600, color: 'var(--color-text, #334155)' }}>No photos added yet</div>
+              <p style={{ fontSize: '0.8rem', margin: '0.25rem 0 0 0', color: 'var(--color-text-muted, #64748b)' }}>Add clear photos of this item for quick visual identification.</p>
             </div>
           ) : (
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(100px, 1fr))', gap: '0.75rem' }}>
@@ -199,7 +200,7 @@ export const ItemPhotosModal: React.FC<ItemPhotosModalProps> = ({
                     aspectRatio: '1',
                     borderRadius: '0.5rem',
                     overflow: 'hidden',
-                    border: '1px solid #e2e8f0',
+                    border: '1px solid var(--color-border, #e2e8f0)',
                     backgroundColor: '#0f172a',
                   }}
                 >
@@ -240,7 +241,7 @@ export const ItemPhotosModal: React.FC<ItemPhotosModalProps> = ({
         </div>
 
         {/* Action Buttons */}
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem', justifyContent: 'space-between', alignItems: 'center', borderTop: '1px solid #f1f5f9', paddingTop: '1.25rem' }}>
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem', justifyContent: 'space-between', alignItems: 'center', borderTop: '1px solid var(--color-border, #f1f5f9)', paddingTop: '1.25rem' }}>
           <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
             <button
               type="button"
@@ -316,9 +317,19 @@ export const ItemPhotosModal: React.FC<ItemPhotosModalProps> = ({
             padding: '1rem',
           }}
         >
-          <div style={{ backgroundColor: '#ffffff', borderRadius: '0.5rem', padding: '1.5rem', maxWidth: '380px', width: '100%' }}>
-            <h3 style={{ margin: '0 0 0.5rem 0', color: '#dc2626', fontSize: '1.1rem' }}>Remove Photo?</h3>
-            <p style={{ fontSize: '0.875rem', color: '#475569', margin: '0 0 1.25rem 0' }}>
+          <div
+            className="modal-surface"
+            style={{
+              backgroundColor: 'var(--color-surface, #ffffff)',
+              borderRadius: '0.5rem',
+              padding: '1.5rem',
+              maxWidth: '380px',
+              width: '100%',
+              border: '1px solid var(--color-border, #e2e8f0)',
+            }}
+          >
+            <h3 style={{ margin: '0 0 0.5rem 0', color: 'var(--color-danger, #dc2626)', fontSize: '1.1rem' }}>Remove Photo?</h3>
+            <p style={{ fontSize: '0.875rem', color: 'var(--color-text-muted, #475569)', margin: '0 0 1.25rem 0' }}>
               Are you sure you want to remove this photo from {itemName}?
             </p>
             <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'flex-end' }}>

@@ -77,7 +77,7 @@ export const CreateWorkspaceModal: React.FC<CreateWorkspaceModalProps> = ({
         left: 0,
         right: 0,
         bottom: 0,
-        backgroundColor: 'rgba(15, 23, 42, 0.65)',
+        backgroundColor: 'var(--color-modal-overlay, rgba(15, 23, 42, 0.65))',
         backdropFilter: 'blur(4px)',
         display: 'flex',
         alignItems: 'center',
@@ -96,23 +96,23 @@ export const CreateWorkspaceModal: React.FC<CreateWorkspaceModalProps> = ({
         aria-modal="true"
         aria-labelledby="create-workspace-title"
         aria-describedby="create-workspace-desc"
+        className="create-workspace-modal-dialog modal-surface"
         style={{
-          backgroundColor: '#ffffff',
           borderRadius: '1rem',
-          boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.2), 0 10px 10px -5px rgba(0, 0, 0, 0.04)',
           width: '100%',
           maxWidth: '460px',
           padding: '2rem',
-          border: '1px solid #e2e8f0',
+          maxHeight: 'calc(100vh - 2rem)',
+          overflowY: 'auto',
           animation: 'fadeIn 0.15s ease-out',
         }}
       >
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1.25rem' }}>
           <div>
-            <h2 id="create-workspace-title" style={{ fontSize: '1.25rem', fontWeight: 700, color: '#0f172a', margin: 0 }}>
+            <h2 id="create-workspace-title" style={{ fontSize: '1.25rem', fontWeight: 700, color: 'var(--color-text, #0f172a)', margin: 0 }}>
               Create Workspace
             </h2>
-            <p id="create-workspace-desc" style={{ fontSize: '0.875rem', color: '#64748b', marginTop: '0.25rem', margin: 0 }}>
+            <p id="create-workspace-desc" style={{ fontSize: '0.875rem', color: 'var(--color-text-muted, #64748b)', marginTop: '0.25rem', margin: 0 }}>
               A workspace represents a place you organize, such as your home, garage, or storage unit.
             </p>
           </div>
@@ -123,7 +123,7 @@ export const CreateWorkspaceModal: React.FC<CreateWorkspaceModalProps> = ({
             style={{
               background: 'none',
               border: 'none',
-              color: '#94a3b8',
+              color: 'var(--color-text-muted, #94a3b8)',
               fontSize: '1.25rem',
               cursor: 'pointer',
               padding: '0.25rem',
@@ -135,10 +135,10 @@ export const CreateWorkspaceModal: React.FC<CreateWorkspaceModalProps> = ({
         </div>
 
         <form onSubmit={handleSubmit(onSubmit)} noValidate>
-          <div style={{ marginBottom: '1.5rem' }}>
+          <div className="form-group" style={{ marginBottom: '1.5rem' }}>
             <label
               htmlFor="modalWorkspaceName"
-              style={{ display: 'block', fontSize: '0.875rem', fontWeight: 600, color: '#334155', marginBottom: '0.5rem' }}
+              style={{ display: 'block', fontSize: '0.875rem', fontWeight: 600, color: 'var(--color-text, #334155)', marginBottom: '0.5rem' }}
             >
               Workspace Name
             </label>
@@ -155,9 +155,9 @@ export const CreateWorkspaceModal: React.FC<CreateWorkspaceModalProps> = ({
                 width: '100%',
                 padding: '0.75rem 1rem',
                 fontSize: '0.9375rem',
-                color: '#0f172a',
-                backgroundColor: '#ffffff',
-                border: errors.name ? '2px solid #ef4444' : '1px solid #cbd5e1',
+                color: 'var(--color-input-text, #0f172a)',
+                backgroundColor: 'var(--color-input-bg, #ffffff)',
+                border: errors.name ? '2px solid var(--color-danger, #ef4444)' : '1px solid var(--color-input-border, #cbd5e1)',
                 borderRadius: '0.5rem',
                 outline: 'none',
                 boxSizing: 'border-box',
@@ -167,7 +167,7 @@ export const CreateWorkspaceModal: React.FC<CreateWorkspaceModalProps> = ({
               <span
                 id="modalWorkspaceName-error"
                 role="alert"
-                style={{ color: '#ef4444', fontSize: '0.8125rem', fontWeight: 500, marginTop: '0.375rem', display: 'block' }}
+                style={{ color: 'var(--color-danger, #ef4444)', fontSize: '0.8125rem', fontWeight: 500, marginTop: '0.375rem', display: 'block' }}
               >
                 {errors.name.message}
               </span>
@@ -178,9 +178,9 @@ export const CreateWorkspaceModal: React.FC<CreateWorkspaceModalProps> = ({
             <div
               role="alert"
               style={{
-                backgroundColor: '#fef2f2',
-                border: '1px solid #fecaca',
-                color: '#991b1b',
+                backgroundColor: 'var(--color-danger-bg, #fef2f2)',
+                border: '1px solid var(--color-danger, #fecaca)',
+                color: 'var(--color-danger, #991b1b)',
                 padding: '0.75rem 1rem',
                 borderRadius: '0.5rem',
                 fontSize: '0.875rem',

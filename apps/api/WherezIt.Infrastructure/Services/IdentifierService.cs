@@ -48,6 +48,16 @@ public class IdentifierService : IIdentifierService
             throw new KeyNotFoundException($"Container '{containerId}' was not found in workspace '{workspaceId}'.");
         }
 
+        var existingActive = await _dbContext.Identifiers
+            .AsNoTracking()
+            .FirstOrDefaultAsync(i => i.WorkspaceId == workspaceId && i.ContainerId == containerId && i.Type == normalizedType && !i.IsRevoked, cancellationToken);
+
+        if (existingActive != null)
+        {
+            var labelName = normalizedType == "QR" ? "QR code" : "barcode";
+            throw new InvalidOperationException($"This box already has an active {labelName}. Revoke it before adding another {labelName}.");
+        }
+
         // Generate cryptographically secure token
         var tokenValue = GenerateSecureToken(normalizedType);
 
@@ -122,16 +132,9 @@ public class IdentifierService : IIdentifierService
 
             if (existing != null)
             {
-                await transaction.CommitAsync(cancellationToken);
-                return new IdentifierDto
-                {
-                    Id = existing.Id,
-                    WorkspaceId = existing.WorkspaceId,
-                    ContainerId = existing.ContainerId,
-                    Type = existing.Type,
-                    Value = existing.Value,
-                    CreatedAt = existing.CreatedAt
-                };
+                await transaction.RollbackAsync(cancellationToken);
+                var labelName = normalizedType == "QR" ? "QR code" : "barcode";
+                throw new InvalidOperationException($"This box already has an active {labelName}. Revoke it before adding another {labelName}.");
             }
 
             var tokenValue = GenerateSecureToken(normalizedType);
@@ -211,6 +214,21 @@ public class IdentifierService : IIdentifierService
         if (string.IsNullOrWhiteSpace(trimmed) || trimmed.Length > 200)
         {
             throw new KeyNotFoundException("Container not found or unavailable.");
+        }
+
+        // If an absolute scan URL was supplied directly to the resolve service, extract the scan token
+        if (trimmed.StartsWith("http://", StringComparison.OrdinalIgnoreCase) ||
+            trimmed.StartsWith("https://", StringComparison.OrdinalIgnoreCase))
+        {
+            if (Uri.TryCreate(trimmed, UriKind.Absolute, out var uri))
+            {
+                var segments = uri.AbsolutePath.Split('/', StringSplitOptions.RemoveEmptyEntries);
+                var scanIdx = Array.IndexOf(segments, "scan");
+                if (scanIdx >= 0 && scanIdx < segments.Length - 1)
+                {
+                    trimmed = Uri.UnescapeDataString(segments[scanIdx + 1]);
+                }
+            }
         }
 
         var identifier = await _dbContext.Identifiers
@@ -341,16 +359,34 @@ public class IdentifierService : IIdentifierService
         }
     }
 
+    private const string ShortBarcodeAlphabet = "23456789ABCDEFGHJKMNPQRSTUVWXYZ";
+
+    private static string GenerateShortBarcodeToken()
+    {
+        Span<char> chars = stackalloc char[12];
+        for (var i = 0; i < chars.Length; i++)
+        {
+            chars[i] = ShortBarcodeAlphabet[
+                RandomNumberGenerator.GetInt32(ShortBarcodeAlphabet.Length)
+            ];
+        }
+        return "WZB_" + new string(chars);
+    }
+
     private static string GenerateSecureToken(string type)
     {
-        var prefix = type == "QR" ? "wzi_qr_" : "wzi_bar_";
-        var randomBytes = new byte[24]; // 192 bits of entropy
-        RandomNumberGenerator.Fill(randomBytes);
-        var base64 = Convert.ToBase64String(randomBytes)
-            .Replace('+', '-')
-            .Replace('/', '_')
-            .TrimEnd('=');
-        return prefix + base64;
+        if (type == "QR")
+        {
+            var randomBytes = new byte[24]; // 192 bits of entropy
+            RandomNumberGenerator.Fill(randomBytes);
+            var base64 = Convert.ToBase64String(randomBytes)
+                .Replace('+', '-')
+                .Replace('/', '_')
+                .TrimEnd('=');
+            return "wzi_qr_" + base64;
+        }
+
+        return GenerateShortBarcodeToken();
     }
 
     public async Task<IdentifierDto> AttachCustomIdentifierAsync(
@@ -389,23 +425,84 @@ public class IdentifierService : IIdentifierService
             throw new InvalidOperationException("Cannot attach identifier to an archived container.");
         }
 
-        // Conflict check
+        // Query by exact Value WITHOUT filtering revoked rows
         var existing = await _dbContext.Identifiers
-            .AsNoTracking()
-            .FirstOrDefaultAsync(i => i.Value == trimmedValue && !i.IsRevoked, cancellationToken);
+            .FirstOrDefaultAsync(i => i.Value == trimmedValue, cancellationToken);
 
         if (existing != null)
         {
-            if (existing.WorkspaceId == workspaceId && existing.ContainerId == containerId)
+            if (!existing.IsRevoked)
             {
-                var displayBox = $"BOX {container.BoxNumber:D3}";
-                throw new InvalidOperationException($"This identifier is already attached to {displayBox}.");
+                if (existing.WorkspaceId == workspaceId && existing.ContainerId == containerId)
+                {
+                    var displayBox = $"BOX {container.BoxNumber:D3}";
+                    throw new InvalidOperationException($"This identifier is already attached to {displayBox}.");
+                }
+                else
+                {
+                    // Cross-workspace or different container -> non-disclosure
+                    throw new InvalidOperationException("This identifier is already in use.");
+                }
             }
             else
             {
-                // Cross-workspace or different container -> non-disclosure
-                throw new InvalidOperationException("This identifier is already in use.");
+                // CASE C: existing.IsRevoked == true & different container -> BLOCK
+                if (existing.ContainerId != containerId)
+                {
+                    throw new InvalidOperationException("This identifier was previously assigned to another box and cannot be reassigned automatically.");
+                }
+
+                // TYPE SAFETY: Submitted type vs existing stored type safety check
+                if (existing.Type != normalizedType)
+                {
+                    var originalLabel = existing.Type == "QR" ? "QR code" : "barcode";
+                    var attemptedLabel = normalizedType == "QR" ? "QR code" : "barcode";
+                    throw new InvalidOperationException($"This identifier was previously registered as a {originalLabel} and cannot be reattached as a {attemptedLabel}.");
+                }
+
+                // ACTIVE-TYPE CONSTRAINT: Check for another active identifier of SAME type on target container
+                var activeSameType = await _dbContext.Identifiers
+                    .AnyAsync(i => i.WorkspaceId == workspaceId &&
+                                  i.ContainerId == containerId &&
+                                  i.Type == existing.Type &&
+                                  !i.IsRevoked &&
+                                  i.Id != existing.Id, cancellationToken);
+
+                if (activeSameType)
+                {
+                    var labelName = existing.Type == "QR" ? "QR code" : "barcode";
+                    throw new InvalidOperationException($"This box already has an active {labelName}. Revoke it before adding another {labelName}.");
+                }
+
+                // CASE A: Reactivate existing row for same container
+                var now = DateTimeOffset.UtcNow;
+                existing.IsRevoked = false;
+                existing.RevokedAt = null;
+                existing.UpdatedAt = now;
+
+                await _dbContext.SaveChangesAsync(cancellationToken);
+
+                return new IdentifierDto
+                {
+                    Id = existing.Id,
+                    WorkspaceId = existing.WorkspaceId,
+                    ContainerId = existing.ContainerId,
+                    Type = existing.Type,
+                    Value = existing.Value,
+                    CreatedAt = existing.CreatedAt
+                };
             }
+        }
+
+        // NEW IDENTIFIER PATH: No existing row with this Value
+        var activeSameTypeNew = await _dbContext.Identifiers
+            .AsNoTracking()
+            .FirstOrDefaultAsync(i => i.WorkspaceId == workspaceId && i.ContainerId == containerId && i.Type == normalizedType && !i.IsRevoked, cancellationToken);
+
+        if (activeSameTypeNew != null)
+        {
+            var labelName = normalizedType == "QR" ? "QR code" : "barcode";
+            throw new InvalidOperationException($"This box already has an active {labelName}. Revoke it before adding another {labelName}.");
         }
 
         var identifier = new Identifier

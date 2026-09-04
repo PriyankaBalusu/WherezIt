@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useAttachIdentifier } from '../hooks/useIdentifiers';
+import { CodeScanner } from './CodeScanner';
 
 interface AttachCodeModalProps {
   workspaceId: string;
@@ -8,6 +9,8 @@ interface AttachCodeModalProps {
   isOpen: boolean;
   onClose: () => void;
   initialType?: 'QR' | 'BARCODE';
+  hasActiveQr?: boolean;
+  hasActiveBarcode?: boolean;
 }
 
 export const AttachCodeModal: React.FC<AttachCodeModalProps> = ({
@@ -17,9 +20,15 @@ export const AttachCodeModal: React.FC<AttachCodeModalProps> = ({
   isOpen,
   onClose,
   initialType = 'QR',
+  hasActiveQr = false,
+  hasActiveBarcode = false,
 }) => {
   const [codeValue, setCodeValue] = useState('');
-  const [codeType, setCodeType] = useState<'QR' | 'BARCODE'>(initialType);
+  const [codeType, setCodeType] = useState<'QR' | 'BARCODE'>(() => {
+    if (hasActiveQr && !hasActiveBarcode) return 'BARCODE';
+    if (hasActiveBarcode && !hasActiveQr) return 'QR';
+    return initialType;
+  });
   const [isScanning, setIsScanning] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
@@ -27,8 +36,16 @@ export const AttachCodeModal: React.FC<AttachCodeModalProps> = ({
 
   if (!isOpen) return null;
 
+  const bothBlocked = hasActiveQr && hasActiveBarcode;
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if ((codeType === 'QR' && hasActiveQr) || (codeType === 'BARCODE' && hasActiveBarcode)) {
+      const typeStr = codeType === 'QR' ? 'QR code' : 'barcode';
+      setErrorMessage(`This box already has an active ${typeStr}. Revoke it before adding another ${typeStr}.`);
+      return;
+    }
+
     const trimmed = codeValue.trim();
     if (!trimmed) {
       setErrorMessage('Please enter or scan a valid code value.');
@@ -45,11 +62,35 @@ export const AttachCodeModal: React.FC<AttachCodeModalProps> = ({
     }
   };
 
-  const handleSimulateScan = () => {
-    // Helper to simulate scanning from camera in browser
-    const simulated = codeType === 'QR' ? 'QR-BOX-9988' : 'BAR-7711-22';
-    setCodeValue(simulated);
+  const handleRawCodeScanned = (value: string, format?: string) => {
+    const trimmed = value.trim();
+    if (!trimmed) return;
+
+    const isScannedQr = format === 'qr_code';
+    const isScannedBarcode = format && ['code_128', 'ean_13', 'ean_8', 'upc_a', 'upc_e', 'code_39', 'zxing_barcode'].includes(format);
+
+    if (isScannedQr && hasActiveQr) {
+      setIsScanning(false);
+      setErrorMessage('This box already has an active QR code. Revoke it before adding another QR code.');
+      return;
+    }
+
+    if (isScannedBarcode && hasActiveBarcode) {
+      setIsScanning(false);
+      setErrorMessage('This box already has an active barcode. Revoke it before adding another barcode.');
+      return;
+    }
+
+    setCodeValue(trimmed);
+
+    if (isScannedQr) {
+      setCodeType('QR');
+    } else if (isScannedBarcode) {
+      setCodeType('BARCODE');
+    }
+
     setIsScanning(false);
+    if (errorMessage) setErrorMessage(null);
   };
 
   return (
@@ -60,7 +101,7 @@ export const AttachCodeModal: React.FC<AttachCodeModalProps> = ({
         left: 0,
         right: 0,
         bottom: 0,
-        backgroundColor: 'rgba(0, 0, 0, 0.5)',
+        backgroundColor: 'var(--color-modal-overlay, rgba(0, 0, 0, 0.5))',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
@@ -72,23 +113,25 @@ export const AttachCodeModal: React.FC<AttachCodeModalProps> = ({
       aria-labelledby="attach-code-modal-title"
     >
       <div
+        className="attach-code-modal-dialog modal-surface"
         style={{
-          backgroundColor: '#ffffff',
           borderRadius: '0.75rem',
           padding: '1.75rem',
           maxWidth: '480px',
           width: '100%',
-          boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1)',
+          maxHeight: 'calc(100vh - 2rem)',
+          overflowY: 'auto',
+          boxShadow: 'var(--color-card-shadow, 0 20px 25px -5px rgba(0, 0, 0, 0.1))',
         }}
       >
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
-          <h2 id="attach-code-modal-title" style={{ margin: 0, fontSize: '1.25rem', fontWeight: 800, color: '#0f172a' }}>
+          <h2 id="attach-code-modal-title" style={{ margin: 0, fontSize: '1.25rem', fontWeight: 800, color: 'var(--color-text, #0f172a)' }}>
             Attach {codeType === 'QR' ? 'QR Code' : 'Barcode'}
           </h2>
           <button
             type="button"
             onClick={onClose}
-            style={{ background: 'none', border: 'none', fontSize: '1.5rem', color: '#64748b', cursor: 'pointer' }}
+            style={{ background: 'none', border: 'none', fontSize: '1.5rem', color: 'var(--color-text-muted, #64748b)', cursor: 'pointer' }}
           >
             ×
           </button>
@@ -112,67 +155,75 @@ export const AttachCodeModal: React.FC<AttachCodeModalProps> = ({
         )}
 
         <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
-          <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '0.25rem' }}>
-            <button
-              type="button"
-              className={codeType === 'QR' ? 'btn-primary' : 'btn-secondary'}
-              onClick={() => setCodeType('QR')}
-              style={{ flex: 1, padding: '0.5rem', fontSize: '0.85rem' }}
-            >
-              QR Code
-            </button>
-            <button
-              type="button"
-              className={codeType === 'BARCODE' ? 'btn-primary' : 'btn-secondary'}
-              onClick={() => setCodeType('BARCODE')}
-              style={{ flex: 1, padding: '0.5rem', fontSize: '0.85rem' }}
-            >
-              Barcode
-            </button>
-          </div>
-
-          {isScanning ? (
+          {bothBlocked ? (
             <div
+              role="alert"
               style={{
-                backgroundColor: '#0f172a',
-                color: '#f8fafc',
-                padding: '2rem 1rem',
+                backgroundColor: 'var(--color-surface-raised, #f8fafc)',
+                border: '1px solid var(--color-border, #cbd5e1)',
+                color: 'var(--color-text-muted, #64748b)',
+                padding: '0.875rem 1rem',
                 borderRadius: '0.5rem',
-                textAlign: 'center',
+                fontSize: '0.875rem',
+                lineHeight: 1.5,
               }}
             >
-              <div style={{ fontSize: '2rem', marginBottom: '0.5rem' }}>📷</div>
-              <div style={{ fontWeight: 600, fontSize: '0.9rem', marginBottom: '1rem' }}>
-                Position code within camera frame...
-              </div>
-              <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'center' }}>
+              This box already has an active QR code and barcode. Revoke one before attaching another code.
+            </div>
+          ) : (
+            <>
+              <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '0.25rem' }}>
                 <button
                   type="button"
-                  className="btn-primary"
-                  onClick={handleSimulateScan}
-                  style={{ padding: '0.375rem 0.75rem', fontSize: '0.75rem' }}
+                  disabled={hasActiveQr}
+                  className={codeType === 'QR' ? 'btn-primary' : 'btn-secondary'}
+                  onClick={() => setCodeType('QR')}
+                  style={{ flex: 1, padding: '0.5rem', fontSize: '0.85rem', opacity: hasActiveQr ? 0.5 : 1, cursor: hasActiveQr ? 'not-allowed' : 'pointer' }}
                 >
-                  Simulate Detected Code
+                  QR Code {hasActiveQr ? '(Active)' : ''}
                 </button>
+                <button
+                  type="button"
+                  disabled={hasActiveBarcode}
+                  className={codeType === 'BARCODE' ? 'btn-primary' : 'btn-secondary'}
+                  onClick={() => setCodeType('BARCODE')}
+                  style={{ flex: 1, padding: '0.5rem', fontSize: '0.85rem', opacity: hasActiveBarcode ? 0.5 : 1, cursor: hasActiveBarcode ? 'not-allowed' : 'pointer' }}
+                >
+                  Barcode {hasActiveBarcode ? '(Active)' : ''}
+                </button>
+              </div>
+
+              {hasActiveQr && (
+                <div style={{ fontSize: '0.75rem', color: 'var(--color-text-muted, #64748b)', marginTop: '-0.75rem' }}>
+                  This box already has an active QR code. Revoke it before attaching another.
+                </div>
+              )}
+              {hasActiveBarcode && (
+                <div style={{ fontSize: '0.75rem', color: 'var(--color-text-muted, #64748b)', marginTop: '-0.75rem' }}>
+                  This box already has an active barcode. Revoke it before attaching another.
+                </div>
+              )}
+
+              {isScanning ? (
+                <CodeScanner
+                  autoStart
+                  hideManualInput
+                  scanMode="ALL"
+                  expectedFormats={['qr_code', 'code_128', 'ean_13', 'ean_8', 'upc_a', 'upc_e', 'code_39']}
+                  onScanRaw={handleRawCodeScanned}
+                  onCancel={() => setIsScanning(false)}
+                />
+              ) : (
                 <button
                   type="button"
                   className="btn-secondary"
-                  onClick={() => setIsScanning(false)}
-                  style={{ padding: '0.375rem 0.75rem', fontSize: '0.75rem', color: '#cbd5e1', borderColor: '#334155' }}
+                  onClick={() => setIsScanning(true)}
+                  style={{ width: '100%', padding: '0.625rem', fontSize: '0.875rem' }}
                 >
-                  Cancel Camera
+                  📷 Open Camera Scanner
                 </button>
-              </div>
-            </div>
-          ) : (
-            <button
-              type="button"
-              className="btn-secondary"
-              onClick={() => setIsScanning(true)}
-              style={{ width: '100%', padding: '0.625rem', fontSize: '0.875rem' }}
-            >
-              📷 Open Camera Scanner
-            </button>
+              )}
+            </>
           )}
 
           <div className="form-group" style={{ marginBottom: 0 }}>
@@ -184,6 +235,7 @@ export const AttachCodeModal: React.FC<AttachCodeModalProps> = ({
               type="text"
               placeholder="e.g. ABC-123-XYZ or UPC 0123456789"
               value={codeValue}
+              disabled={bothBlocked}
               onChange={(e) => {
                 setCodeValue(e.target.value);
                 if (errorMessage) setErrorMessage(null);
@@ -191,20 +243,20 @@ export const AttachCodeModal: React.FC<AttachCodeModalProps> = ({
               required
               style={{ width: '100%', padding: '0.625rem', fontSize: '0.9rem' }}
             />
-            <span style={{ fontSize: '0.75rem', color: '#64748b', marginTop: '0.25rem', display: 'block' }}>
+            <span style={{ fontSize: '0.75rem', color: 'var(--color-text-muted, #64748b)', marginTop: '0.25rem', display: 'block' }}>
               Enter or scan the exact encoded string printed on the physical code.
             </span>
           </div>
 
-          {codeValue.trim() && (
+          {codeValue.trim() && !bothBlocked && (
             <div
               style={{
-                backgroundColor: '#f0f9ff',
-                border: '1px solid #bae6fd',
+                backgroundColor: 'var(--color-surface-raised, #f0f9ff)',
+                border: '1px solid var(--color-border, #bae6fd)',
                 padding: '0.75rem 1rem',
                 borderRadius: '0.5rem',
                 fontSize: '0.85rem',
-                color: '#0369a1',
+                color: 'var(--color-text, #0369a1)',
               }}
             >
               Attach this {codeType === 'QR' ? 'QR code' : 'barcode'} <strong>({codeValue.trim()})</strong> to{' '}
@@ -224,7 +276,7 @@ export const AttachCodeModal: React.FC<AttachCodeModalProps> = ({
             <button
               type="submit"
               className="btn-primary"
-              disabled={attachMutation.isPending || !codeValue.trim()}
+              disabled={attachMutation.isPending || !codeValue.trim() || bothBlocked}
               style={{ padding: '0.5rem 1.5rem', fontSize: '0.875rem' }}
             >
               {attachMutation.isPending ? 'Attaching...' : 'Attach'}
@@ -235,3 +287,4 @@ export const AttachCodeModal: React.FC<AttachCodeModalProps> = ({
     </div>
   );
 };
+

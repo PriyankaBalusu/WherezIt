@@ -292,7 +292,7 @@ public class WorkspaceSearchService : IWorkspaceSearchService
                     components.Add(new QueryComponent(token, m));
                 }
             }
-            else if (!isShortQuery && token.Length >= 4)
+            else if (!isShortQuery && token.Length >= 5)
             {
                 string? bestTerm = FindClosestVocabularyTerm(token);
                 if (bestTerm != null)
@@ -397,6 +397,7 @@ public class WorkspaceSearchService : IWorkspaceSearchService
 
     private static string? FindClosestVocabularyTerm(string queryToken)
     {
+        if (string.IsNullOrEmpty(queryToken) || queryToken.Length < 5) return null;
         string? bestTerm = null;
         int minDistance = int.MaxValue;
 
@@ -763,11 +764,11 @@ public class WorkspaceSearchService : IWorkspaceSearchService
         {
             if (token.StartsWith(q) || q.StartsWith(token)) return true;
 
-            int maxDist = q.Length <= 3 ? 0 : q.Length <= 7 ? 1 : 2;
+            int maxDist = q.Length <= 4 ? 0 : q.Length <= 7 ? 1 : 2;
             if (LevenshteinDistance(q, token) <= maxDist) return true;
         }
 
-        int fullMaxDist = q.Length <= 3 ? 0 : q.Length <= 7 ? 1 : 2;
+        int fullMaxDist = q.Length <= 4 ? 0 : q.Length <= 7 ? 1 : 2;
         return LevenshteinDistance(q, t) <= fullMaxDist;
     }
 

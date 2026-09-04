@@ -50,6 +50,7 @@ export const RevokeIdentifierModal: React.FC<RevokeIdentifierModalProps> = ({
         zIndex: 1000,
         padding: '1rem',
       }}
+      className="revoke-modal-backdrop"
       role="dialog"
       aria-modal="true"
       aria-labelledby="revoke-identifier-modal-title"

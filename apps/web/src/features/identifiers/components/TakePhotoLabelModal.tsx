@@ -134,6 +134,7 @@ export const TakePhotoLabelModal: React.FC<TakePhotoLabelModalProps> = ({
         zIndex: 1000,
         padding: '1rem',
       }}
+      className="photo-label-modal-backdrop"
       role="dialog"
       aria-modal="true"
       aria-labelledby="photo-label-modal-title"

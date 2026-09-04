@@ -214,7 +214,7 @@ public class ImagesController : ControllerBase
         try
         {
             var image = await _imageService.GetContainerPhysicalLabelImageAsync(identity, workspaceId, containerId, cancellationToken);
-            if (image == null) return NotFound(new { error = "No physical label image found for this container." });
+            if (image == null) return NoContent();
             return Ok(image);
         }
         catch (KeyNotFoundException ex)

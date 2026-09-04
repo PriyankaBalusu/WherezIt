@@ -34,7 +34,7 @@ export const AddContentsChooserModal: React.FC<AddContentsChooserModalProps> = (
         left: 0,
         right: 0,
         bottom: 0,
-        backgroundColor: 'rgba(0, 0, 0, 0.5)',
+        backgroundColor: 'var(--color-modal-overlay, rgba(0, 0, 0, 0.5))',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
@@ -46,30 +46,31 @@ export const AddContentsChooserModal: React.FC<AddContentsChooserModalProps> = (
       aria-labelledby="add-contents-chooser-title"
     >
       <div
+        className="add-contents-chooser-modal-dialog modal-surface"
         style={{
-          backgroundColor: '#fff',
           borderRadius: '0.5rem',
           padding: '1.5rem',
           maxWidth: '440px',
           width: '100%',
-          boxShadow: '0 10px 25px rgba(0,0,0,0.2)',
+          maxHeight: 'calc(100vh - 2rem)',
+          overflowY: 'auto',
         }}
       >
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
-          <h3 id="add-contents-chooser-title" style={{ margin: 0, fontSize: '1.25rem', color: '#0f172a', fontWeight: 700 }}>
+          <h3 id="add-contents-chooser-title" style={{ margin: 0, fontSize: '1.25rem', color: 'var(--color-text, #0f172a)', fontWeight: 700 }}>
             Add contents
           </h3>
           <button
             type="button"
             onClick={onClose}
-            style={{ border: 'none', background: 'none', fontSize: '1.5rem', cursor: 'pointer', color: '#94a3b8' }}
+            style={{ border: 'none', background: 'none', fontSize: '1.5rem', cursor: 'pointer', color: 'var(--color-text-muted, #94a3b8)' }}
             aria-label="Close modal"
           >
             &times;
           </button>
         </div>
 
-        <p style={{ fontSize: '0.875rem', color: '#64748b', marginBottom: '1.5rem', marginTop: 0 }}>
+        <p style={{ fontSize: '0.875rem', color: 'var(--color-text-muted, #64748b)', marginBottom: '1.5rem', marginTop: 0 }}>
           How would you like to add items?
         </p>
 
@@ -87,19 +88,19 @@ export const AddContentsChooserModal: React.FC<AddContentsChooserModalProps> = (
               alignItems: 'flex-start',
               padding: '1rem',
               borderRadius: '0.5rem',
-              border: '1px solid #e2e8f0',
-              backgroundColor: '#f8fafc',
+              border: '1px solid var(--color-border-strong, #cbd5e1)',
+              backgroundColor: 'var(--color-surface-raised, #f8fafc)',
               cursor: 'pointer',
               textAlign: 'left',
               transition: 'border-color 0.2s',
             }}
-            onMouseOver={(e) => (e.currentTarget.style.borderColor = '#0284c7')}
-            onMouseOut={(e) => (e.currentTarget.style.borderColor = '#e2e8f0')}
+            onMouseOver={(e) => (e.currentTarget.style.borderColor = 'var(--color-primary, #0284c7)')}
+            onMouseOut={(e) => (e.currentTarget.style.borderColor = 'var(--color-border-strong, #cbd5e1)')}
           >
-            <span style={{ fontSize: '1rem', fontWeight: 700, color: '#0f172a', marginBottom: '0.25rem' }}>
+            <span style={{ fontSize: '1rem', fontWeight: 700, color: 'var(--color-text, #0f172a)', marginBottom: '0.25rem' }}>
               Add Manually
             </span>
-            <span style={{ fontSize: '0.8rem', color: '#64748b' }}>
+            <span style={{ fontSize: '0.8rem', color: 'var(--color-text-muted, #64748b)' }}>
               Enter item name, category and quantity.
             </span>
           </button>
@@ -117,19 +118,19 @@ export const AddContentsChooserModal: React.FC<AddContentsChooserModalProps> = (
               alignItems: 'flex-start',
               padding: '1rem',
               borderRadius: '0.5rem',
-              border: '1px solid #e2e8f0',
-              backgroundColor: '#f8fafc',
+              border: '1px solid var(--color-border-strong, #cbd5e1)',
+              backgroundColor: 'var(--color-surface-raised, #f8fafc)',
               cursor: 'pointer',
               textAlign: 'left',
               transition: 'border-color 0.2s',
             }}
-            onMouseOver={(e) => (e.currentTarget.style.borderColor = '#0284c7')}
-            onMouseOut={(e) => (e.currentTarget.style.borderColor = '#e2e8f0')}
+            onMouseOver={(e) => (e.currentTarget.style.borderColor = 'var(--color-primary, #0284c7)')}
+            onMouseOut={(e) => (e.currentTarget.style.borderColor = 'var(--color-border-strong, #cbd5e1)')}
           >
-            <span style={{ fontSize: '1rem', fontWeight: 700, color: '#0f172a', marginBottom: '0.25rem' }}>
+            <span style={{ fontSize: '1rem', fontWeight: 700, color: 'var(--color-text, #0f172a)', marginBottom: '0.25rem' }}>
               Add from Photo
             </span>
-            <span style={{ fontSize: '0.8rem', color: '#64748b' }}>
+            <span style={{ fontSize: '0.8rem', color: 'var(--color-text-muted, #64748b)' }}>
               Upload a photo and let AI suggest items for your review.
             </span>
           </button>
@@ -138,7 +139,7 @@ export const AddContentsChooserModal: React.FC<AddContentsChooserModalProps> = (
         <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
           <button
             type="button"
-            className="btn-secondary"
+            className="btn btn-secondary btn--md"
             onClick={onClose}
             style={{ padding: '0.5rem 1rem', fontSize: '0.875rem' }}
           >

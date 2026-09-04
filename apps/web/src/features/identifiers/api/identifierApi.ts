@@ -56,14 +56,38 @@ export async function acquireContainerQrIdentifier(
   return response.json();
 }
 
+export function extractIdentifierValue(input: string): string {
+  const trimmed = input.trim();
+  if (!trimmed) return trimmed;
+  try {
+    if (trimmed.startsWith('http://') || trimmed.startsWith('https://')) {
+      const url = new URL(trimmed);
+      const scanMatch = url.pathname.match(/\/scan\/([^/]+)/);
+      if (scanMatch && scanMatch[1]) {
+        return decodeURIComponent(scanMatch[1]);
+      }
+    }
+  } catch {
+    // Ignore URL parse failure and return raw trimmed value
+  }
+  return trimmed;
+}
+
 export async function resolveContainerIdentifier(value: string): Promise<ResolvedContainerResponse> {
   const currentUser = auth.currentUser;
   if (!currentUser) {
     throw new Error('User must be authenticated to resolve container identifier.');
   }
 
+  const tokenValue = extractIdentifierValue(value);
+  console.debug('[identifierApi] resolveContainerIdentifier entry', {
+    originalValue: value,
+    extractedValue: tokenValue,
+  });
   const token = await getIdToken(currentUser);
-  const response = await fetch(`${API_BASE_URL}/identifiers/resolve?value=${encodeURIComponent(value)}`, {
+  const url = `${API_BASE_URL}/identifiers/resolve?value=${encodeURIComponent(tokenValue)}`;
+  console.debug('[identifierApi] fetching URL', url);
+  const response = await fetch(url, {
     headers: {
       Authorization: `Bearer ${token}`,
     },

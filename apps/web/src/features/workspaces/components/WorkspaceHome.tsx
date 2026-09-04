@@ -240,6 +240,7 @@ export const WorkspaceHome: React.FC<WorkspaceHomeProps> = ({ activeWorkspace })
             onCreateWorkspace={workspaceContext?.openCreateWorkspaceModal || (() => {})}
             onOpenAddLocation={openAddLocationModal}
             onOpenAddBox={openAddBoxModal}
+            onRenameLocation={(id, name) => openRenameLocationModal(id, name)}
           />
         </div>
       ) : (

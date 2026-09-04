@@ -48,6 +48,7 @@ export interface MobileContainerDetailLayoutProps {
   onConfirmMove?: (e: React.FormEvent) => void;
   onCancelEdit?: () => void;
   onCancelMove?: () => void;
+  onSetSelectedIdentifierId?: (id: string) => void;
 }
 
 export const MobileContainerDetailLayout: React.FC<MobileContainerDetailLayoutProps> = ({
@@ -82,6 +83,7 @@ export const MobileContainerDetailLayout: React.FC<MobileContainerDetailLayoutPr
   onSetPreviewImageUrl,
   onSetGalleryIndex,
   onSetImageToDelete,
+  onSetSelectedIdentifierId,
   isEditing = false,
   isMoving = false,
   editName = '',
@@ -99,6 +101,10 @@ export const MobileContainerDetailLayout: React.FC<MobileContainerDetailLayoutPr
   const [activeTab, setActiveTab] = useState<'contents' | 'photos' | 'codes' | 'history'>('contents');
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
+
+  const hasActiveQr = identifiers.some((i: any) => i.type === 'QR' && !i.isRevoked);
+  const hasActiveBarcode = identifiers.some((i: any) => i.type === 'BARCODE' && !i.isRevoked);
+  const hasActivePhysicalLabel = Boolean(container?.physicalLabel || labelImage);
 
   useEffect(() => {
     if (!isMenuOpen) return;
@@ -329,28 +335,26 @@ export const MobileContainerDetailLayout: React.FC<MobileContainerDetailLayoutPr
 
         {activeTab === 'photos' && (
           <div id="panel-photos" role="tabpanel" aria-labelledby="tab-photos" className="mobile-section-card">
-            <div className="mobile-section-header">
+            <div className="mobile-section-header mobile-section-header--photos">
               <div>
                 <h3 className="mobile-section-title">Photos</h3>
                 <p className="mobile-section-subtitle">Reference photos of this box.</p>
               </div>
               {!container.isArchived && (
-                <div style={{ display: 'flex', gap: '0.375rem', flexWrap: 'wrap' }}>
+                <div className="mobile-photo-action-row">
                   <button
                     type="button"
-                    className="btn btn-secondary btn--sm"
+                    className="btn btn-secondary btn--sm mobile-photo-action-btn"
                     disabled={isUploadingReference}
                     onClick={onTriggerReferenceCameraUpload || onTriggerReferencePhotoUpload}
-                    style={{ fontSize: '0.8rem', padding: '0.35rem 0.6rem' }}
                   >
                     📷 Take Photo
                   </button>
                   <button
                     type="button"
-                    className="btn btn-secondary btn--sm"
+                    className="btn btn-secondary btn--sm mobile-photo-action-btn"
                     disabled={isUploadingReference}
                     onClick={onTriggerReferenceLibraryUpload || onTriggerReferencePhotoUpload}
-                    style={{ fontSize: '0.8rem', padding: '0.35rem 0.6rem' }}
                   >
                     📁 Choose Photo
                   </button>
@@ -460,7 +464,10 @@ export const MobileContainerDetailLayout: React.FC<MobileContainerDetailLayoutPr
                           <button
                             type="button"
                             className="btn btn-secondary btn--sm"
-                            onClick={() => ident.type === 'QR' ? onOpenQr() : onOpenBarcode()}
+                            onClick={() => {
+                              onSetSelectedIdentifierId?.(ident.id);
+                              ident.type === 'QR' ? onOpenQr() : onOpenBarcode();
+                            }}
                           >
                             View / Print
                           </button>
@@ -480,14 +487,25 @@ export const MobileContainerDetailLayout: React.FC<MobileContainerDetailLayoutPr
                 <div className="mobile-section-empty">No scannable codes generated.</div>
               )}
 
+              {hasActiveQr && (
+                <div style={{ fontSize: '0.75rem', color: 'var(--color-text-muted, #64748b)', marginTop: '0.5rem' }}>
+                  This box already has an active QR code. Revoke it before adding another.
+                </div>
+              )}
+              {hasActiveBarcode && (
+                <div style={{ fontSize: '0.75rem', color: 'var(--color-text-muted, #64748b)', marginTop: '0.5rem' }}>
+                  This box already has an active barcode. Revoke it before adding another.
+                </div>
+              )}
+
               {!container.isArchived && (
                 <div className="mobile-code-gen-actions">
-                  {!identifiers.some((i: any) => i.type === 'QR') && (
+                  {!hasActiveQr && (
                     <button type="button" className="btn btn-secondary btn--sm" onClick={onOpenQr}>
                       📱 + Generate QR Code
                     </button>
                   )}
-                  {!identifiers.some((i: any) => i.type === 'BARCODE') && (
+                  {!hasActiveBarcode && (
                     <button type="button" className="btn btn-secondary btn--sm" onClick={onOpenBarcode}>
                       ║▌ + Generate Barcode
                     </button>

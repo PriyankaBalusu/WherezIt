@@ -14,27 +14,27 @@ export const WorkspaceActivityModal: React.FC<WorkspaceActivityModalProps> = ({ 
   return (
     <div className="modal-overlay" onClick={onClose}>
       <div
-        className="modal-dialog"
+        className="modal-dialog modal-surface"
         onClick={(e) => e.stopPropagation()}
-        style={{ maxWidth: '540px', width: '100%' }}
+        style={{ maxWidth: '540px', width: '100%', maxHeight: 'calc(100vh - 2rem)', overflowY: 'auto' }}
       >
         <div className="modal-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <h3>📋 Storage Space Activity</h3>
           <button
             type="button"
             onClick={onClose}
-            style={{ background: 'none', border: 'none', fontSize: '1.25rem', color: '#64748b', cursor: 'pointer' }}
+            style={{ background: 'none', border: 'none', fontSize: '1.25rem', color: 'var(--color-text-muted, #64748b)', cursor: 'pointer' }}
           >
             ✕
           </button>
         </div>
 
         <div className="modal-body" style={{ maxHeight: '420px', overflowY: 'auto', padding: '1rem' }}>
-          {isLoading && <p style={{ color: '#64748b', fontSize: '0.9rem' }}>Loading activity history...</p>}
+          {isLoading && <p style={{ color: 'var(--color-text-muted, #64748b)', fontSize: '0.9rem' }}>Loading activity history...</p>}
           {error && <div className="auth-error">Failed to load activity history.</div>}
 
           {!isLoading && !error && audits.length === 0 && (
-            <p style={{ color: '#64748b', fontSize: '0.9rem', textAlign: 'center', padding: '1.5rem 0' }}>
+            <p style={{ color: 'var(--color-text-muted, #64748b)', fontSize: '0.9rem', textAlign: 'center', padding: '1.5rem 0' }}>
               No storage space activity events recorded yet.
             </p>
           )}
@@ -61,28 +61,28 @@ export const WorkspaceActivityModal: React.FC<WorkspaceActivityModalProps> = ({ 
                 const newWsName = details?.newWorkspaceName || details?.NewWorkspaceName || audit.workspaceName;
 
                 let badgeLabel = 'Event';
-                let badgeBg = '#f1f5f9';
-                let badgeColor = '#475569';
+                let badgeBg = 'var(--color-bg-subtle, rgba(255, 255, 255, 0.05))';
+                let badgeColor = 'var(--color-text-muted, #475569)';
                 let title = audit.workspaceName;
                 let subtitle: string | null = null;
 
                 switch (audit.eventType) {
                   case 'WORKSPACE_CREATED':
                     badgeLabel = 'Created';
-                    badgeBg = '#dcfce7';
-                    badgeColor = '#166534';
+                    badgeBg = 'rgba(34, 197, 94, 0.15)';
+                    badgeColor = '#22c55e';
                     title = `Storage Space created: ${audit.workspaceName}`;
                     break;
                   case 'WORKSPACE_RENAMED':
                     badgeLabel = 'Renamed';
-                    badgeBg = '#fef3c7';
-                    badgeColor = '#92400e';
+                    badgeBg = 'rgba(245, 158, 11, 0.15)';
+                    badgeColor = '#f59e0b';
                     title = `Storage Space renamed: ${prevWsName ? `${prevWsName} → ` : ''}${newWsName}`;
                     break;
                   case 'WORKSPACE_DELETED':
                     badgeLabel = 'Deleted';
-                    badgeBg = '#fee2e2';
-                    badgeColor = '#991b1b';
+                    badgeBg = 'rgba(239, 68, 68, 0.15)';
+                    badgeColor = '#ef4444';
                     title = `Storage Space deleted: ${audit.workspaceName}`;
                     if (details) {
                       const locs = details.locationsCount ?? details.LocationsCount ?? 0;
@@ -100,8 +100,8 @@ export const WorkspaceActivityModal: React.FC<WorkspaceActivityModalProps> = ({ 
                       badgeLabel = 'Location Added';
                       title = `Location added: ${locName}`;
                     }
-                    badgeBg = '#dbeafe';
-                    badgeColor = '#1e40af';
+                    badgeBg = 'rgba(59, 130, 246, 0.15)';
+                    badgeColor = '#3b82f6';
                     break;
                   case 'LOCATION_RENAMED':
                     if (parentLocName) {
@@ -112,8 +112,8 @@ export const WorkspaceActivityModal: React.FC<WorkspaceActivityModalProps> = ({ 
                       badgeLabel = 'Location Renamed';
                       title = `Location renamed: ${prevLocName} → ${newLocName}`;
                     }
-                    badgeBg = '#fef3c7';
-                    badgeColor = '#92400e';
+                    badgeBg = 'rgba(245, 158, 11, 0.15)';
+                    badgeColor = '#f59e0b';
                     break;
                   case 'LOCATION_DELETED':
                     if (parentLocName) {
@@ -124,8 +124,8 @@ export const WorkspaceActivityModal: React.FC<WorkspaceActivityModalProps> = ({ 
                       badgeLabel = 'Location Deleted';
                       title = `Location deleted: ${locName}`;
                     }
-                    badgeBg = '#fee2e2';
-                    badgeColor = '#991b1b';
+                    badgeBg = 'rgba(239, 68, 68, 0.15)';
+                    badgeColor = '#ef4444';
                     break;
                   default:
                     title = audit.eventType;
@@ -159,15 +159,15 @@ export const WorkspaceActivityModal: React.FC<WorkspaceActivityModalProps> = ({ 
                       >
                         {badgeLabel}
                       </span>
-                      <span style={{ fontSize: '0.75rem', color: '#64748b' }}>{formattedDate}</span>
+                      <span style={{ fontSize: '0.75rem', color: 'var(--color-text-muted, #64748b)' }}>{formattedDate}</span>
                     </div>
 
-                    <div style={{ fontSize: '0.875rem', fontWeight: 600, color: '#0f172a', marginTop: '0.25rem' }}>
+                    <div style={{ fontSize: '0.875rem', fontWeight: 600, color: 'var(--color-text, #0f172a)', marginTop: '0.25rem' }}>
                       {title}
                     </div>
 
                     {subtitle && (
-                      <div style={{ fontSize: '0.78rem', color: '#64748b', marginTop: '0.1rem' }}>
+                      <div style={{ fontSize: '0.78rem', color: 'var(--color-text-muted, #64748b)', marginTop: '0.1rem' }}>
                         {subtitle}
                       </div>
                     )}
