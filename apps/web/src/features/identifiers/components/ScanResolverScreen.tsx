@@ -59,7 +59,7 @@ export const ScanResolverScreen: React.FC = () => {
 
   if (authLoading || isLoading) {
     return (
-      <div style={{ textAlign: 'center', padding: '4rem 1rem', color: '#4a5568' }}>
+      <div style={{ textAlign: 'center', padding: '4rem 1rem', color: 'var(--color-text-muted)' }}>
         Resolving scanned container...
       </div>
     );
@@ -67,15 +67,15 @@ export const ScanResolverScreen: React.FC = () => {
 
   if (error || !resolved) {
     return (
-      <div style={{ maxWidth: '500px', margin: '3rem auto', padding: '1.5rem', backgroundColor: '#fff5f5', border: '1px solid #feb2b2', borderRadius: '0.5rem', textAlign: 'center' }}>
-        <h3 style={{ color: '#c53030', marginTop: 0 }}>Container Unavailable</h3>
-        <p style={{ color: '#4a5568', marginBottom: '1.5rem' }}>
+      <div style={{ maxWidth: '500px', margin: '3rem auto', padding: '1.5rem', backgroundColor: 'var(--color-danger-bg)', border: '1px solid var(--color-danger)', borderRadius: '0.5rem', textAlign: 'center' }}>
+        <h3 style={{ color: 'var(--color-danger)', marginTop: 0 }}>Container Unavailable</h3>
+        <p style={{ color: 'var(--color-text-muted)', marginBottom: '1.5rem' }}>
           {error || 'Container not found or unavailable.'}
         </p>
         <button
           type="button"
           onClick={() => navigate('/workspaces')}
-          style={{ padding: '0.5rem 1rem', backgroundColor: '#3182ce', color: '#fff', border: 'none', borderRadius: '0.25rem', fontWeight: 600, cursor: 'pointer' }}
+          style={{ padding: '0.5rem 1rem', backgroundColor: 'var(--color-primary)', color: '#fff', border: 'none', borderRadius: '0.25rem', fontWeight: 600, cursor: 'pointer' }}
         >
           Go to Workspaces
         </button>
@@ -85,25 +85,25 @@ export const ScanResolverScreen: React.FC = () => {
 
   return (
     <div style={{ maxWidth: '600px', margin: '2rem auto', padding: '1rem' }}>
-      <div style={{ backgroundColor: '#fff', border: '1px solid #e2e8f0', borderRadius: '0.5rem', padding: '1.5rem', boxShadow: '0 2px 4px rgba(0,0,0,0.05)' }}>
-        <div style={{ borderBottom: '1px solid #edf2f7', paddingBottom: '1rem', marginBottom: '1rem' }}>
-          <div style={{ fontSize: '0.85rem', fontWeight: 700, color: '#3182ce', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+      <div style={{ backgroundColor: 'var(--color-surface)', border: '1px solid var(--color-border)', borderRadius: '0.5rem', padding: '1.5rem', boxShadow: 'var(--shadow-sm)' }}>
+        <div style={{ borderBottom: '1px solid var(--color-border-subtle)', paddingBottom: '1rem', marginBottom: '1rem' }}>
+          <div style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--color-primary)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
             Scanned Label Identity
           </div>
-          <h2 style={{ margin: '0.25rem 0 0.5rem 0', fontSize: '1.75rem', color: '#1a202c' }}>
+          <h2 style={{ margin: '0.25rem 0 0.5rem 0', fontSize: '1.75rem', color: 'var(--color-text)' }}>
             {resolved.boxDisplayId}
           </h2>
-          <div style={{ color: '#4a5568', fontSize: '0.95rem' }}>
+          <div style={{ color: 'var(--color-text-muted)', fontSize: '0.95rem' }}>
             📍 <strong>Location:</strong> {resolved.breadcrumbDisplay}
           </div>
         </div>
 
-        <h3 style={{ fontSize: '1.1rem', color: '#2d3748', marginTop: 0, marginBottom: '0.75rem' }}>
+        <h3 style={{ fontSize: '1.1rem', color: 'var(--color-text)', marginTop: 0, marginBottom: '0.75rem' }}>
           Container Inventory ({resolved.items.length})
         </h3>
 
         {resolved.items.length === 0 ? (
-          <div style={{ padding: '1.5rem', backgroundColor: '#f7fafc', borderRadius: '0.375rem', textAlign: 'center', color: '#a0aec0' }}>
+          <div style={{ padding: '1.5rem', backgroundColor: 'var(--color-bg-subtle)', borderRadius: '0.375rem', textAlign: 'center', color: 'var(--color-text-muted)' }}>
             This container is currently empty.
           </div>
         ) : (
@@ -116,13 +116,13 @@ export const ScanResolverScreen: React.FC = () => {
                   justifyContent: 'space-between',
                   alignItems: 'center',
                   padding: '0.75rem 1rem',
-                  backgroundColor: '#f7fafc',
-                  border: '1px solid #edf2f7',
+                  backgroundColor: 'var(--color-bg-subtle)',
+                  border: '1px solid var(--color-border-subtle)',
                   borderRadius: '0.375rem',
                 }}
               >
-                <span style={{ fontWeight: 600, color: '#2d3748' }}>{item.name}</span>
-                <span style={{ backgroundColor: '#e2e8f0', color: '#4a5568', padding: '0.2rem 0.6rem', borderRadius: '1rem', fontSize: '0.85rem', fontWeight: 700 }}>
+                <span style={{ fontWeight: 600, color: 'var(--color-text)' }}>{item.name}</span>
+                <span style={{ backgroundColor: 'var(--color-surface-raised)', color: 'var(--color-text-muted)', padding: '0.2rem 0.6rem', borderRadius: '1rem', fontSize: '0.85rem', fontWeight: 700 }}>
                   ×{item.quantity}
                 </span>
               </div>
@@ -130,11 +130,11 @@ export const ScanResolverScreen: React.FC = () => {
           </div>
         )}
 
-        <div style={{ display: 'flex', justifyContent: 'flex-end', borderTop: '1px solid #edf2f7', paddingTop: '1rem' }}>
+        <div style={{ display: 'flex', justifyContent: 'flex-end', borderTop: '1px solid var(--color-border-subtle)', paddingTop: '1rem' }}>
           <button
             type="button"
-            onClick={() => navigate(`/workspaces/${encodeURIComponent(resolved.workspaceId)}/containers`)}
-            style={{ padding: '0.5rem 1rem', backgroundColor: '#2b6cb0', color: '#fff', border: 'none', borderRadius: '0.25rem', fontWeight: 600, cursor: 'pointer' }}
+            onClick={() => navigate(`/workspaces/${encodeURIComponent(resolved.workspaceId)}/containers/${encodeURIComponent(resolved.containerId)}`)}
+            style={{ padding: '0.5rem 1rem', backgroundColor: 'var(--color-primary)', color: '#fff', border: 'none', borderRadius: '0.25rem', fontWeight: 600, cursor: 'pointer' }}
           >
             View Container Details
           </button>

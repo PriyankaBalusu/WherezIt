@@ -195,7 +195,8 @@ export const CodeScanner: React.FC<CodeScannerProps> = ({
       dynamicZxingHints.set(DecodeHintType.TRY_HARDER, true);
       zxingReader.setHints(dynamicZxingHints);
 
-      // If native BarcodeDetector is supported by browser, run detection loop
+      // Optionally initialize native BarcodeDetector if supported by browser
+      let barcodeDetector: any = null;
       if ('BarcodeDetector' in window) {
         try {
           let supportedFormats: string[] = [];
@@ -221,265 +222,266 @@ export const CodeScanner: React.FC<CodeScannerProps> = ({
 
           console.debug('[CodeScanner] active barcode formats', activeFormats);
 
-          let barcodeDetector: any;
           try {
             barcodeDetector = new (window as any).BarcodeDetector({ formats: activeFormats });
           } catch (initErr) {
             console.warn('[CodeScanner] Instantiating with activeFormats failed, falling back to default formats', initErr);
             barcodeDetector = new (window as any).BarcodeDetector();
           }
-
-          const isCorruptCode128 = (format: string, value: string): boolean => {
-            if (format === 'code_128') {
-              return /[\x00-\x1F\x7F]/.test(value);
-            }
-            return false;
-          };
-
-          const isWziPattern = (val: string) =>
-            val.includes('wzi_qr_') ||
-            val.includes('wzi_bar_') ||
-            val.startsWith('WZB_') ||
-            val.includes('/scan/');
-
-          const isPriorityA = (fmt: string, val: string) =>
-            isWziPattern(val) || fmt === 'qr_code' || (fmt === 'code_128' && isWziPattern(val));
-
-          const prioritizeCandidates = (items: any[]) => {
-            return [...items].sort((a, b) => {
-              const valA = a.rawValue || '';
-              const valB = b.rawValue || '';
-              const prioA = isPriorityA(a.format, valA);
-              const prioB = isPriorityA(b.format, valB);
-
-              if (prioA && !prioB) return -1;
-              if (!prioA && prioB) return 1;
-
-              return 0;
-            });
-          };
-
-          const isEanOrUpcOrGeneric = (fmt: string, val: string) => !isPriorityA(fmt, val);
-
-          const hasRecentHighPriority = () => {
-            const now = Date.now();
-            for (const [k, v] of detectionHistoryRef.current.entries()) {
-              if (now - v.lastSeen <= 2000) {
-                const colonIdx = k.indexOf(':');
-                const fmt = colonIdx >= 0 ? k.substring(0, colonIdx) : '';
-                const val = colonIdx >= 0 ? k.substring(colonIdx + 1) : k;
-                if (isPriorityA(fmt, val)) {
-                  return true;
-                }
-              }
-            }
-            return false;
-          };
-
-          const detectLoop = async () => {
-            if (videoRef.current && videoRef.current.readyState === videoRef.current.HAVE_ENOUGH_DATA) {
-              const now = Date.now();
-              let nativeBarcodes: any[] = [];
-              try {
-                nativeBarcodes = await barcodeDetector.detect(videoRef.current);
-              } catch (error) {
-                console.error('[CodeScanner] BarcodeDetector detect error', error);
-              }
-
-              const rawCandidates = [...(nativeBarcodes || [])];
-
-              const foundNativeHighPriority = rawCandidates.some(
-                (r: any) =>
-                  r.format === 'code_128' ||
-                  r.format === 'qr_code' ||
-                  (r.rawValue && (r.rawValue.includes('wzi_') || r.rawValue.startsWith('WZB_') || r.rawValue.includes('/scan/')))
-              );
-
-              if (!foundNativeHighPriority && now - lastZxingRunRef.current >= 200) {
-                const video = videoRef.current;
-                if (video && video instanceof HTMLVideoElement && video.readyState >= HTMLMediaElement.HAVE_CURRENT_DATA) {
-                  lastZxingRunRef.current = now;
-                  const width = video.videoWidth;
-                  const height = video.videoHeight;
-                  if (width > 0 && height > 0) {
-                    const canvas = document.createElement('canvas');
-                    canvas.width = width;
-                    canvas.height = height;
-                    const ctx = canvas.getContext('2d', { willReadFrequently: true });
-                    if (ctx) {
-                      ctx.drawImage(video, 0, 0, width, height);
-                      const imageData = ctx.getImageData(0, 0, width, height);
-                      const data = imageData.data;
-                      const luminances = new Uint8ClampedArray(width * height);
-                      for (let i = 0; i < luminances.length; i++) {
-                        const offset = i * 4;
-                        const r = data[offset];
-                        const g = data[offset + 1];
-                        const b = data[offset + 2];
-                        luminances[i] = (r * 306 + g * 601 + b * 117) >> 10;
-                      }
-
-                      const fullSource = new RGBLuminanceSource(luminances, width, height);
-
-                      const tryDecodeBitmap = (bitmap: BinaryBitmap) => {
-                        try {
-                          return zxingReader.decodeWithState(bitmap);
-                        } finally {
-                          zxingReader.reset();
-                        }
-                      };
-
-                      const tryDecodeSource = (source: LuminanceSource) => {
-                        try {
-                          return tryDecodeBitmap(new BinaryBitmap(new HybridBinarizer(source)));
-                        } catch (err) {
-                          if (err instanceof NotFoundException) {
-                            return tryDecodeBitmap(new BinaryBitmap(new GlobalHistogramBinarizer(source)));
-                          }
-                          throw err;
-                        }
-                      };
-
-                      let zxingResult = null;
-                      try {
-                        zxingResult = tryDecodeSource(fullSource);
-                      } catch (err) {
-                        if (err instanceof NotFoundException) {
-                          const cropW = Math.floor(width * 0.75);
-                          const cropH = Math.floor(height * 0.75);
-                          const cropLeft = Math.floor((width - cropW) / 2);
-                          const cropTop = Math.floor((height - cropH) / 2);
-                          const centerSource = fullSource.crop(cropLeft, cropTop, cropW, cropH);
-                          try {
-                            zxingResult = tryDecodeSource(centerSource);
-                          } catch (centerErr) {
-                            if (centerErr instanceof NotFoundException) {
-                              if (now - lastZxingNotFoundLogRef.current >= 2000) {
-                                lastZxingNotFoundLogRef.current = now;
-                                console.debug('[CodeScanner][ZXing] no barcode found (full & center crop)');
-                              }
-                            } else {
-                              console.error('[CodeScanner][ZXing] decode error (center crop)', centerErr);
-                            }
-                          }
-                        } else {
-                          console.error('[CodeScanner][ZXing] decode error (full frame)', err);
-                        }
-                      }
-
-                      if (zxingResult && zxingResult.getText()) {
-                        console.debug('[CodeScanner][ZXing] decoded', {
-                          format: zxingResult.getBarcodeFormat(),
-                          text: zxingResult.getText(),
-                        });
-                        const text = zxingResult.getText();
-                        const formatEnum = zxingResult.getBarcodeFormat();
-                        const formatStr =
-                          formatEnum === BarcodeFormat.CODE_128
-                            ? 'code_128'
-                            : formatEnum === BarcodeFormat.QR_CODE
-                            ? 'qr_code'
-                            : formatEnum === BarcodeFormat.EAN_13
-                            ? 'ean_13'
-                            : formatEnum === BarcodeFormat.EAN_8
-                            ? 'ean_8'
-                            : formatEnum === BarcodeFormat.UPC_A
-                            ? 'upc_a'
-                            : formatEnum === BarcodeFormat.UPC_E
-                            ? 'upc_e'
-                            : formatEnum === BarcodeFormat.CODE_39
-                            ? 'code_39'
-                            : 'zxing_barcode';
-                        rawCandidates.push({ format: formatStr, rawValue: text });
-                      }
-                    }
-                  }
-                }
-              }
-
-              if (rawCandidates.length > 0) {
-                console.debug(
-                  '[CodeScanner] detections',
-                  rawCandidates.map((r: any) => ({
-                    format: r.format,
-                    rawValue: r.rawValue,
-                  }))
-                );
-
-                let validBarcodes = rawCandidates.filter(
-                  (r: any) => r.rawValue && !isCorruptCode128(r.format, r.rawValue)
-                );
-
-                if (scanMode === 'WHEREZIT_ONLY' || (expectedFormats && !expectedFormats.some(f => ['ean_13', 'ean_8', 'upc_a', 'upc_e', 'code_39', 'all'].includes(f)))) {
-                  validBarcodes = validBarcodes.filter((r: any) => !isEanOrUpcOrGeneric(r.format, r.rawValue));
-                }
-
-                if (validBarcodes.length > 0) {
-                  const sorted = prioritizeCandidates(validBarcodes);
-                  const history = detectionHistoryRef.current;
-
-                  for (const [k, v] of history.entries()) {
-                    if (now - v.lastSeen > 2000) {
-                      history.delete(k);
-                    }
-                  }
-
-                  for (const candidate of sorted) {
-                    const isHighPriority = isPriorityA(candidate.format, candidate.rawValue);
-
-                    const key = `${candidate.format}:${candidate.rawValue}`;
-
-                    // Skip candidates currently in 404 lookup cooldown
-                    const cooldownUntil = failedLookupCooldownRef.current.get(key) || 0;
-                    if (now < cooldownUntil) {
-                      continue;
-                    }
-
-                    const existing = history.get(key);
-                    const newCount = existing ? existing.count + 1 : 1;
-                    const firstSeen = existing ? existing.firstSeen : now;
-                    history.set(key, { count: newCount, firstSeen, lastSeen: now });
-
-                    if (isHighPriority) {
-                      const requiredHits = isWziPattern(candidate.rawValue) ? 1 : 2;
-                      if (newCount >= requiredHits) {
-                        history.clear();
-                        stopCamera();
-                        handleResolveCode(candidate.rawValue, candidate.format);
-                        return;
-                      }
-                    } else if (isEanOrUpcOrGeneric(candidate.format, candidate.rawValue)) {
-                      if (hasRecentHighPriority()) {
-                        console.debug('[CodeScanner] Suppressing generic candidate because recent high priority code exists in history:', candidate.rawValue);
-                        continue;
-                      }
-
-                      if (newCount >= 3) {
-                        if (onScanRaw) {
-                          history.clear();
-                          stopCamera();
-                          handleResolveCode(candidate.rawValue, candidate.format);
-                          return;
-                        }
-
-                        if (!isResolvingAsyncRef.current) {
-                          history.delete(key);
-                          triggerGenericLookup(candidate.rawValue, key);
-                        }
-                      }
-                    }
-                  }
-                }
-              }
-            }
-            animFrameRef.current = requestAnimationFrame(detectLoop);
-          };
-
-          animFrameRef.current = requestAnimationFrame(detectLoop);
         } catch (err) {
           console.error('[CodeScanner] BarcodeDetector setup error', err);
         }
       }
+
+      const isCorruptCode128 = (format: string, value: string): boolean => {
+        if (format === 'code_128') {
+          return /[\x00-\x1F\x7F]/.test(value);
+        }
+        return false;
+      };
+
+      const isWziPattern = (val: string) =>
+        val.includes('wzi_qr_') ||
+        val.includes('wzi_bar_') ||
+        val.startsWith('WZB_') ||
+        val.includes('/scan/');
+
+      const isPriorityA = (fmt: string, val: string) =>
+        isWziPattern(val) || fmt === 'qr_code' || (fmt === 'code_128' && isWziPattern(val));
+
+      const prioritizeCandidates = (items: any[]) => {
+        return [...items].sort((a, b) => {
+          const valA = a.rawValue || '';
+          const valB = b.rawValue || '';
+          const prioA = isPriorityA(a.format, valA);
+          const prioB = isPriorityA(b.format, valB);
+
+          if (prioA && !prioB) return -1;
+          if (!prioA && prioB) return 1;
+
+          return 0;
+        });
+      };
+
+      const isEanOrUpcOrGeneric = (fmt: string, val: string) => !isPriorityA(fmt, val);
+
+      const detectLoop = async () => {
+        if (videoRef.current && videoRef.current.readyState === videoRef.current.HAVE_ENOUGH_DATA) {
+          const now = Date.now();
+          let nativeBarcodes: any[] = [];
+          if (barcodeDetector) {
+            try {
+              nativeBarcodes = await barcodeDetector.detect(videoRef.current);
+            } catch (error) {
+              console.error('[CodeScanner] BarcodeDetector detect error', error);
+            }
+          }
+
+          const rawCandidates = [...(nativeBarcodes || [])];
+
+          const hasNative1DMatch = rawCandidates.some(
+            (r: any) =>
+              r.format === 'code_128' ||
+              r.format === 'code_39' ||
+              r.format === 'ean_13' ||
+              r.format === 'ean_8' ||
+              r.format === 'upc_a' ||
+              r.format === 'upc_e'
+          );
+
+          if ((!barcodeDetector || !hasNative1DMatch) && now - lastZxingRunRef.current >= 200) {
+            const video = videoRef.current;
+            if (video && video instanceof HTMLVideoElement && video.readyState >= HTMLMediaElement.HAVE_CURRENT_DATA) {
+              lastZxingRunRef.current = now;
+              const width = video.videoWidth;
+              const height = video.videoHeight;
+              if (width > 0 && height > 0) {
+                const canvas = document.createElement('canvas');
+                canvas.width = width;
+                canvas.height = height;
+                const ctx = canvas.getContext('2d', { willReadFrequently: true });
+                if (ctx) {
+                  ctx.drawImage(video, 0, 0, width, height);
+                  const imageData = ctx.getImageData(0, 0, width, height);
+                  const data = imageData.data;
+                  const luminances = new Uint8ClampedArray(width * height);
+                  for (let i = 0; i < luminances.length; i++) {
+                    const offset = i * 4;
+                    const r = data[offset];
+                    const g = data[offset + 1];
+                    const b = data[offset + 2];
+                    luminances[i] = (r * 306 + g * 601 + b * 117) >> 10;
+                  }
+
+                  const fullSource = new RGBLuminanceSource(luminances, width, height);
+
+                  const tryDecodeBitmap = (bitmap: BinaryBitmap) => {
+                    try {
+                      return zxingReader.decodeWithState(bitmap);
+                    } finally {
+                      zxingReader.reset();
+                    }
+                  };
+
+                  const tryDecodeSource = (source: LuminanceSource) => {
+                    try {
+                      return tryDecodeBitmap(new BinaryBitmap(new HybridBinarizer(source)));
+                    } catch (err) {
+                      if (err instanceof NotFoundException) {
+                        return tryDecodeBitmap(new BinaryBitmap(new GlobalHistogramBinarizer(source)));
+                      }
+                      throw err;
+                    }
+                  };
+
+                  let zxingResult = null;
+                  try {
+                    zxingResult = tryDecodeSource(fullSource);
+                  } catch (err) {
+                    if (err instanceof NotFoundException) {
+                      const cropW = Math.floor(width * 0.75);
+                      const cropH = Math.floor(height * 0.75);
+                      const cropLeft = Math.floor((width - cropW) / 2);
+                      const cropTop = Math.floor((height - cropH) / 2);
+                      const centerSource = fullSource.crop(cropLeft, cropTop, cropW, cropH);
+                      try {
+                        zxingResult = tryDecodeSource(centerSource);
+                      } catch (centerErr) {
+                        if (centerErr instanceof NotFoundException) {
+                          if (now - lastZxingNotFoundLogRef.current >= 2000) {
+                            lastZxingNotFoundLogRef.current = now;
+                            console.debug('[CodeScanner][ZXing] no barcode found (full & center crop)');
+                          }
+                        } else {
+                          console.error('[CodeScanner][ZXing] decode error (center crop)', centerErr);
+                        }
+                      }
+                    } else {
+                      console.error('[CodeScanner][ZXing] decode error (full frame)', err);
+                    }
+                  }
+
+                  if (zxingResult && zxingResult.getText()) {
+                    console.debug('[CodeScanner][ZXing] decoded', {
+                      format: zxingResult.getBarcodeFormat(),
+                      text: zxingResult.getText(),
+                    });
+                    const text = zxingResult.getText();
+                    const formatEnum = zxingResult.getBarcodeFormat();
+                    const formatStr =
+                      formatEnum === BarcodeFormat.CODE_128
+                        ? 'code_128'
+                        : formatEnum === BarcodeFormat.QR_CODE
+                        ? 'qr_code'
+                        : formatEnum === BarcodeFormat.EAN_13
+                        ? 'ean_13'
+                        : formatEnum === BarcodeFormat.EAN_8
+                        ? 'ean_8'
+                        : formatEnum === BarcodeFormat.UPC_A
+                        ? 'upc_a'
+                        : formatEnum === BarcodeFormat.UPC_E
+                        ? 'upc_e'
+                        : formatEnum === BarcodeFormat.CODE_39
+                        ? 'code_39'
+                        : 'zxing_barcode';
+                    rawCandidates.push({ format: formatStr, rawValue: text });
+                  }
+                }
+              }
+            }
+          }
+
+          if (rawCandidates.length > 0) {
+            console.debug(
+              '[CodeScanner] detections',
+              rawCandidates.map((r: any) => ({
+                format: r.format,
+                rawValue: r.rawValue,
+              }))
+            );
+
+            let validBarcodes = rawCandidates.filter(
+              (r: any) => r.rawValue && !isCorruptCode128(r.format, r.rawValue)
+            );
+
+            if (
+              scanMode === 'WHEREZIT_ONLY' ||
+              (expectedFormats &&
+                !expectedFormats.some((f) =>
+                  ['ean_13', 'ean_8', 'upc_a', 'upc_e', 'code_39', 'all'].includes(f.toLowerCase())
+                ))
+            ) {
+              validBarcodes = validBarcodes.filter((r: any) => !isEanOrUpcOrGeneric(r.format, r.rawValue));
+            }
+
+            if (validBarcodes.length > 0) {
+              const sorted = prioritizeCandidates(validBarcodes);
+              const history = detectionHistoryRef.current;
+
+              for (const [k, v] of history.entries()) {
+                if (now - v.lastSeen > 2000) {
+                  history.delete(k);
+                }
+              }
+
+              const currentFrameHasHighPriority = validBarcodes.some((b: any) =>
+                isPriorityA(b.format, b.rawValue)
+              );
+
+              for (const candidate of sorted) {
+                const isHighPriority = isPriorityA(candidate.format, candidate.rawValue);
+                const key = `${candidate.format}:${candidate.rawValue}`;
+
+                // Skip candidates currently in 404 lookup cooldown
+                const cooldownUntil = failedLookupCooldownRef.current.get(key) || 0;
+                if (now < cooldownUntil) {
+                  continue;
+                }
+
+                const existing = history.get(key);
+                const newCount = existing ? existing.count + 1 : 1;
+                const firstSeen = existing ? existing.firstSeen : now;
+                history.set(key, { count: newCount, firstSeen, lastSeen: now });
+
+                if (isHighPriority) {
+                  const requiredHits = isWziPattern(candidate.rawValue) ? 1 : 2;
+                  if (newCount >= requiredHits) {
+                    history.clear();
+                    stopCamera();
+                    handleResolveCode(candidate.rawValue, candidate.format);
+                    return;
+                  }
+                } else if (isEanOrUpcOrGeneric(candidate.format, candidate.rawValue)) {
+                  if (currentFrameHasHighPriority) {
+                    console.debug(
+                      '[CodeScanner] Suppressing generic candidate because current frame contains high priority code:',
+                      candidate.rawValue
+                    );
+                    continue;
+                  }
+
+                  if (newCount >= 3) {
+                    if (onScanRaw) {
+                      history.clear();
+                      stopCamera();
+                      handleResolveCode(candidate.rawValue, candidate.format);
+                      return;
+                    }
+
+                    if (!isResolvingAsyncRef.current) {
+                      history.delete(key);
+                      triggerGenericLookup(candidate.rawValue, key);
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+        animFrameRef.current = requestAnimationFrame(detectLoop);
+      };
+
+      animFrameRef.current = requestAnimationFrame(detectLoop);
     } catch (err: any) {
       stopCamera();
       setCameraError(err.message || 'Unable to access camera. Please check permissions.');
