@@ -1,6 +1,6 @@
 # Local Development PostgreSQL 16 Environment
-# WARNING: These credentials are strictly for local development and testing.
-# Production environments must use Cloud SQL with secrets managed via Secret Manager.
+# NOTE: WHEREZIT_DEV_DB_PASSWORD must be supplied locally. Do not commit actual credentials.
+# Production credentials are managed separately through Secret Manager / Cloud SQL.
 version: '3.8'
 
 services:
@@ -10,7 +10,7 @@ services:
     environment:
       POSTGRES_DB: wherezit_dev
       POSTGRES_USER: wherezit
-      POSTGRES_PASSWORD: wherezit_dev_password
+      POSTGRES_PASSWORD: ${WHEREZIT_DEV_DB_PASSWORD}
     ports:
       - "5432:5432"
     volumes:
