@@ -475,6 +475,11 @@
 
 .mobile-empty-sublocations,
 .mobile-empty-locations {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
   font-size: 0.85rem;
   color: var(--color-text-muted, #64748b);
   font-style: italic;

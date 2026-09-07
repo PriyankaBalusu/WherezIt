@@ -13,7 +13,7 @@ export const LocationDetailScreen: React.FC = () => {
   const navigate = useNavigate();
 
   const { data: locations = [], isLoading: isLocationsLoading } = useStorageLocations(workspaceId || '');
-  const { data: containers = [], isLoading: isContainersLoading } = useContainers(workspaceId || '', locationId);
+  const { data: containers = [], isLoading: isContainersLoading } = useContainers(workspaceId || '');
 
   if (isLocationsLoading || isContainersLoading) {
     return (

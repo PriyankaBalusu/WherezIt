@@ -706,9 +706,6 @@ export const QuickPackScreen: React.FC = () => {
   };
 
   const executeSequentialMove = async (boxList: Container[]) => {
-    if (!workspaceId) {
-      return;
-    }
     setIsMovingBoxes(true);
     setError(null);
 
