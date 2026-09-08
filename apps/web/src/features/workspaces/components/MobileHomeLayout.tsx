@@ -47,6 +47,8 @@ export const MobileHomeLayout: React.FC<MobileHomeLayoutProps> = ({
   onRenameLocation,
 }) => {
   const navigate = useNavigate();
+  const [searchQuery, setSearchQuery] = useState('');
+
   const executeSearch = (queryToSubmit: string) => {
     const trimmed = queryToSubmit.trim();
     if (trimmed) {
