@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { useGlobalSearch } from '../hooks/useSearch';
+import { useVoiceSearch } from '../hooks/useVoiceSearch';
 import { getStorageSpaceDisplayName, formatSearchBreadcrumbDisplay } from '../../workspaces/utils/formatWorkspaceName';
 import './WorkspaceSearch.css';
 
@@ -37,10 +38,10 @@ export const WorkspaceSearch: React.FC<WorkspaceSearchProps> = ({ initialQuery =
     submitted && Boolean(activeQuery)
   );
 
-  const handleSearchSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    const trimmed = inputQuery.trim();
+  const executeSearch = (queryToSubmit: string) => {
+    const trimmed = queryToSubmit.trim();
     if (!trimmed) return;
+    setInputQuery(trimmed);
     setActiveQuery(trimmed);
     setSubmitted(true);
     setFilterType('ALL');
@@ -48,57 +49,17 @@ export const WorkspaceSearch: React.FC<WorkspaceSearchProps> = ({ initialQuery =
     setSearchParams({ q: trimmed, type: 'ALL', page: '1', pageSize: String(pageSize) });
   };
 
-  const [isListening, setIsListening] = useState(false);
-  const [recognitionRef, setRecognitionRef] = useState<any>(null);
-  const isSpeechSupported =
-    typeof window !== 'undefined' &&
-    (('SpeechRecognition' in window) || ('webkitSpeechRecognition' in window));
-
-  const handleVoiceSearch = () => {
-    if (isListening && recognitionRef) {
-      try {
-        recognitionRef.stop();
-      } catch {
-        // ignore
-      }
-      setIsListening(false);
-      return;
-    }
-
-    const SpeechRecognition =
-      (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
-
-    if (!SpeechRecognition) return;
-
-    try {
-      const recognition = new SpeechRecognition();
-      recognition.lang = 'en-US';
-      recognition.interimResults = false;
-
-      recognition.onstart = () => setIsListening(true);
-      recognition.onend = () => {
-        setIsListening(false);
-        setRecognitionRef(null);
-      };
-      recognition.onerror = () => {
-        setIsListening(false);
-        setRecognitionRef(null);
-      };
-
-      recognition.onresult = (event: any) => {
-        const transcript = event.results[0]?.[0]?.transcript;
-        if (transcript) {
-          setInputQuery(transcript);
-        }
-      };
-
-      setRecognitionRef(recognition);
-      recognition.start();
-    } catch {
-      setIsListening(false);
-      setRecognitionRef(null);
-    }
+  const handleSearchSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    executeSearch(inputQuery);
   };
+
+  const { isSpeechSupported, isListening, handleVoiceSearch } = useVoiceSearch((transcript) => {
+    const trimmed = transcript.trim();
+    if (trimmed) {
+      executeSearch(trimmed);
+    }
+  });
 
   // Filtered & Paginated Results calculation
   const filteredResults = (results || []).filter((r) => {

@@ -4,6 +4,7 @@ import { Workspace } from '../types/workspace';
 import { WorkspaceSelector } from './WorkspaceSelector';
 import { WorkspaceManageMenu } from './WorkspaceManageMenu';
 import { DEFAULT_SEARCH_SUGGESTIONS } from './WorkspaceHome';
+import { useVoiceSearch } from '../../search/hooks/useVoiceSearch';
 import './MobileHomeLayout.css';
 
 function getLocationIcon(name: string): string {
@@ -46,7 +47,20 @@ export const MobileHomeLayout: React.FC<MobileHomeLayoutProps> = ({
   onRenameLocation,
 }) => {
   const navigate = useNavigate();
-  const [searchQuery, setSearchQuery] = useState('');
+  const executeSearch = (queryToSubmit: string) => {
+    const trimmed = queryToSubmit.trim();
+    if (trimmed) {
+      navigate(`/search?q=${encodeURIComponent(trimmed)}`);
+    }
+  };
+
+  const { isSpeechSupported, isListening, handleVoiceSearch } = useVoiceSearch((transcript) => {
+    const trimmed = transcript.trim();
+    if (trimmed) {
+      setSearchQuery(trimmed);
+      executeSearch(trimmed);
+    }
+  });
   const [isAllLocationsView, setIsAllLocationsView] = useState(false);
   const [filterBy, setFilterBy] = useState<'active' | 'all' | 'archived'>('active');
   const [sortBy, setSortBy] = useState<'number' | 'name' | 'items'>('number');
@@ -62,9 +76,7 @@ export const MobileHomeLayout: React.FC<MobileHomeLayoutProps> = ({
   // Search submission
   const handleSearchSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (searchQuery.trim()) {
-      navigate(`/search?q=${encodeURIComponent(searchQuery.trim())}`);
-    }
+    executeSearch(searchQuery);
   };
 
   const handleSuggestionClick = (query: string) => {
@@ -448,6 +460,17 @@ export const MobileHomeLayout: React.FC<MobileHomeLayoutProps> = ({
               onChange={(e) => setSearchQuery(e.target.value)}
               aria-label="Search stored items or boxes"
             />
+            {isSpeechSupported && (
+              <button
+                type="button"
+                className={`mobile-voice-btn ${isListening ? 'mobile-voice-btn--listening' : ''}`}
+                onClick={handleVoiceSearch}
+                title={isListening ? 'Click to cancel voice input' : 'Search by voice'}
+                aria-label={isListening ? 'Stop voice search' : 'Start voice search'}
+              >
+                🎙️
+              </button>
+            )}
           </div>
           <button
             type="submit"

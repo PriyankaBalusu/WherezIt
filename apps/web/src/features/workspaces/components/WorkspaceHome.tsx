@@ -12,6 +12,7 @@ import {
   useRenameStorageLocation,
 } from '../../locations/hooks/useStorageLocations';
 import { useCreateContainer, useContainers } from '../../containers/hooks/useContainers';
+import { useVoiceSearch } from '../../search/hooks/useVoiceSearch';
 
 import { MobileHomeLayout } from './MobileHomeLayout';
 
@@ -57,6 +58,21 @@ export const WorkspaceHome: React.FC<WorkspaceHomeProps> = ({ activeWorkspace })
   const workspaceContext = useWorkspaceContext();
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedLocationId, setSelectedLocationId] = useState<string | null>(null);
+
+  const executeSearch = (queryToSubmit: string) => {
+    const trimmed = queryToSubmit.trim();
+    if (trimmed) {
+      navigate(`/search?q=${encodeURIComponent(trimmed)}`);
+    }
+  };
+
+  const { isSpeechSupported, isListening, handleVoiceSearch } = useVoiceSearch((transcript) => {
+    const trimmed = transcript.trim();
+    if (trimmed) {
+      setSearchQuery(trimmed);
+      executeSearch(trimmed);
+    }
+  });
 
   // Reset selected location when active workspace changes
   useEffect(() => {
@@ -105,9 +121,7 @@ export const WorkspaceHome: React.FC<WorkspaceHomeProps> = ({ activeWorkspace })
 
   const handleSearchSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (searchQuery.trim()) {
-      navigate(`/search?q=${encodeURIComponent(searchQuery.trim())}`);
-    }
+    executeSearch(searchQuery);
   };
 
   const handleSuggestionClick = (query: string) => {
@@ -267,6 +281,17 @@ export const WorkspaceHome: React.FC<WorkspaceHomeProps> = ({ activeWorkspace })
               onChange={(e) => setSearchQuery(e.target.value)}
               aria-label="Search stored items or boxes"
             />
+            {isSpeechSupported && (
+              <button
+                type="button"
+                className={`search-hero__voice-btn ${isListening ? 'search-hero__voice-btn--listening' : ''}`}
+                onClick={handleVoiceSearch}
+                title={isListening ? 'Click to cancel voice input' : 'Search by voice'}
+                aria-label={isListening ? 'Stop voice search' : 'Start voice search'}
+              >
+                🎙️ {isListening ? <span className="search-hero__voice-status">Listening...</span> : null}
+              </button>
+            )}
           </div>
           <button
             type="submit"
