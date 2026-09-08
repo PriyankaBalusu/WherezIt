@@ -8,8 +8,8 @@ interface WorkspaceErrorStateProps {
 export const WorkspaceErrorState: React.FC<WorkspaceErrorStateProps> = ({ error, onRetry }) => {
   return (
     <div className="workspace-error-container" style={{ padding: '2rem', textAlign: 'center', color: '#c0392b' }}>
-      <h2>Unable to Load Workspaces</h2>
-      <p>{error?.message || 'An unexpected error occurred while loading your workspace data.'}</p>
+      <h2>Unable to Load Storage Spaces</h2>
+      <p>{error?.message || 'An unexpected error occurred while loading your Storage Space data.'}</p>
       <button
         className="btn-primary"
         onClick={onRetry}

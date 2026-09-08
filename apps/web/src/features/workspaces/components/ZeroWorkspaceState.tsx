@@ -8,8 +8,8 @@ const createWorkspaceSchema = z.object({
   name: z
     .string()
     .transform((val) => val.trim())
-    .refine((val) => val.length >= 1, { message: 'Workspace name is required.' })
-    .refine((val) => val.length <= 100, { message: 'Workspace name cannot exceed 100 characters.' }),
+    .refine((val) => val.length >= 1, { message: 'Storage Space name is required.' })
+    .refine((val) => val.length <= 100, { message: 'Storage Space name cannot exceed 100 characters.' }),
 });
 
 type CreateWorkspaceFormData = z.infer<typeof createWorkspaceSchema>;
@@ -61,7 +61,7 @@ export const ZeroWorkspaceState: React.FC = () => {
           Welcome to WherezIt
         </h1>
         <p style={{ fontSize: '1.0625rem', color: 'var(--color-text-muted, #475569)', maxWidth: '540px', margin: '0 auto', lineHeight: 1.6 }}>
-          Set up your first storage workspace to start organizing your locations, containers, and items.
+          Set up your first Storage Space to start organizing your locations, containers, and items.
         </p>
       </div>
 
@@ -79,10 +79,10 @@ export const ZeroWorkspaceState: React.FC = () => {
         }}
       >
         <h2 style={{ fontSize: '1.25rem', fontWeight: 700, color: 'var(--color-text, #0f172a)', marginBottom: '0.5rem' }}>
-          Create Your First Workspace
+          Create Your First Storage Space
         </h2>
         <p style={{ fontSize: '0.875rem', color: 'var(--color-text-muted, #64748b)', marginBottom: '1.75rem', lineHeight: 1.5 }}>
-          A workspace represents a primary location you manage, such as your home, apartment, garage, or office.
+          A Storage Space represents a primary location you manage, such as your home, apartment, garage, or office.
         </p>
 
         <form onSubmit={handleSubmit(onSubmit)} noValidate>
@@ -91,7 +91,7 @@ export const ZeroWorkspaceState: React.FC = () => {
               htmlFor="workspaceName"
               style={{ display: 'block', fontSize: '0.875rem', fontWeight: 600, color: 'var(--color-text, #334155)', marginBottom: '0.5rem' }}
             >
-              Workspace Name
+              Storage Space Name
             </label>
             <input
               id="workspaceName"
@@ -176,10 +176,10 @@ export const ZeroWorkspaceState: React.FC = () => {
                     display: 'inline-block',
                   }}
                 />
-                Creating Workspace...
+                Creating Storage Space...
               </>
             ) : (
-              'Create Workspace'
+              'Create Storage Space'
             )}
           </button>
         </form>

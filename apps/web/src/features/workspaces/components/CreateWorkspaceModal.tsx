@@ -8,8 +8,8 @@ const createWorkspaceSchema = z.object({
   name: z
     .string()
     .transform((val) => val.trim())
-    .refine((val) => val.length >= 1, { message: 'Workspace name is required.' })
-    .refine((val) => val.length <= 100, { message: 'Workspace name cannot exceed 100 characters.' }),
+    .refine((val) => val.length >= 1, { message: 'Storage Space name is required.' })
+    .refine((val) => val.length <= 100, { message: 'Storage Space name cannot exceed 100 characters.' }),
 });
 
 type CreateWorkspaceFormData = z.infer<typeof createWorkspaceSchema>;
@@ -110,10 +110,10 @@ export const CreateWorkspaceModal: React.FC<CreateWorkspaceModalProps> = ({
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1.25rem' }}>
           <div>
             <h2 id="create-workspace-title" style={{ fontSize: '1.25rem', fontWeight: 700, color: 'var(--color-text, #0f172a)', margin: 0 }}>
-              Create Workspace
+              Create Storage Space
             </h2>
             <p id="create-workspace-desc" style={{ fontSize: '0.875rem', color: 'var(--color-text-muted, #64748b)', marginTop: '0.25rem', margin: 0 }}>
-              A workspace represents a place you organize, such as your home, garage, or storage unit.
+              A Storage Space represents a place you organize, such as your home, garage, or storage unit.
             </p>
           </div>
           <button
@@ -140,7 +140,7 @@ export const CreateWorkspaceModal: React.FC<CreateWorkspaceModalProps> = ({
               htmlFor="modalWorkspaceName"
               style={{ display: 'block', fontSize: '0.875rem', fontWeight: 600, color: 'var(--color-text, #334155)', marginBottom: '0.5rem' }}
             >
-              Workspace Name
+              Storage Space Name
             </label>
             <input
               id="modalWorkspaceName"
@@ -222,7 +222,7 @@ export const CreateWorkspaceModal: React.FC<CreateWorkspaceModalProps> = ({
                   Creating...
                 </>
               ) : (
-                'Create Workspace'
+                'Create Storage Space'
               )}
             </button>
           </div>
